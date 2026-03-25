@@ -1,0 +1,351 @@
+/* Genel sıfırlama */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; /* sistem fontu */
+    background: #eef1f5; /* yumuşak gri-mavi arka plan */
+    color: #2d2d2d; /* koyu metin */
+    line-height: 1.7; /* rahat satır yüksekliği */
+}
+
+/* ─── Kontrol Çubuğu (sadece ekranda) ─── */
+.kontrol-cubugu {
+    position: fixed; /* sabit konum */
+    top: 0; /* üstte */
+    left: 0; /* solda */
+    right: 0; /* sağda */
+    background: #1a1a2e; /* koyu arka plan */
+    color: #ffffff; /* beyaz metin */
+    padding: 12px 28px; /* iç boşluk */
+    display: flex; /* yatay düzen */
+    align-items: center; /* dikey ortala */
+    justify-content: space-between; /* iki yana yasla */
+    z-index: 1000; /* en üstte */
+    box-shadow: 0 2px 12px rgba(0,0,0,0.25); /* gölge */
+}
+.kontrol-baslik {
+    font-size: 14px; /* metin boyutu */
+    font-weight: 600; /* yarı kalın */
+    letter-spacing: 0.3px; /* harf aralığı */
+}
+.kontrol-butonlar { display: flex; gap: 10px; } /* buton grubu */
+.kontrol-buton {
+    padding: 9px 24px; /* iç boşluk */
+    border: none; /* kenarlık yok */
+    border-radius: 6px; /* köşe yuvarlatma */
+    font-size: 13px; /* metin boyutu */
+    font-weight: 600; /* yarı kalın */
+    cursor: pointer; /* tıklanabilir */
+    transition: all 0.2s; /* animasyon */
+}
+.kontrol-buton.birincil {
+    background: #4a8cff; /* mavi arka plan */
+    color: #ffffff; /* beyaz metin */
+}
+.kontrol-buton.birincil:hover { background: #3a7cef; } /* hover efekti */
+.kontrol-buton.ikincil {
+    background: #3a3a5a; /* koyu arka plan */
+    color: #ccccdd; /* açık metin */
+}
+.kontrol-buton.ikincil:hover { background: #4a4a6a; } /* hover efekti */
+
+/* ─── Yazdırma Alanı ─── */
+.yazdirma-alani {
+    max-width: 820px; /* maksimum genişlik */
+    margin: 76px auto 48px; /* üst: kontrol çubuğu altı, yatay: orta */
+    background: #ffffff; /* beyaz arka plan */
+    padding: 48px 56px; /* geniş iç boşluk */
+    box-shadow: 0 1px 6px rgba(0,0,0,0.08); /* hafif gölge */
+    border-radius: 4px; /* hafif köşe yuvarlatma */
+}
+
+/* ─── Sayfa Başlığı ─── */
+.sayfa-basligi h1 {
+    font-size: 24px; /* büyük başlık */
+    font-weight: 700; /* kalın */
+    color: #1a1a2e; /* koyu renk */
+    margin-bottom: 10px; /* alt boşluk */
+    line-height: 1.3; /* başlık satır yüksekliği */
+}
+.ust-bilgi {
+    display: flex; /* yatay düzen */
+    gap: 16px; /* öğeler arası boşluk */
+    font-size: 12px; /* küçük metin */
+    color: #777777; /* soluk renk */
+    margin-bottom: 16px; /* alt boşluk */
+}
+.ust-bilgi span:not(:last-child)::after {
+    content: '|'; /* ayırıcı */
+    margin-left: 16px; /* sol boşluk */
+    color: #cccccc; /* soluk ayırıcı */
+}
+.sayfa-basligi hr {
+    border: none; /* varsayılan kenarlık kaldır */
+    border-top: 2px solid #4a8cff; /* mavi üst çizgi */
+    margin-bottom: 32px; /* alt boşluk */
+}
+
+/* ─── Mesaj Bloğu ─── */
+.mesaj-blogu {
+    margin-bottom: 28px; /* mesajlar arası geniş boşluk */
+    page-break-inside: avoid; /* sayfa kırılmasını önle */
+}
+
+/* Etiket satırı (numara + rol) */
+.mesaj-etiket-satiri {
+    display: flex; /* yatay düzen */
+    align-items: center; /* dikey ortala */
+    gap: 8px; /* öğeler arası boşluk */
+    margin-bottom: 6px; /* alt boşluk */
+}
+
+/* Mesaj numarası */
+.mesaj-numara {
+    font-size: 11px; /* küçük metin */
+    font-weight: 600; /* yarı kalın */
+    color: #999999; /* soluk renk */
+    font-family: 'Consolas', 'Courier New', monospace; /* monospace */
+}
+
+/* Mesaj etiketi (Kullanıcı / Gemini) */
+.mesaj-etiketi {
+    font-size: 10px; /* küçük metin */
+    font-weight: 700; /* kalın */
+    text-transform: uppercase; /* büyük harf */
+    letter-spacing: 0.8px; /* geniş harf aralığı */
+    padding: 3px 10px; /* iç boşluk */
+    border-radius: 4px; /* köşe yuvarlatma */
+    display: inline-block; /* satır içi blok */
+}
+.mesaj-etiketi.kullanici {
+    background: #e3edfd; /* açık mavi arka plan */
+    color: #1a6be0; /* mavi metin */
+}
+.mesaj-etiketi.gemini {
+    background: #fde3e1; /* açık kırmızı arka plan */
+    color: #d42b1e; /* kırmızı metin */
+}
+.mesaj-etiketi.claude {
+    background: #fef3c7; /* açık amber arka plan */
+    color: #b45309; /* amber metin */
+}
+
+/* Mesaj içeriği */
+.mesaj-icerigi {
+    padding: 16px 20px; /* geniş iç boşluk */
+    border-radius: 8px; /* köşe yuvarlatma */
+    line-height: 1.8; /* rahat satır yüksekliği */
+    font-size: 14px; /* okunabilir boyut */
+}
+.mesaj-icerigi.kullanici {
+    background: #f6f8fb; /* açık gri-mavi arka plan */
+    border-left: 3px solid #4a8cff; /* sol mavi çizgi */
+}
+.mesaj-icerigi.gemini {
+    background: #fffbfa; /* çok hafif turuncu arka plan */
+    border-left: 3px solid #ea4335; /* sol kırmızı çizgi */
+}
+.mesaj-icerigi.claude {
+    background: #fffbeb; /* çok hafif amber arka plan */
+    border-left: 3px solid #d97706; /* sol amber çizgi */
+}
+
+/* ─── Mesaj İçi Tipografi ─── */
+.mesaj-icerigi p {
+    margin-bottom: 10px; /* paragraflar arası boşluk */
+}
+.mesaj-icerigi p:last-child { margin-bottom: 0; } /* son paragraf boşluk yok */
+
+.mesaj-icerigi h1, .mesaj-icerigi h2, .mesaj-icerigi h3, .mesaj-icerigi h4 {
+    margin-top: 16px; /* üst boşluk */
+    margin-bottom: 8px; /* alt boşluk */
+    color: #1a1a2e; /* koyu renk */
+    line-height: 1.4; /* başlık satır yüksekliği */
+}
+.mesaj-icerigi h1 { font-size: 1.35em; } /* h1 boyutu */
+.mesaj-icerigi h2 { font-size: 1.2em; } /* h2 boyutu */
+.mesaj-icerigi h3 { font-size: 1.08em; } /* h3 boyutu */
+.mesaj-icerigi h4 { font-size: 1em; font-weight: 600; } /* h4 boyutu */
+
+.mesaj-icerigi ul, .mesaj-icerigi ol {
+    padding-left: 28px; /* sol girinti */
+    margin-bottom: 10px; /* alt boşluk */
+}
+.mesaj-icerigi li {
+    margin-bottom: 5px; /* liste öğesi alt boşluk */
+    line-height: 1.7; /* satır yüksekliği */
+}
+
+.mesaj-icerigi strong, .mesaj-icerigi b { font-weight: 700; } /* kalın metin */
+.mesaj-icerigi em, .mesaj-icerigi i { font-style: italic; } /* italik metin */
+
+.mesaj-icerigi blockquote {
+    border-left: 3px solid #d0d0d0; /* sol çizgi */
+    padding-left: 16px; /* sol boşluk */
+    margin: 10px 0; /* dikey boşluk */
+    color: #555555; /* soluk renk */
+    font-style: italic; /* italik */
+}
+
+/* Kod blokları */
+.mesaj-icerigi pre {
+    background: #f4f5f7; /* açık gri arka plan */
+    border: 1px solid #e0e3e8; /* kenarlık */
+    border-radius: 6px; /* köşe yuvarlatma */
+    padding: 14px 18px; /* iç boşluk */
+    overflow-x: auto; /* yatay kaydırma */
+    margin: 12px 0; /* dikey boşluk */
+    font-size: 0.85em; /* küçük metin */
+    line-height: 1.55; /* satır yüksekliği */
+}
+.mesaj-icerigi code {
+    font-family: 'Consolas', 'Courier New', monospace; /* monospace font */
+    background: #f0f2f5; /* arka plan */
+    padding: 2px 6px; /* iç boşluk */
+    border-radius: 3px; /* köşe yuvarlatma */
+    font-size: 0.9em; /* boyut */
+    color: #c7254e; /* vurgulu renk */
+}
+.mesaj-icerigi pre code {
+    background: none; /* pre içindeki code arka plan yok */
+    padding: 0; /* boşluk yok */
+    color: inherit; /* renk miras */
+}
+
+/* ─── Artifact Blokları ─── */
+.artifact-blogu {
+    margin-top: 12px; /* üst boşluk */
+    border: 1px solid #d0d5dd; /* kenarlık */
+    border-radius: 8px; /* köşe yuvarlatma */
+    overflow: hidden; /* taşma gizle */
+}
+.artifact-baslik {
+    background: #1a1a2e; /* koyu başlık arka planı */
+    color: #e0e0e0; /* açık metin */
+    padding: 8px 16px; /* iç boşluk */
+    font-size: 12px; /* küçük metin */
+    font-weight: 600; /* yarı kalın */
+    font-family: 'Consolas', 'Courier New', monospace; /* monospace */
+    letter-spacing: 0.3px; /* harf aralığı */
+}
+.artifact-icerik {
+    background: #f8f9fb; /* açık gri arka plan */
+    padding: 14px 18px; /* iç boşluk */
+    margin: 0; /* pre default margin sıfırla */
+    border: none; /* kenarlık yok */
+    border-radius: 0; /* köşe yok (parent'ın radius'u yeterli) */
+    overflow-x: auto; /* yatay kaydırma */
+    font-size: 0.82em; /* küçük metin */
+    line-height: 1.55; /* satır yüksekliği */
+    white-space: pre-wrap; /* satır kaydır */
+    word-wrap: break-word; /* kelime kır */
+}
+.artifact-icerik code {
+    font-family: 'Consolas', 'Courier New', monospace; /* monospace */
+    background: none; /* arka plan yok */
+    padding: 0; /* boşluk yok */
+    color: #2d2d2d; /* koyu metin */
+    font-size: inherit; /* boyut miras */
+}
+.artifact-uyari {
+    padding: 10px 16px; /* iç boşluk */
+    color: #999999; /* soluk renk */
+    font-style: italic; /* italik */
+    font-size: 12px; /* küçük metin */
+}
+
+/* Tablolar */
+.mesaj-icerigi table {
+    width: 100%; /* tam genişlik */
+    border-collapse: collapse; /* kenarlık birleştir */
+    margin: 12px 0; /* dikey boşluk */
+    font-size: 0.9em; /* küçük metin */
+}
+.mesaj-icerigi th, .mesaj-icerigi td {
+    border: 1px solid #e0e3e8; /* kenarlık */
+    padding: 8px 12px; /* iç boşluk */
+    text-align: left; /* sola yasla */
+}
+.mesaj-icerigi th {
+    background: #f4f5f7; /* başlık arka plan */
+    font-weight: 600; /* yarı kalın */
+}
+.mesaj-icerigi tr:nth-child(even) td {
+    background: #fafbfc; /* zebra şeritleme */
+}
+
+/* ─── Sayfa Alt Bilgi ─── */
+.sayfa-alt-bilgi {
+    margin-top: 40px; /* üst boşluk */
+    text-align: center; /* ortala */
+    font-size: 11px; /* küçük metin */
+    color: #aaaaaa; /* soluk renk */
+}
+.sayfa-alt-bilgi hr {
+    border: none; /* kenarlık yok */
+    border-top: 1px solid #e8e8e8; /* ince çizgi */
+    margin-bottom: 14px; /* alt boşluk */
+}
+
+/* ─── Yazdırma Stilleri ─── */
+@media print {
+    /* Kontrol çubuğunu gizle */
+    .kontrol-cubugu { display: none !important; }
+
+    body {
+        background: #ffffff; /* beyaz arka plan */
+        color: #000000; /* siyah metin */
+    }
+
+    .yazdirma-alani {
+        margin: 0; /* boşluk yok */
+        padding: 24px 20px; /* kompakt iç boşluk */
+        box-shadow: none; /* gölge yok */
+        max-width: 100%; /* tam genişlik */
+        border-radius: 0; /* köşe yok */
+    }
+
+    .mesaj-blogu {
+        page-break-inside: avoid; /* sayfa kırılmasını önle */
+        margin-bottom: 20px; /* yazdırmada daha az boşluk */
+    }
+
+    .mesaj-icerigi {
+        padding: 10px 14px; /* kompakt iç boşluk */
+    }
+
+    .mesaj-icerigi.kullanici { background: #f5f5f5; } /* açık gri (yazıcı dostu) */
+    .mesaj-icerigi.gemini { background: #ffffff; } /* beyaz */
+    .mesaj-icerigi.claude { background: #ffffff; } /* beyaz */
+
+    /* Kod blokları yazdırmada */
+    .mesaj-icerigi pre {
+        white-space: pre-wrap; /* satır kaydır */
+        word-wrap: break-word; /* kelime kır */
+        border: 1px solid #cccccc; /* kenarlık */
+        background: #f8f8f8; /* açık arka plan */
+    }
+    .mesaj-icerigi code { color: #333333; } /* koyu renk (yazıcı dostu) */
+
+    /* Artifact blokları yazdırmada */
+    .artifact-blogu {
+        page-break-inside: avoid; /* sayfa kırılmasını önle */
+        border: 1px solid #cccccc; /* kenarlık */
+    }
+    .artifact-baslik {
+        background: #333333; /* koyu arka plan (yazıcı dostu) */
+        color: #ffffff; /* beyaz metin */
+        -webkit-print-color-adjust: exact; /* arka plan rengini zorla */
+        print-color-adjust: exact; /* arka plan rengini zorla */
+    }
+    .artifact-icerik {
+        background: #f5f5f5; /* açık arka plan */
+        white-space: pre-wrap; /* satır kaydır */
+        word-wrap: break-word; /* kelime kır */
+    }
+
+    /* Sayfa numarası ve üst/alt bilgi */
+    @page {
+        margin: 2cm 1.5cm; /* sayfa kenar boşlukları */
+    }
+}
