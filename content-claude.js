@@ -28,8 +28,9 @@ function butonuEnjekteEt() {
         return;
     }
 
-    // Zaten varsa ekleme
-    if (document.querySelector('#claude-printer-buton')) return; // tekrar kontrol
+    // Eski butonu sil (eklenti yeniden yüklenince ölü handler kalır)
+    const eskiButon = document.querySelector('#claude-printer-buton'); // eski buton
+    if (eskiButon) eskiButon.remove(); // sil ve yenisini oluştur
 
     // Header'daki içerik div'ini bul (flex items-center justify-between)
     const icerikDiv = header.querySelector('.flex.w-full.items-center.justify-between'); // butonlar alanı

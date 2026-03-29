@@ -28,8 +28,9 @@ function butonuEnjekteEt() {
         return;
     }
 
-    // Zaten varsa ekleme
-    if (document.querySelector('#gemini-printer-buton')) return; // tekrar kontrol
+    // Eski butonu sil (eklenti yeniden yüklenince ölü handler kalır)
+    const eskiButon = document.querySelector('#gemini-printer-buton'); // eski buton
+    if (eskiButon) eskiButon.closest('.buttons-container')?.remove() || eskiButon.remove(); // container ile birlikte sil
 
     // Buton container oluştur (Gemini'nin buton stiline uyumlu)
     const butonContainer = document.createElement('div'); // container div
