@@ -129,6 +129,10 @@ body {
     background: #fef3c7; /* açık amber arka plan */
     color: #b45309; /* amber metin */
 }
+.mesaj-etiketi.chatgpt {
+    background: #d1fae5; /* açık yeşil arka plan */
+    color: #047857; /* yeşil metin */
+}
 
 /* Mesaj içeriği */
 .mesaj-icerigi {
@@ -148,6 +152,10 @@ body {
 .mesaj-icerigi.claude {
     background: #fffbeb; /* çok hafif amber arka plan */
     border-left: 3px solid #d97706; /* sol amber çizgi */
+}
+.mesaj-icerigi.chatgpt {
+    background: #f0fdf4; /* çok hafif yeşil arka plan */
+    border-left: 3px solid #10a37f; /* sol yeşil çizgi */
 }
 
 /* ─── Mesaj İçi Tipografi ─── */
@@ -176,6 +184,7 @@ body {
     line-height: 1.7; /* satır yüksekliği */
 }
 
+.mesaj-icerigi a { word-break: break-all; } /* uzun linklerin taşmasını önle */
 .mesaj-icerigi strong, .mesaj-icerigi b { font-weight: 700; } /* kalın metin */
 .mesaj-icerigi em, .mesaj-icerigi i { font-style: italic; } /* italik metin */
 
@@ -185,6 +194,16 @@ body {
     margin: 10px 0; /* dikey boşluk */
     color: #555555; /* soluk renk */
     font-style: italic; /* italik */
+}
+
+/* Resimler */
+.mesaj-icerigi img, .mesaj-icerigi .mesaj-resim {
+    max-width: 100%; /* container'ı aşmasın */
+    height: auto; /* en-boy oranını koru */
+    border-radius: 6px; /* köşe yuvarlatma */
+    margin: 10px 0; /* dikey boşluk */
+    display: block; /* blok gösterim */
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1); /* hafif gölge */
 }
 
 /* Kod blokları */
@@ -260,11 +279,14 @@ body {
     border-collapse: collapse; /* kenarlık birleştir */
     margin: 12px 0; /* dikey boşluk */
     font-size: 0.9em; /* küçük metin */
+    table-layout: fixed; /* sabit kolon genişliği — taşmayı önle */
 }
 .mesaj-icerigi th, .mesaj-icerigi td {
     border: 1px solid #e0e3e8; /* kenarlık */
     padding: 8px 12px; /* iç boşluk */
     text-align: left; /* sola yasla */
+    word-break: break-word; /* uzun kelimeleri kır */
+    overflow-wrap: break-word; /* taşan metni sar */
 }
 .mesaj-icerigi th {
     background: #f4f5f7; /* başlık arka plan */
@@ -317,6 +339,7 @@ body {
     .mesaj-icerigi.kullanici { background: #f5f5f5; } /* açık gri (yazıcı dostu) */
     .mesaj-icerigi.gemini { background: #ffffff; } /* beyaz */
     .mesaj-icerigi.claude { background: #ffffff; } /* beyaz */
+    .mesaj-icerigi.chatgpt { background: #ffffff; } /* beyaz */
 
     /* Kod blokları yazdırmada */
     .mesaj-icerigi pre {
@@ -342,6 +365,15 @@ body {
         background: #f5f5f5; /* açık arka plan */
         white-space: pre-wrap; /* satır kaydır */
         word-wrap: break-word; /* kelime kır */
+    }
+
+    /* Resimler yazdırmada */
+    .mesaj-icerigi img, .mesaj-icerigi .mesaj-resim {
+        max-width: 100%; /* tam genişlik */
+        height: auto; /* oran koru */
+        page-break-inside: avoid; /* sayfa kırılmasını önle */
+        border-radius: 0; /* köşe yok */
+        box-shadow: none; /* gölge yok */
     }
 
     /* Sayfa numarası ve üst/alt bilgi */

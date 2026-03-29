@@ -1,8 +1,8 @@
 # AI Chat Printer - Chrome Extension
 
-**Google Gemini ve Claude.ai konusmalarini yazicidan yazdir veya PDF olarak kaydet.**
+**Google Gemini, Claude.ai ve ChatGPT konusmalarini yazicidan yazdir veya PDF olarak kaydet.**
 
-**Print your Google Gemini and Claude.ai conversations or save them as PDF.**
+**Print your Google Gemini, Claude.ai and ChatGPT conversations or save them as PDF.**
 
 ---
 
@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>v1.1.0</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
+  <strong>v1.2.0</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
 </p>
 
 ---
@@ -20,12 +20,13 @@
 
 ### Ne Yapar?
 
-AI Chat Printer, Google Gemini ve Claude.ai uzerinde yaptginiz konusmalari tek tikla yazdirmanizi veya PDF olarak kaydetmenizi saglar.
+AI Chat Printer, Google Gemini, Claude.ai ve ChatGPT uzerinde yaptginiz konusmalari tek tikla yazdirmanizi veya PDF olarak kaydetmenizi saglar.
 
-- Gemini ve Claude sayfalarinin icerisine **yazici butonu** enjekte eder
+- Gemini, Claude ve ChatGPT sayfalarinin icerisine **yazici butonu** enjekte eder
 - Konusma icerigini otomatik olarak cikarir (kullanici mesajlari + AI yanitlari)
 - Temiz, profesyonel bir **yazdirma onizleme sayfasi** olusturur
 - **Claude artifact'lari** (kod dosyalari, dokumanlar) otomatik olarak icerige dahil edilir
+- **Gemini resimleri** base64 formatinda yazdirma ciktisina dahil edilir
 - Tarayicinin **PDF olarak kaydet** ozelligi ile PDF'e donusturebilirsiniz
 - Konusma basligi otomatik olarak PDF dosya adi olarak kullanilir
 
@@ -33,13 +34,15 @@ AI Chat Printer, Google Gemini ve Claude.ai uzerinde yaptginiz konusmalari tek t
 
 | Ozellik | Aciklama |
 |---------|----------|
-| Gemini Destegi | gemini.google.com konusmalarini yazdirir |
+| Gemini Destegi | gemini.google.com konusmalarini yazdirir (resim destegi dahil) |
 | Claude Destegi | claude.ai konusmalarini yazdirir (artifact dahil) |
+| ChatGPT Destegi | chatgpt.com konusmalarini yazdirir |
 | Sayfa Ici Buton | Popup acmadan dogrudan sayfadan yazdir |
 | HTML Temizleme | XSS korumasli guvenli icerik render |
 | Mesaj Numaralama | Her mesaj sirayla numaralanir |
 | Kod Bloklari | Kod bloklari okunabilir formatta yazdirmaya dahil edilir |
 | Artifact Destegi | Claude'un olusturdugu dosyalar otomatik cikarilir |
+| Resim Destegi | Gemini konusmalarindaki resimler base64 olarak yazdirma ciktisina dahil edilir |
 | Otomatik Yazdir | Onizleme sayfasi acildiginda yazdir dialogu otomatik baslar |
 | PDF Kaydetme | Konusma basligini dosya adi olarak kullanir |
 | Responsive | Yazdirma ciktisi tum kagit boyutlarina uyumlu |
@@ -64,13 +67,13 @@ Chrome Web Store'da yayinlanmadigindan, eklentiyi manuel olarak yuklemeniz gerek
 
 #### 3. Kullanim
 
-1. [gemini.google.com](https://gemini.google.com) veya [claude.ai](https://claude.ai) adresine gidin
+1. [gemini.google.com](https://gemini.google.com), [claude.ai](https://claude.ai) veya [chatgpt.com](https://chatgpt.com) adresine gidin
 2. Bir konusma acin veya yeni konusma baslatin
 3. Sayfanin sag ust kosesinde beliren **yazici ikonuna** tiklayin
 4. Yazdirma onizleme sayfasi acilir ve otomatik olarak yazdir/PDF dialogu baslar
 5. **"PDF olarak kaydet"** secenegini secerek PDF dosyasi olusturabilirsiniz
 
-> **Not:** Eklentiyi yukledikten sonra acik olan Gemini/Claude sekmelerini yenilemeniz (F5) gerekir.
+> **Not:** Eklentiyi yukledikten sonra acik olan Gemini/Claude/ChatGPT sekmelerini yenilemeniz (F5) gerekir.
 
 ---
 
@@ -78,12 +81,13 @@ Chrome Web Store'da yayinlanmadigindan, eklentiyi manuel olarak yuklemeniz gerek
 
 ### What Does It Do?
 
-AI Chat Printer lets you print or save as PDF your Google Gemini and Claude.ai conversations with a single click.
+AI Chat Printer lets you print or save as PDF your Google Gemini, Claude.ai and ChatGPT conversations with a single click.
 
-- Injects a **printer button** directly into Gemini and Claude pages
+- Injects a **printer button** directly into Gemini, Claude and ChatGPT pages
 - Automatically extracts conversation content (user messages + AI responses)
 - Generates a clean, professional **print preview page**
 - **Claude artifacts** (code files, documents) are automatically included
+- **Gemini images** are included in print output as base64
 - Use your browser's **Save as PDF** feature to create PDF files
 - Conversation title is automatically used as the PDF filename
 
@@ -91,13 +95,15 @@ AI Chat Printer lets you print or save as PDF your Google Gemini and Claude.ai c
 
 | Feature | Description |
 |---------|-------------|
-| Gemini Support | Print conversations from gemini.google.com |
+| Gemini Support | Print conversations from gemini.google.com (with image support) |
 | Claude Support | Print conversations from claude.ai (including artifacts) |
+| ChatGPT Support | Print conversations from chatgpt.com |
 | In-Page Button | Print directly from the page without opening a popup |
 | HTML Sanitization | Secure content rendering with XSS protection |
 | Message Numbering | Each message is sequentially numbered |
 | Code Blocks | Code blocks are included in readable format |
 | Artifact Support | Files created by Claude are automatically extracted |
+| Image Support | Images in Gemini conversations are included as base64 in print output |
 | Auto Print | Print dialog opens automatically when preview loads |
 | PDF Export | Uses conversation title as the filename |
 | Responsive | Print output adapts to all paper sizes |
@@ -122,13 +128,13 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 
 #### 3. Usage
 
-1. Go to [gemini.google.com](https://gemini.google.com) or [claude.ai](https://claude.ai)
+1. Go to [gemini.google.com](https://gemini.google.com), [claude.ai](https://claude.ai) or [chatgpt.com](https://chatgpt.com)
 2. Open an existing conversation or start a new one
 3. Click the **printer icon** that appears in the top right area of the page
 4. A print preview page opens and the print/PDF dialog starts automatically
 5. Choose **"Save as PDF"** to create a PDF file
 
-> **Note:** After installing the extension, you need to refresh (F5) any open Gemini/Claude tabs.
+> **Note:** After installing the extension, you need to refresh (F5) any open Gemini/Claude/ChatGPT tabs.
 
 ---
 
@@ -136,8 +142,9 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 
 | Site | Durum / Status |
 |------|---------------|
-| gemini.google.com | ✅ Tam destek / Full support |
+| gemini.google.com | ✅ Tam destek (resim dahil) / Full support (with images) |
 | claude.ai | ✅ Tam destek (artifact dahil) / Full support (including artifacts) |
+| chatgpt.com | ✅ Tam destek / Full support |
 
 ---
 
@@ -148,6 +155,9 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 
 ### Claude - Sayfa Ici Buton / In-Page Button
 > Claude arabiriminde Share butonunun yaninda yazici butonu
+
+### ChatGPT - Sayfa Ici Buton / In-Page Button
+> ChatGPT arabiriminde Paylas butonunun yaninda yazici butonu
 
 ### Yazdirma Onizleme / Print Preview
 > Mesaj numaralama, rol etiketleri, kod bloklari ve artifact destegiyle temiz cikti
@@ -160,7 +170,7 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 - **Permissions:** `activeTab`, `scripting`, `storage` (minimum gerekli izinler)
 - **Dependencies:** Yok / None (saf JavaScript, harici kutuphane kullanilmaz)
 - **Data Storage:** Yazdirma verisi gecici olarak `chrome.storage.local`'da tutulur ve kullanildiktan sonra silinir. Hicbir veri disariya gonderilmez.
-- **Security:** HTML icerik whitelist tabanli sanitizer ile temizlenir (XSS koruması)
+- **Security:** HTML icerik whitelist tabanli sanitizer ile temizlenir (XSS korumasi)
 
 ---
 
@@ -169,8 +179,9 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ```
 ├── manifest.json          # Extension manifest (MV3)
 ├── background.js          # Service worker (tab management)
-├── content.js             # Gemini content script (button injection + extraction)
+├── content.js             # Gemini content script (button injection + image extraction)
 ├── content-claude.js      # Claude content script (button + artifact extraction)
+├── content-chatgpt.js     # ChatGPT content script (button injection + extraction)
 ├── popup.html             # Extension popup UI (fallback)
 ├── popup.js               # Popup logic
 ├── yazdir.html            # Print preview page
@@ -178,6 +189,32 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ├── yazdir.css             # Print styles (screen + print media)
 └── icons/                 # Extension icons (16/48/128px)
 ```
+
+---
+
+## Degisiklik Gecmisi / Changelog
+
+### v1.2.0 (29.03.2026)
+- **ChatGPT destegi eklendi** — chatgpt.com konusmalarini yazdirma
+- ChatGPT header'ina yazici butonu enjeksiyonu (Paylas butonunun soluna)
+- ChatGPT icin yesil (#10a37f) tema rengi
+- Tablo tasma sorunu duzeltildi (table-layout: fixed, word-break)
+- Uzun linklerin tasmasini onleyen CSS duzeltmesi
+
+### v1.1.0 (25.03.2026)
+- **Claude.ai destegi eklendi** — artifact (kod dosyalari, dokumanlar) otomatik cikarma
+- **Gemini resim destegi** — konusmalardaki resimler base64 olarak yazdirma ciktisina dahil
+- Claude icin amber (#d97706) tema rengi
+- HTML sanitizer'a IMG etiketi destegi eklendi
+- Tablo, blockquote, resim stilleri iyilestirildi
+
+### v1.0.0 (25.03.2026)
+- Ilk surum — Gemini destegi
+- Sayfa ici buton enjeksiyonu
+- Yazdirma onizleme sayfasi
+- HTML sanitizer (XSS korumasi)
+- Mesaj numaralama
+- PDF kaydetme destegi
 
 ---
 
