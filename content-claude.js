@@ -148,17 +148,17 @@ async function yazdirmaBaslat() {
         yaziBoyutu: '13' // normal yazı boyutu
     };
 
-    // chrome.storage erişim kontrolü (extension context kaybında undefined olabilir)
-    if (!chrome?.storage?.local) { // storage erişimi yoksa
-        uyariBalonuGoster('Eklenti bağlantısı koptu. Sayfayı yenileyip tekrar deneyin.', 'hata'); // hata mesajı
+    // Veriyi chrome.storage.local'a kaydet (try-catch — eklenti yeniden yüklenince context kaybolabilir)
+    try {
+        await chrome.storage.local.set({ // geçici veri kaydet
+            konusmaVerisi: veri, // konuşma içeriği
+            yazdirAyarlari: ayarlar // yazdırma ayarları
+        });
+    } catch (storageHata) { // extension context kaybolmuşsa
+        uyariBalonuGoster('Eklenti bağlantısı koptu. Sayfayı yenileyip (F5) tekrar deneyin.', 'hata'); // hata mesajı
+        console.error('Claude Printer: chrome.storage erişim hatası:', storageHata.message); // debug
         return;
     }
-
-    // Veriyi chrome.storage.local'a kaydet
-    await chrome.storage.local.set({ // geçici veri kaydet
-        konusmaVerisi: veri, // konuşma içeriği
-        yazdirAyarlari: ayarlar // yazdırma ayarları
-    });
 
     uyariBalonuGoster(veri.mesajSayisi + ' mesaj çıkarıldı. Yazdırma sayfası açılıyor...', 'basari'); // başarı mesajı
 
