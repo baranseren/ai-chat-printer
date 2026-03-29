@@ -28,8 +28,9 @@ function butonuEnjekteEt() {
         return;
     }
 
-    // Zaten varsa ekleme
-    if (document.querySelector('#chatgpt-printer-buton')) return; // tekrar kontrol
+    // Eski butonu sil (eklenti yeniden yüklenince ölü handler kalır)
+    const eskiButon = document.querySelector('#chatgpt-printer-buton'); // eski buton
+    if (eskiButon) eskiButon.remove(); // sil ve yenisini oluştur
 
     // Header'daki sağ butonlar alanını bul (3. child)
     const sagKisim = header.children[2]; // sağ taraftaki butonlar container'ı
