@@ -15,9 +15,9 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
 
     // Kaynak bilgisini belirle (gemini/claude)
     const kaynak = konusma.kaynak || 'gemini'; // varsayılan gemini
-    const yapayZekaAdi = kaynak === 'claude' ? 'CLAUDE' : 'GEMINI'; // etiket metni
-    const yapayZekaSinif = kaynak === 'claude' ? 'claude' : 'gemini'; // CSS sınıfı
-    const kaynakSite = kaynak === 'claude' ? 'claude.ai' : 'gemini.google.com'; // site adresi
+    const yapayZekaAdi = kaynak === 'claude' ? 'CLAUDE' : kaynak === 'chatgpt' ? 'CHATGPT' : 'GEMINI'; // etiket metni
+    const yapayZekaSinif = kaynak === 'claude' ? 'claude' : kaynak === 'chatgpt' ? 'chatgpt' : 'gemini'; // CSS sınıfı
+    const kaynakSite = kaynak === 'claude' ? 'claude.ai' : kaynak === 'chatgpt' ? 'chatgpt.com' : 'gemini.google.com'; // site adresi
 
     // Yazı boyutunu uygula
     if (ayarlar.yaziBoyutu) { // yazı boyutu ayarı varsa
@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
     }
 
     // Başlık ve tarih bilgisini yaz
-    const varsayilanBaslik = kaynak === 'claude' ? 'Claude Konusmasi' : 'Gemini Konusmasi'; // varsayılan başlık
+    const varsayilanBaslik = kaynak === 'claude' ? 'Claude Konusmasi' : kaynak === 'chatgpt' ? 'ChatGPT Konusmasi' : 'Gemini Konusmasi'; // varsayılan başlık
     const konusmaBasligi = konusma.baslik || varsayilanBaslik; // konuşma başlığı
     document.getElementById('konusmaBasligi').textContent = konusmaBasligi; // başlık
     document.getElementById('konusmaTarihi').textContent = konusma.tarih + ' ' + (konusma.saat || ''); // tarih ve saat
@@ -82,6 +82,17 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
         if (!ayarlar.kodBloklari) { // kod blokları dahil değilse
             const kodBloklari = icerikDiv.querySelectorAll('pre'); // tüm pre elementleri
             kodBloklari.forEach((blok) => blok.remove()); // pre bloklarını sil
+        }
+
+        // Mesaj içindeki ekstra resimleri ekle (kaynak element dışından yakalananlar)
+        if (mesaj.resimler && mesaj.resimler.length > 0) { // ekstra resim varsa
+            mesaj.resimler.forEach((resim) => { // her resmi render et
+                const resimElementi = document.createElement('img'); // img oluştur
+                resimElementi.src = resim.src; // base64 kaynak
+                resimElementi.className = 'mesaj-resim'; // CSS sınıfı
+                if (resim.alt) resimElementi.alt = resim.alt; // alt metin
+                icerikDiv.appendChild(resimElementi); // içerik alanına ekle
+            });
         }
 
         mesajBlogu.appendChild(icerikDiv); // içerik ekle
@@ -164,7 +175,7 @@ function htmlTemizle(htmlString) {
     // Güvenli etiketler listesi
     const izinliEtiketler = ['P', 'H1', 'H2', 'H3', 'H4', 'UL', 'OL', 'LI', 'PRE', 'CODE',
         'STRONG', 'B', 'EM', 'I', 'BR', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD',
-        'BLOCKQUOTE', 'A', 'SPAN', 'DIV', 'HR', 'SUP', 'SUB']; // izin verilen HTML etiketleri
+        'BLOCKQUOTE', 'A', 'SPAN', 'DIV', 'HR', 'SUP', 'SUB', 'IMG']; // izin verilen HTML etiketleri (IMG resim desteği)
 
     // DOMParser ile güvenli parse
     const parser = new DOMParser(); // HTML parser
@@ -190,6 +201,15 @@ function htmlTemizle(htmlString) {
                             yeniElement.setAttribute('href', href); // href ayarla
                             yeniElement.setAttribute('target', '_blank'); // yeni sekmede aç
                         }
+                    }
+
+                    // IMG etiketi için src ve alt kopyala (sadece data: ve https: güvenli kaynaklar)
+                    if (cocuk.tagName === 'IMG') { // resim etiketi
+                        const src = cocuk.getAttribute('src') || ''; // kaynak URL
+                        if (src.startsWith('data:') || src.startsWith('https://')) { // güvenli kaynaklar
+                            yeniElement.setAttribute('src', src); // kaynağı kopyala
+                        }
+                        if (cocuk.getAttribute('alt')) yeniElement.setAttribute('alt', cocuk.getAttribute('alt')); // alt metin kopyala
                     }
 
                     temizleVeKopyala(cocuk, yeniElement); // alt elementleri recursive temizle

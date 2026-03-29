@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "AI Chat Printer",
-  "version": "1.1.0",
-  "description": "Gemini ve Claude konuşmalarını yazıcıdan yazdırın",
+  "version": "1.2.0",
+  "description": "Gemini, Claude ve ChatGPT konuşmalarını yazıcıdan yazdırın",
   "permissions": ["activeTab", "scripting", "storage"],
   "action": {
     "default_popup": "popup.html",
@@ -29,6 +29,10 @@
     {
       "matches": ["https://claude.ai/*"],
       "js": ["content-claude.js"]
+    },
+    {
+      "matches": ["https://chatgpt.com/*"],
+      "js": ["content-chatgpt.js"]
     }
   ]
 }

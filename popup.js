@@ -16,9 +16,9 @@ document.addEventListener('DOMContentLoaded', () => { // DOM hazır olduğunda
             const [aktifSekme] = await chrome.tabs.query({ active: true, currentWindow: true }); // aktif sekme bilgisi
 
             // Desteklenen site kontrolü
-            const desteklenenSite = aktifSekme.url?.includes('gemini.google.com') || aktifSekme.url?.includes('claude.ai'); // URL kontrolü
+            const desteklenenSite = aktifSekme.url?.includes('gemini.google.com') || aktifSekme.url?.includes('claude.ai') || aktifSekme.url?.includes('chatgpt.com'); // URL kontrolü
             if (!desteklenenSite) { // desteklenmeyen site
-                durumGoster('hata', 'Bu eklenti gemini.google.com ve claude.ai sayfalarinda calisir.'); // hata mesajı
+                durumGoster('hata', 'Bu eklenti gemini.google.com, claude.ai ve chatgpt.com sayfalarinda calisir.'); // hata mesajı
                 butonuSifirla(); // butonu eski haline getir
                 return;
             }
