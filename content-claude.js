@@ -148,6 +148,12 @@ async function yazdirmaBaslat() {
         yaziBoyutu: '13' // normal yazı boyutu
     };
 
+    // chrome.storage erişim kontrolü (extension context kaybında undefined olabilir)
+    if (!chrome?.storage?.local) { // storage erişimi yoksa
+        uyariBalonuGoster('Eklenti bağlantısı koptu. Sayfayı yenileyip tekrar deneyin.', 'hata'); // hata mesajı
+        return;
+    }
+
     // Veriyi chrome.storage.local'a kaydet
     await chrome.storage.local.set({ // geçici veri kaydet
         konusmaVerisi: veri, // konuşma içeriği
