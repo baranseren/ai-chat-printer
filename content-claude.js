@@ -129,8 +129,10 @@ async function yazdirmaBaslat() {
     }
     const artifactIcerikleri = await artifactIcerikleriniCikar(); // artifact içeriklerini topla
 
-    // Konuşma verisini çıkar (artifact içerikleriyle birlikte)
-    const veri = konusmayiCikar(artifactIcerikleri); // konuşma verisini çıkar
+    uyariBalonuGoster('Konuşma çıkarılıyor, resimler işleniyor...', 'basari'); // çıkarma aşaması bildirimi
+
+    // Konuşma verisini çıkar (artifact içerikleriyle birlikte, async — resim dönüşümü için)
+    const veri = await konusmayiCikar(artifactIcerikleri); // konuşma verisini çıkar
 
     if (veri.hata) { // hata varsa
         uyariBalonuGoster('Hata: ' + veri.hata, 'hata'); // hata mesajı göster
@@ -304,8 +306,8 @@ function uyariBalonuGoster(mesaj, tip) {
     }, 3000);
 }
 
-// Claude.ai sayfasından konuşma verilerini çıkarır
-function konusmayiCikar(artifactIcerikleri) {
+// Claude.ai sayfasından konuşma verilerini çıkarır (async — resim base64 dönüşümü için)
+async function konusmayiCikar(artifactIcerikleri) {
     const mesajlar = []; // tüm mesajları tutacak dizi
     const artifactListesi = artifactIcerikleri || []; // önceden çıkarılmış artifact içerikleri
     let artifactSayaci = 0; // hangi artifact'a geldiğimizi takip eder
@@ -326,10 +328,13 @@ function konusmayiCikar(artifactIcerikleri) {
         // Kullanıcı mesajı mı?
         const kullaniciEl = turn.querySelector('[data-testid="user-message"]'); // kullanıcı mesajı ara
         if (kullaniciEl) { // kullanıcı mesajı bulunduysa
+            const htmlIcerik = await resimliHtmlCikar(kullaniciEl); // resimleri base64'e çevirip HTML çıkar
+            const ekstraResimler = await turnResimleriniTopla(turn, kullaniciEl); // turn'deki ekstra resimleri topla
             mesajlar.push({
                 rol: 'kullanici', // mesaj rolü
-                html: kullaniciEl.innerHTML, // HTML içerik
-                metin: kullaniciEl.textContent?.trim() || '' // düz metin
+                html: htmlIcerik, // base64 resimli HTML içerik
+                metin: kullaniciEl.textContent?.trim() || '', // düz metin
+                resimler: ekstraResimler // kullanıcı eki resimleri
             });
             continue; // sonraki turn'e geç
         }
@@ -343,12 +348,12 @@ function konusmayiCikar(artifactIcerikleri) {
             let birlesikMetin = ''; // tüm blokların metni
 
             if (markdownlar.length > 0) { // en az bir markdown bulunduysa
-                markdownlar.forEach((markdownEl) => { // her bloğu birleştir
-                    birlesikHtml += markdownEl.innerHTML; // HTML ekle
+                for (const markdownEl of markdownlar) { // her bloğu birleştir (async — resim dönüşümü için)
+                    birlesikHtml += await resimliHtmlCikar(markdownEl); // resimli HTML ekle
                     birlesikMetin += (birlesikMetin ? '\n\n' : '') + (markdownEl.textContent?.trim() || ''); // metin ekle
-                });
+                }
             } else { // markdown bulunamadıysa tüm Claude yanıtını al
-                birlesikHtml = claudeEl.innerHTML; // HTML içerik
+                birlesikHtml = await resimliHtmlCikar(claudeEl); // resimli HTML içerik
                 birlesikMetin = claudeEl.textContent?.trim() || ''; // düz metin
             }
 
@@ -387,8 +392,7 @@ function konusmayiCikar(artifactIcerikleri) {
 // Popup'tan gelen mesajları da dinle (fallback)
 chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => { // mesaj dinleyici
     if (mesaj.islem === 'konusmayiCikar') { // konuşma çıkarma isteği
-        const veri = konusmayiCikar(); // konuşmayı çıkar
-        yanitGonder(veri); // veriyi geri gönder
+        konusmayiCikar().then((veri) => yanitGonder(veri)); // async çıkar ve gönder
     }
     return true; // asenkron yanıt için true döndür
 });

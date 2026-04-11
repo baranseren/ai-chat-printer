@@ -8,8 +8,8 @@ document.addEventListener('DOMContentLoaded', () => { // DOM hazır olduğunda
     // Yazdır butonuna tıklama olayı
     yazdirButonu.addEventListener('click', async () => { // tıklama dinleyici
         yazdirButonu.disabled = true; // butonu devre dışı bırak
-        yazdirButonu.textContent = 'Cikariliyor...'; // buton metnini güncelle
-        durumGoster('bilgi', 'Konusma icerigi cikariliyor...'); // bilgi mesajı göster
+        yazdirButonu.textContent = 'Çıkarılıyor...'; // buton metnini güncelle
+        durumGoster('bilgi', 'Konuşma içeriği çıkarılıyor...'); // bilgi mesajı göster
 
         try {
             // Aktif sekmeyi al
@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => { // DOM hazır olduğunda
             // Desteklenen site kontrolü
             const desteklenenSite = aktifSekme.url?.includes('gemini.google.com') || aktifSekme.url?.includes('claude.ai') || aktifSekme.url?.includes('chatgpt.com'); // URL kontrolü
             if (!desteklenenSite) { // desteklenmeyen site
-                durumGoster('hata', 'Bu eklenti gemini.google.com, claude.ai ve chatgpt.com sayfalarinda calisir.'); // hata mesajı
+                durumGoster('hata', 'Bu eklenti gemini.google.com, claude.ai ve chatgpt.com sayfalarında çalışır.'); // hata mesajı
                 butonuSifirla(); // butonu eski haline getir
                 return;
             }
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => { // DOM hazır olduğunda
             }
 
             if (!yanit.mesajlar || yanit.mesajlar.length === 0) { // mesaj yoksa
-                durumGoster('hata', 'Konusmada mesaj bulunamadi. Bir sohbet acik oldugundan emin olun.'); // uyarı
+                durumGoster('hata', 'Konuşmada mesaj bulunamadı. Bir sohbet açık olduğundan emin olun.'); // uyarı
                 butonuSifirla(); // butonu sıfırla
                 return;
             }
@@ -51,14 +51,14 @@ document.addEventListener('DOMContentLoaded', () => { // DOM hazır olduğunda
                 yazdirAyarlari: ayarlar // yazdırma ayarları
             });
 
-            durumGoster('basarili', yanit.mesajSayisi + ' mesaj cikarildi. Yazdirma sayfasi aciliyor...'); // başarı mesajı
+            durumGoster('basarili', yanit.mesajSayisi + ' mesaj çıkarıldı. Yazdırma sayfası açılıyor...'); // başarı mesajı
 
             // Yazdırma sayfasını aç
             chrome.tabs.create({ url: chrome.runtime.getURL('yazdir.html') }); // yeni sekmede aç
 
         } catch (hata) { // hata yakalandıysa
-            console.error('Gemini Printer hata:', hata); // konsola yaz
-            durumGoster('hata', 'Bir hata olustu: ' + hata.message); // kullanıcıya göster
+            console.error('AI Chat Printer hata:', hata); // konsola yaz
+            durumGoster('hata', 'Bir hata oluştu: ' + hata.message); // kullanıcıya göster
             butonuSifirla(); // butonu sıfırla
         }
     });
@@ -75,5 +75,5 @@ function durumGoster(tip, mesaj) { // tip: basarili, hata, bilgi
 function butonuSifirla() {
     const yazdirButonu = document.getElementById('yazdirButonu'); // buton referansı
     yazdirButonu.disabled = false; // butonu aktif et
-    yazdirButonu.textContent = 'Konusmayı Yazdir'; // orijinal metni geri yükle
+    yazdirButonu.textContent = 'Konuşmayı Yazdır'; // orijinal metni geri yükle
 }

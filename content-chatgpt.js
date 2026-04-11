@@ -114,9 +114,9 @@ function butonuEnjekteEt() {
 
 // Yazdırma işlemini başlatır
 async function yazdirmaBaslat() {
-    uyariBalonuGoster('Konuşma çıkarılıyor...', 'basari'); // işlem başladı bildirimi
+    uyariBalonuGoster('Konuşma çıkarılıyor, resimler işleniyor...', 'basari'); // işlem başladı bildirimi
 
-    const veri = konusmayiCikar(); // konuşma verisini çıkar
+    const veri = await konusmayiCikar(); // konuşma verisini çıkar (async — resim dönüşümü için)
 
     if (veri.hata) { // hata varsa
         uyariBalonuGoster('Hata: ' + veri.hata, 'hata'); // hata mesajı göster
@@ -195,8 +195,8 @@ function uyariBalonuGoster(mesaj, tip) {
     }, 3000);
 }
 
-// ChatGPT sayfasından konuşma verilerini çıkarır
-function konusmayiCikar() {
+// ChatGPT sayfasından konuşma verilerini çıkarır (async — resim base64 dönüşümü için)
+async function konusmayiCikar() {
     const mesajlar = []; // tüm mesajları tutacak dizi
 
     // Tüm conversation turn'lerini sırayla bul
@@ -205,10 +205,10 @@ function konusmayiCikar() {
         return { hata: 'Konuşma bulunamadı. Bir ChatGPT sohbeti açık olduğundan emin olun.', mesajlar: [] };
     }
 
-    tumTurnlar.forEach((turn) => { // her turn'ü sırayla işle
+    for (const turn of tumTurnlar) { // her turn'ü sırayla işle (async resim dönüşümü için)
         // Turn içindeki mesaj rolünü belirle
         const mesajEl = turn.querySelector('[data-message-author-role]'); // mesaj elementi
-        if (!mesajEl) return; // mesaj yoksa atla
+        if (!mesajEl) continue; // mesaj yoksa atla
 
         const rol = mesajEl.getAttribute('data-message-author-role'); // user veya assistant
 
@@ -216,22 +216,30 @@ function konusmayiCikar() {
             const balonEl = mesajEl.querySelector('.user-message-bubble-color'); // kullanıcı balonu
             const kaynakEl = balonEl || mesajEl; // balon yoksa mesaj elementinin kendisi
 
+            const htmlIcerik = await resimliHtmlCikar(kaynakEl); // resimleri base64'e çevirip HTML çıkar
+            const ekstraResimler = await turnResimleriniTopla(turn, kaynakEl); // kaynak dışındaki resimler (yüklenen dosyalar)
+
             mesajlar.push({
                 rol: 'kullanici', // mesaj rolü
-                html: kaynakEl.innerHTML || '', // HTML içerik
-                metin: kaynakEl.textContent?.trim() || '' // düz metin
+                html: htmlIcerik, // base64 resimli HTML içerik
+                metin: kaynakEl.textContent?.trim() || '', // düz metin
+                resimler: ekstraResimler // kullanıcı eki resimleri
             });
         } else if (rol === 'assistant') { // ChatGPT yanıtı
             const markdownEl = mesajEl.querySelector('.markdown'); // markdown içerik
             const kaynakEl = markdownEl || mesajEl; // markdown yoksa mesaj elementinin kendisi
 
+            const htmlIcerik = await resimliHtmlCikar(kaynakEl); // resimleri base64'e çevirip HTML çıkar (DALL-E)
+            const ekstraResimler = await turnResimleriniTopla(turn, kaynakEl); // kaynak dışındaki resimler
+
             mesajlar.push({
                 rol: 'chatgpt', // mesaj rolü
-                html: kaynakEl.innerHTML || '', // HTML içerik
-                metin: kaynakEl.textContent?.trim() || '' // düz metin
+                html: htmlIcerik, // base64 resimli HTML içerik
+                metin: kaynakEl.textContent?.trim() || '', // düz metin
+                resimler: ekstraResimler // yanıt içindeki ekstra resimler
             });
         }
-    });
+    }
 
     // Konuşma başlığını al
     const sayfaBasligi = document.title?.trim() || 'ChatGPT Konuşması'; // sayfa başlığı
@@ -249,8 +257,7 @@ function konusmayiCikar() {
 // Popup'tan gelen mesajları da dinle (fallback)
 chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => { // mesaj dinleyici
     if (mesaj.islem === 'konusmayiCikar') { // konuşma çıkarma isteği
-        const veri = konusmayiCikar(); // konuşmayı çıkar
-        yanitGonder(veri); // veriyi geri gönder
+        konusmayiCikar().then((veri) => yanitGonder(veri)); // async çıkar ve gönder
     }
     return true; // asenkron yanıt için true döndür
 });

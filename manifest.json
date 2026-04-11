@@ -24,15 +24,15 @@
   "content_scripts": [
     {
       "matches": ["https://gemini.google.com/*"],
-      "js": ["content.js"]
+      "js": ["resim-yardimcilari.js", "content.js"]
     },
     {
       "matches": ["https://claude.ai/*"],
-      "js": ["content-claude.js"]
+      "js": ["resim-yardimcilari.js", "content-claude.js"]
     },
     {
       "matches": ["https://chatgpt.com/*"],
-      "js": ["content-chatgpt.js"]
+      "js": ["resim-yardimcilari.js", "content-chatgpt.js"]
     }
   ]
 }
