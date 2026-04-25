@@ -16,6 +16,8 @@ function baslat() {
     }, 200);
     const gozlemci = new MutationObserver(butonuKontrolEt); // debounce'lu observer
     gozlemci.observe(document.body, { childList: true, subtree: true }); // body'deki değişiklikleri izle
+    // Sayfa gizlenince observer'ı temizle (memory leak önleme)
+    window.addEventListener('pagehide', () => gozlemci.disconnect(), { once: true }); // pagehide event
 }
 
 // Grok'un agresif React reconciliation'ı header inject'ini bozuyor — floating fixed button kullan
@@ -183,10 +185,11 @@ function grokMesajRolu(el) {
     }
 
     // 2. aria-label içinde "user" / "you" / "grok" / "assistant"
+    // Türkçe karakter Unicode word boundary'de tutmaz — `\b` yerine substring eşleşme kullanılır
     const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase(); // aria-label
     if (ariaLabel) { // varsa
-        if (/\b(user|you|sen|kullanıcı|kullanici)\b/.test(ariaLabel)) return 'user'; // kullanıcı
-        if (/\b(grok|assistant|ai|bot)\b/.test(ariaLabel)) return 'assistant'; // Grok
+        if (/(^|[^a-z])(user|you|sen|kullanıcı|kullanici)([^a-z]|$)/i.test(ariaLabel)) return 'user'; // kullanıcı (ASCII boundary)
+        if (/(^|[^a-z])(grok|assistant|ai|bot)([^a-z]|$)/i.test(ariaLabel)) return 'assistant'; // Grok (ASCII boundary)
     }
 
     // 3. Class içinde "user" / "human" / "assistant" / "grok" / "query" / "response"

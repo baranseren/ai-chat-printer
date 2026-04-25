@@ -16,6 +16,8 @@ function baslat() {
     }, 200);
     const gozlemci = new MutationObserver(butonuKontrolEt); // debounce'lu observer
     gozlemci.observe(document.body, { childList: true, subtree: true }); // body'deki değişiklikleri izle
+    // Sayfa gizlenince observer'ı temizle (memory leak önleme)
+    window.addEventListener('pagehide', () => gozlemci.disconnect(), { once: true }); // pagehide event
 }
 
 // Yazdır butonunu ChatGPT header'ına enjekte eder

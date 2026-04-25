@@ -1,16 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "AI Chat Printer",
-  "short_name": "AI Chat Printer",
-  "version": "1.5.0",
-  "description": "Gemini, Claude, ChatGPT ve Grok konuşmalarını tek tıkla yazdır veya PDF olarak kaydet. Hızlı, güvenli ve ücretsiz.",
+  "name": "__MSG_extName__",
+  "short_name": "__MSG_extName__",
+  "version": "1.5.1",
+  "description": "__MSG_extDescription__",
   "minimum_chrome_version": "114",
   "default_locale": "tr",
-  "homepage_url": "https://github.com/baranseren/GeminiPrinter",
+  "homepage_url": "https://github.com/baranseren/ai-chat-printer",
   "permissions": ["activeTab", "scripting", "storage", "clipboardWrite"],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "AI Chat Printer - Konuşmayı Yazdır",
+    "default_title": "__MSG_actionTitle__",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
@@ -53,7 +53,7 @@
         "default": "Ctrl+Shift+P",
         "mac": "Command+Shift+P"
       },
-      "description": "Aktif AI konuşmasını yazdır"
+      "description": "__MSG_kisayolAciklama__"
     }
   },
   "content_security_policy": {

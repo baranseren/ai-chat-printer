@@ -19,6 +19,8 @@ function baslat() {
     }, 200);
     observerAktif = new MutationObserver(butonuKontrolEt); // debounce'lu observer
     observerAktif.observe(document.body, { childList: true, subtree: true }); // body'deki değişiklikleri izle
+    // Sayfa gizlenince observer'ı temizle (memory leak önleme)
+    window.addEventListener('pagehide', () => observerAktif?.disconnect(), { once: true }); // pagehide event
 }
 
 // Yazdır butonunu Claude header'ına enjekte eder
