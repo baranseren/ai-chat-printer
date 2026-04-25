@@ -53,9 +53,11 @@ function debounce(fonksiyon, gecikme) {
 // Streaming durumda mı kontrol eder — AI yanıt yazıyorsa true
 function streamingMiKontrol(kaynak) {
     if (kaynak === 'gemini') { // Gemini streaming göstergeleri
-        const hazirMi = document.querySelector('message-content:not([data-is-complete="true"])'); // tamamlanmamış yanıt
-        const stopButon = document.querySelector('button[aria-label*="Stop" i], button[aria-label*="Durdur" i]'); // durdur butonu
-        return !!(hazirMi || (stopButon && stopButon.offsetParent !== null)); // görünür durdur butonu varsa streaming
+        // data-is-complete attribute'u Gemini DOM'unda artık güvenilir değil — false positive üretiyordu
+        // Tek güvenilir gösterge: aktif "Stop"/"Durdur" butonu görünür mü
+        const stopButon = document.querySelector('button[aria-label*="Stop" i], button[aria-label*="Durdur" i], button[aria-label*="stop generating" i], button[aria-label*="yanıt vermeyi" i]'); // durdur butonu varyantları
+        const streamingEl = document.querySelector('[data-is-streaming="true"]'); // alternatif streaming attribute
+        return !!(streamingEl || (stopButon && stopButon.offsetParent !== null)); // görünür durdur butonu veya streaming attribute
     }
     if (kaynak === 'claude') { // Claude streaming göstergeleri
         const stopButon = document.querySelector('button[aria-label*="Stop" i]'); // durdur butonu
