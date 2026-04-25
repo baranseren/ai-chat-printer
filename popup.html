@@ -131,7 +131,16 @@
             text-align: center; /* ortala */
             margin-top: 12px; /* üst boşluk */
             font-size: 10px; /* küçük metin */
-            color: #555577; /* soluk renk */
+            color: #888899; /* soluk renk */
+        }
+        .alt-bilgi kbd {
+            background: #2a2a4a; /* koyu arka plan */
+            border: 1px solid #3a3a5a; /* kenarlık */
+            border-radius: 3px; /* köşe yuvarlatma */
+            padding: 1px 5px; /* iç boşluk */
+            font-family: 'Consolas', 'Courier New', monospace; /* monospace */
+            font-size: 10px; /* boyut */
+            color: #aaaacc; /* açık renk */
         }
     </style>
 </head>
@@ -145,7 +154,7 @@
         </svg>
         <div>
             <h1>AI Chat Printer</h1>
-            <p>Gemini, Claude &amp; ChatGPT konuşmalarını yazdır</p>
+            <p>Gemini, Claude, ChatGPT &amp; Grok konuşmalarını yazdır</p>
         </div>
     </div>
 
@@ -189,7 +198,10 @@
     </button>
 
     <!-- Alt bilgi -->
-    <div class="alt-bilgi">AI Chat Printer v1.2.0</div>
+    <div class="alt-bilgi">
+        <div>Kısayol: <kbd>Ctrl+Shift+P</kbd> (Mac: <kbd>⌘+Shift+P</kbd>)</div>
+        <div style="margin-top:4px;">AI Chat Printer v1.5.0</div>
+    </div>
 
     <script src="popup.js"></script>
 </body>
