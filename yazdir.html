@@ -8,23 +8,36 @@
 </head>
 <body>
     <!-- Yazdırma kontrol çubuğu (sadece ekranda, yazıcıya gitmez) -->
-    <div class="kontrol-cubugu" id="kontrolCubugu">
+    <div class="kontrol-cubugu" id="kontrolCubugu" role="toolbar" aria-label="Yazdırma Kontrolleri">
         <span class="kontrol-baslik">AI Chat Printer - Yazdirma Onizleme</span>
         <div class="kontrol-butonlar">
-            <button id="yazdirTetikle" class="kontrol-buton birincil">Yazdir</button>
-            <button id="sayfayiKapat" class="kontrol-buton ikincil">Kapat</button>
+            <button id="yazdirTetikle" class="kontrol-buton birincil" aria-label="Yazdır" title="Yazdır (Ctrl+P)">Yazdir</button>
+            <button id="markdownKopyala" class="kontrol-buton ikincil" aria-label="Markdown olarak panoya kopyala" title="Markdown olarak panoya kopyala">Markdown</button>
+            <button id="metinKopyala" class="kontrol-buton ikincil" aria-label="Düz metin olarak panoya kopyala" title="Düz metin olarak panoya kopyala">Metin</button>
+            <button id="sayfayiKapat" class="kontrol-buton ikincil" aria-label="Sayfayı kapat" title="Sayfayı kapat (Esc)">Kapat</button>
         </div>
     </div>
+
+    <!-- Loading overlay (veri yüklenirken gösterilir) -->
+    <div class="yukleme-overlay" id="yuklemeOverlay" role="status" aria-live="polite">
+        <div class="yukleme-icerik">
+            <div class="yukleme-spinner" aria-hidden="true"></div>
+            <p class="yukleme-metin">Konuşma yükleniyor...</p>
+        </div>
+    </div>
+
+    <!-- Toast bildirim alanı (screen reader uyumlu) -->
+    <div id="toastAlani" class="toast-alani" role="status" aria-live="polite" aria-atomic="true"></div>
 
     <!-- Yazdırılacak içerik -->
     <div id="yazdirmaAlani" class="yazdirma-alani">
         <!-- Başlık bölümü -->
         <div class="sayfa-basligi">
-            <h1 id="konusmaBasligi">Gemini Konusmasi</h1>
+            <h1 id="konusmaBasligi">&nbsp;</h1>
             <div class="ust-bilgi">
                 <span id="konusmaTarihi"></span>
                 <span id="mesajSayisi"></span>
-                <span id="kaynakSite">gemini.google.com</span>
+                <span id="kaynakSite">&nbsp;</span>
             </div>
             <hr>
         </div>
@@ -39,6 +52,7 @@
         </div>
     </div>
 
+    <script src="ortak-yardimcilar.js"></script>
     <script src="yazdir.js"></script>
 </body>
 </html>

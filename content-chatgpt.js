@@ -7,13 +7,14 @@ let butonEnjekteEdildi = false; // tekrar enjekte etmeyi önle
 // Sayfa yüklendiğinde ve navigasyon değişikliklerinde butonu enjekte et
 function baslat() {
     butonuEnjekteEt(); // ilk deneme
-    // ChatGPT SPA olduğu için URL ve DOM değişikliklerini izle
-    const gozlemci = new MutationObserver(() => { // DOM değişikliklerini izle
+    // ChatGPT SPA olduğu için URL ve DOM değişikliklerini izle — debounce ile CPU yükü düşür
+    const butonuKontrolEt = debounce(() => { // 200ms debounce'lu kontrol
         if (!document.querySelector('#chatgpt-printer-buton')) { // buton kaybolmuşsa
             butonEnjekteEdildi = false; // tekrar enjekte edilebilir
             butonuEnjekteEt(); // butonu yeniden ekle
         }
-    });
+    }, 200);
+    const gozlemci = new MutationObserver(butonuKontrolEt); // debounce'lu observer
     gozlemci.observe(document.body, { childList: true, subtree: true }); // body'deki değişiklikleri izle
 }
 
@@ -32,8 +33,10 @@ function butonuEnjekteEt() {
     const eskiButon = document.querySelector('#chatgpt-printer-buton'); // eski buton
     if (eskiButon) eskiButon.remove(); // sil ve yenisini oluştur
 
-    // Header'daki sağ butonlar alanını bul (3. child)
-    const sagKisim = header.children[2]; // sağ taraftaki butonlar container'ı
+    // Header'daki sağ butonlar alanını bul — önce Paylaş butonunun parent'ı, yoksa son child
+    const paylasButonuErken = header.querySelector('button[aria-label="Paylaş"], button[aria-label="Share"]'); // paylaş butonu
+    let sagKisim = paylasButonuErken ? paylasButonuErken.parentElement : null; // paylaş butonunun container'ı
+    if (!sagKisim) sagKisim = header.children[header.children.length - 1]; // son child (sağ kısım)
     if (!sagKisim) { // alan bulunamadıysa
         setTimeout(butonuEnjekteEt, 1000); // tekrar dene
         return;
@@ -101,8 +104,8 @@ function butonuEnjekteEt() {
     // Tıklama olayı
     yazdirButonu.addEventListener('click', yazdirmaBaslat); // yazdırma işlemini başlat
 
-    // Paylaş butonunun soluna ekle
-    const paylasButonu = header.querySelector('button[aria-label="Paylaş"]'); // Paylaş butonunu bul
+    // Paylaş butonunun soluna ekle (TR + EN)
+    const paylasButonu = header.querySelector('button[aria-label="Paylaş"], button[aria-label="Share"]'); // Paylaş butonunu bul
     if (paylasButonu && paylasButonu.parentElement) { // bulunduysa
         paylasButonu.parentElement.insertBefore(yazdirButonu, paylasButonu); // Paylaş'tan önce ekle
     } else { // Paylaş bulunamazsa sağ kısma ekle
@@ -114,43 +117,21 @@ function butonuEnjekteEt() {
 
 // Yazdırma işlemini başlatır
 async function yazdirmaBaslat() {
+    // Streaming kontrol — ChatGPT yanıt yazıyorsa uyar
+    if (streamingMiKontrol('chatgpt')) { // streaming aktifse
+        uyariBalonuGoster('ChatGPT henüz yanıt yazıyor. Tamamlanmasını bekleyin.', 'hata'); // uyarı
+        return;
+    }
+
     uyariBalonuGoster('Konuşma çıkarılıyor, resimler işleniyor...', 'basari'); // işlem başladı bildirimi
+    resimIslemOturumuBaslat(RESIM_TOPLAM_SURE_LIMIT); // resim oturumu
 
-    const veri = await konusmayiCikar(); // konuşma verisini çıkar (async — resim dönüşümü için)
-
-    if (veri.hata) { // hata varsa
-        uyariBalonuGoster('Hata: ' + veri.hata, 'hata'); // hata mesajı göster
-        return;
+    try { // oturum garanti kapatma
+        const veri = await konusmayiCikar(); // konuşma verisini çıkar (async — resim dönüşümü için)
+        await yazdirmayaBasla(veri, uyariBalonuGoster); // ortak başlatma akışı
+    } finally { // oturum kapat
+        resimIslemOturumuBitir();
     }
-
-    if (!veri.mesajlar || veri.mesajlar.length === 0) { // mesaj yoksa
-        uyariBalonuGoster('Konuşmada mesaj bulunamadı.', 'hata'); // uyarı göster
-        return;
-    }
-
-    // Varsayılan ayarlar
-    const ayarlar = { // yazdırma ayarları
-        kodBloklari: true, // kod blokları dahil
-        otomatikYazdir: true, // otomatik yazdır
-        yaziBoyutu: '13' // normal yazı boyutu
-    };
-
-    // Veriyi chrome.storage.local'a kaydet (try-catch — eklenti yeniden yüklenince context kaybolabilir)
-    try {
-        await chrome.storage.local.set({ // geçici veri kaydet
-            konusmaVerisi: veri, // konuşma içeriği
-            yazdirAyarlari: ayarlar // yazdırma ayarları
-        });
-    } catch (storageHata) { // extension context kaybolmuşsa
-        uyariBalonuGoster('Eklenti bağlantısı koptu. Sayfayı yenileyip (F5) tekrar deneyin.', 'hata'); // hata mesajı
-        console.error('ChatGPT Printer: chrome.storage erişim hatası:', storageHata.message); // debug
-        return;
-    }
-
-    uyariBalonuGoster(veri.mesajSayisi + ' mesaj çıkarıldı. Yazdırma sayfası açılıyor...', 'basari'); // başarı mesajı
-
-    // Yazdırma sayfasını aç
-    chrome.runtime.sendMessage({ islem: 'yazdirmaSayfasiAc' }); // background'a mesaj gönder
 }
 
 // Sayfa içi uyarı balonu gösterir (toast notification)
@@ -241,8 +222,11 @@ async function konusmayiCikar() {
         }
     }
 
-    // Konuşma başlığını al
-    const sayfaBasligi = document.title?.trim() || 'ChatGPT Konuşması'; // sayfa başlığı
+    // Konuşma başlığını al — önce sidebar aktif linkten, sonra document.title
+    const aktifSidebar = document.querySelector('nav a[href^="/c/"][data-active="true"], nav a[href^="/c/"].bg-token-sidebar-surface-secondary, nav a[href^="/c/"][aria-current="page"]'); // aktif konuşma
+    const sidebarBaslik = aktifSidebar ? basligiTemizle(aktifSidebar.textContent?.trim() || '', 'chatgpt') : ''; // sidebar başlığı
+    const docBaslik = basligiTemizle(document.title || '', 'chatgpt'); // doc başlığı
+    const sayfaBasligi = sidebarBaslik || docBaslik || 'ChatGPT Konuşması'; // ilk dolu olanı kullan
 
     return {
         baslik: sayfaBasligi, // konuşma başlığı
@@ -254,10 +238,24 @@ async function konusmayiCikar() {
     };
 }
 
-// Popup'tan gelen mesajları da dinle (fallback)
+// Popup'tan ve background'tan gelen mesajları dinle
 chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => { // mesaj dinleyici
     if (mesaj.islem === 'konusmayiCikar') { // konuşma çıkarma isteği
-        konusmayiCikar().then((veri) => yanitGonder(veri)); // async çıkar ve gönder
+        (async () => { // async IIFE
+            if (streamingMiKontrol('chatgpt')) { // streaming aktifse
+                yanitGonder({ hata: 'ChatGPT henüz yanıt yazıyor. Tamamlanmasını bekleyin.', mesajlar: [] }); // uyarı
+                return;
+            }
+            resimIslemOturumuBaslat(RESIM_TOPLAM_SURE_LIMIT); // resim oturumu
+            try { // oturum garanti kapatma
+                const veri = await konusmayiCikar(); // konuşma verisi
+                yanitGonder(veri); // popup'a gönder
+            } finally { // oturum kapat
+                resimIslemOturumuBitir();
+            }
+        })();
+    } else if (mesaj.islem === 'klavyeKisayoluYazdir') { // keyboard shortcut tetiklemesi
+        yazdirmaBaslat(); // sayfa içi yazdırma akışı
     }
     return true; // asenkron yanıt için true döndür
 });

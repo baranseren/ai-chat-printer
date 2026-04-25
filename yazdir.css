@@ -1,6 +1,65 @@
 /* Genel sıfırlama */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* Loading overlay — veri yüklenirken gösterilir */
+.yukleme-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 26, 46, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    transition: opacity 0.3s ease;
+}
+.yukleme-icerik {
+    text-align: center;
+    color: #ffffff;
+}
+.yukleme-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #3a3a5a;
+    border-top-color: #4a8cff;
+    border-radius: 50%;
+    margin: 0 auto 16px;
+    animation: yuklemeDonsun 0.8s linear infinite;
+}
+@keyframes yuklemeDonsun {
+    to { transform: rotate(360deg); }
+}
+.yukleme-metin {
+    font-size: 14px;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    color: #e0e0e0;
+    letter-spacing: 0.3px;
+}
+
+/* Toast bildirim alanı */
+.toast-alani {
+    position: fixed;
+    top: 72px;
+    right: 24px;
+    z-index: 9000;
+    max-width: 360px;
+    pointer-events: none;
+}
+.toast {
+    background: #1a1a2e;
+    color: #ffffff;
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    margin-bottom: 8px;
+    transition: opacity 0.3s ease;
+    border-left: 3px solid #4a8cff;
+}
+.toast.basari { border-left-color: #66cc88; }
+.toast.hata { border-left-color: #cc6666; }
+.toast.bilgi { border-left-color: #4a8cff; }
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; /* sistem fontu */
     background: #eef1f5; /* yumuşak gri-mavi arka plan */
@@ -48,6 +107,11 @@ body {
     color: #ccccdd; /* açık metin */
 }
 .kontrol-buton.ikincil:hover { background: #4a4a6a; } /* hover efekti */
+.kontrol-buton:focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; } /* erişilebilirlik: klavye odak */
+
+/* Sadece resim olan mesaj bilgi paragrafı */
+.salt-resim-bilgi { font-style: italic; color: #777777; font-size: 0.9em; }
+.bos-mesaj { font-style: italic; color: #aaaaaa; font-size: 0.9em; }
 
 /* ─── Yazdırma Alanı ─── */
 .yazdirma-alani {
@@ -133,6 +197,10 @@ body {
     background: #d1fae5; /* açık yeşil arka plan */
     color: #047857; /* yeşil metin */
 }
+.mesaj-etiketi.grok {
+    background: #e5e7eb; /* açık gri arka plan */
+    color: #1f2937; /* koyu gri/siyah metin (Grok teması) */
+}
 
 /* Mesaj içeriği */
 .mesaj-icerigi {
@@ -156,6 +224,10 @@ body {
 .mesaj-icerigi.chatgpt {
     background: #f0fdf4; /* çok hafif yeşil arka plan */
     border-left: 3px solid #10a37f; /* sol yeşil çizgi */
+}
+.mesaj-icerigi.grok {
+    background: #f9fafb; /* çok hafif gri arka plan */
+    border-left: 3px solid #1f2937; /* sol koyu gri çizgi (Grok teması) */
 }
 
 /* ─── Mesaj İçi Tipografi ─── */
@@ -311,8 +383,17 @@ body {
 
 /* ─── Yazdırma Stilleri ─── */
 @media print {
-    /* Kontrol çubuğunu gizle */
-    .kontrol-cubugu { display: none !important; }
+    /* Kontrol çubuğunu, loading overlay'i ve toast'ı gizle */
+    .kontrol-cubugu,
+    .yukleme-overlay,
+    .toast-alani { display: none !important; }
+
+    /* Tüm renkli elementler için renk koruma (yazıcı beyaz basmasın) */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
 
     body {
         background: #ffffff; /* beyaz arka plan */
@@ -340,6 +421,7 @@ body {
     .mesaj-icerigi.gemini { background: #ffffff; } /* beyaz */
     .mesaj-icerigi.claude { background: #ffffff; } /* beyaz */
     .mesaj-icerigi.chatgpt { background: #ffffff; } /* beyaz */
+    .mesaj-icerigi.grok { background: #ffffff; } /* beyaz */
 
     /* Kod blokları yazdırmada */
     .mesaj-icerigi pre {
@@ -376,8 +458,36 @@ body {
         box-shadow: none; /* gölge yok */
     }
 
-    /* Sayfa numarası ve üst/alt bilgi */
+    /* Sayfa numarası, üst/alt bilgi ve A4 varsayılan boyut */
     @page {
+        size: A4; /* varsayılan A4 kağıt boyutu */
         margin: 2cm 1.5cm; /* sayfa kenar boşlukları */
+        @bottom-right {
+            content: "Sayfa " counter(page) " / " counter(pages); /* sayfa numarası */
+            font-size: 10pt; /* numara boyutu */
+            color: #888888; /* soluk renk */
+        }
+        @bottom-left {
+            content: "AI Chat Printer"; /* eklenti imzası */
+            font-size: 9pt; /* küçük boyut */
+            color: #aaaaaa; /* soluk renk */
+        }
     }
+
+    /* Geniş içerikler için yatay @page alternatif */
+    @page landscape {
+        size: A4 landscape; /* yatay A4 */
+    }
+
+    /* Link URL'lerini yazdırmada parantez içinde göster (sadece http linkler için) */
+    .mesaj-icerigi a[href^="http"]::after {
+        content: " (" attr(href) ")"; /* URL'i eklenti olarak ekle */
+        font-size: 0.75em; /* küçük boyut */
+        color: #777777; /* soluk renk */
+        word-break: break-all; /* uzun URL'leri kır */
+    }
+
+    /* Tablo başlıkları sayfa kırılmasında tekrar edilsin */
+    thead { display: table-header-group; } /* thead her sayfada göster */
+    tr, td, th { page-break-inside: avoid; } /* satırları bölme */
 }

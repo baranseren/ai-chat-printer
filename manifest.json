@@ -1,9 +1,13 @@
 {
   "manifest_version": 3,
   "name": "AI Chat Printer",
-  "version": "1.2.0",
-  "description": "Gemini, Claude ve ChatGPT konuşmalarını yazıcıdan yazdırın",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "short_name": "AI Chat Printer",
+  "version": "1.5.0",
+  "description": "Gemini, Claude, ChatGPT ve Grok konuşmalarını tek tıkla yazdır veya PDF olarak kaydet. Hızlı, güvenli ve ücretsiz.",
+  "minimum_chrome_version": "114",
+  "default_locale": "tr",
+  "homepage_url": "https://github.com/baranseren/GeminiPrinter",
+  "permissions": ["activeTab", "scripting", "storage", "clipboardWrite"],
   "action": {
     "default_popup": "popup.html",
     "default_title": "AI Chat Printer - Konuşmayı Yazdır",
@@ -24,15 +28,35 @@
   "content_scripts": [
     {
       "matches": ["https://gemini.google.com/*"],
-      "js": ["resim-yardimcilari.js", "content.js"]
+      "js": ["resim-yardimcilari.js", "ortak-yardimcilar.js", "content.js"],
+      "run_at": "document_idle"
     },
     {
       "matches": ["https://claude.ai/*"],
-      "js": ["resim-yardimcilari.js", "content-claude.js"]
+      "js": ["resim-yardimcilari.js", "ortak-yardimcilar.js", "content-claude.js"],
+      "run_at": "document_idle"
     },
     {
       "matches": ["https://chatgpt.com/*"],
-      "js": ["resim-yardimcilari.js", "content-chatgpt.js"]
+      "js": ["resim-yardimcilari.js", "ortak-yardimcilar.js", "content-chatgpt.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://grok.com/*"],
+      "js": ["resim-yardimcilari.js", "ortak-yardimcilar.js", "content-grok.js"],
+      "run_at": "document_idle"
     }
-  ]
+  ],
+  "commands": {
+    "yazdir-kisayol": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+P",
+        "mac": "Command+Shift+P"
+      },
+      "description": "Aktif AI konuşmasını yazdır"
+    }
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'"
+  }
 }

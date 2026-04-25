@@ -1,0 +1,16 @@
+{
+  "extName": {
+    "message": "AI Chat Printer",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Print or save as PDF your Gemini, Claude, ChatGPT and Grok conversations with one click. Fast, secure and free.",
+    "description": "Chrome Web Store description"
+  },
+  "actionTitle": {
+    "message": "AI Chat Printer - Print Conversation"
+  },
+  "kisayolAciklama": {
+    "message": "Print the active AI conversation"
+  }
+}

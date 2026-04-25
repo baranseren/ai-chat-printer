@@ -1,0 +1,16 @@
+{
+  "extName": {
+    "message": "AI Chat Printer",
+    "description": "Eklenti adı"
+  },
+  "extDescription": {
+    "message": "Gemini, Claude, ChatGPT ve Grok konuşmalarını tek tıkla yazdır veya PDF olarak kaydet. Hızlı, güvenli ve ücretsiz.",
+    "description": "Chrome Web Store açıklaması"
+  },
+  "actionTitle": {
+    "message": "AI Chat Printer - Konuşmayı Yazdır"
+  },
+  "kisayolAciklama": {
+    "message": "Aktif AI konuşmasını yazdır"
+  }
+}

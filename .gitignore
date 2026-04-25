@@ -5,3 +5,8 @@ aha_point.md
 Hafiza/
 icons/ikon_olustur.py
 tasks/
+.claude/
+.vscode/
+*.log
+.DS_Store
+Thumbs.db

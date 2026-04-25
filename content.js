@@ -7,13 +7,14 @@ let butonEnjekteEdildi = false; // tekrar enjekte etmeyi önle
 // Sayfa yüklendiğinde ve navigasyon değişikliklerinde butonu enjekte et
 function baslat() {
     butonuEnjekteEt(); // ilk deneme
-    // Gemini SPA olduğu için URL değişikliklerini izle
-    const gozlemci = new MutationObserver(() => { // DOM değişikliklerini izle
+    // Gemini SPA olduğu için URL değişikliklerini izle — debounce ile CPU yükü düşür
+    const butonuKontrolEt = debounce(() => { // 200ms debounce'lu kontrol
         if (!document.querySelector('#gemini-printer-buton')) { // buton kaybolmuşsa
             butonEnjekteEdildi = false; // tekrar enjekte edilebilir
             butonuEnjekteEt(); // butonu yeniden ekle
         }
-    });
+    }, 200);
+    const gozlemci = new MutationObserver(butonuKontrolEt); // debounce'lu observer
     gozlemci.observe(document.body, { childList: true, subtree: true }); // body'deki değişiklikleri izle
 }
 
@@ -114,51 +115,31 @@ function butonuEnjekteEt() {
 
 // Yazdırma işlemini başlatır
 async function yazdirmaBaslat() {
+    // Streaming kontrol — AI yanıt yazıyorsa uyar
+    if (streamingMiKontrol('gemini')) { // streaming aktifse
+        uyariBalonuGoster('Gemini henüz yanıt yazıyor. Tamamlanmasını bekleyin.', 'hata'); // uyarı
+        return;
+    }
+
     uyariBalonuGoster('Konuşma çıkarılıyor, resimler işleniyor...', 'basari'); // işlem başladı bildirimi
+    resimIslemOturumuBaslat(RESIM_TOPLAM_SURE_LIMIT); // resim toplam süre limiti başlat
 
-    const veri = await konusmayiCikar(); // konuşma verisini çıkar (async — resim dönüşümü için)
+    try { // oturum bitirme garantisi için try-finally
+        const veri = await konusmayiCikar(); // konuşma verisini çıkar (async — resim dönüşümü için)
 
-    if (veri.hata) { // hata varsa
-        uyariBalonuGoster('Hata: ' + veri.hata, 'hata'); // hata mesajı göster
-        return;
-    }
-
-    if (!veri.mesajlar || veri.mesajlar.length === 0) { // mesaj yoksa
-        uyariBalonuGoster('Konuşmada mesaj bulunamadı.', 'hata'); // uyarı göster
-        return;
-    }
-
-    // Varsayılan ayarlar
-    const ayarlar = { // yazdırma ayarları
-        kodBloklari: true, // kod blokları dahil
-        otomatikYazdir: true, // otomatik yazdır
-        yaziBoyutu: '13' // normal yazı boyutu
-    };
-
-    // Veriyi chrome.storage.local'a kaydet (try-catch — eklenti yeniden yüklenince context kaybolabilir)
-    try {
-        await chrome.storage.local.set({ // geçici veri kaydet
-            konusmaVerisi: veri, // konuşma içeriği
-            yazdirAyarlari: ayarlar // yazdırma ayarları
+        // Toplam resim sayısını hesapla (debug bilgi)
+        let toplamResim = 0; // resim sayacı
+        (veri.mesajlar || []).forEach(m => { // her mesajdaki resimleri say
+            toplamResim += (m.html && m.html.match(/<img /gi) || []).length; // HTML içindeki img'ler
+            toplamResim += (m.resimler ? m.resimler.length : 0); // ekstra resimler
         });
-    } catch (storageHata) { // extension context kaybolmuşsa
-        uyariBalonuGoster('Eklenti bağlantısı koptu. Sayfayı yenileyip (F5) tekrar deneyin.', 'hata'); // hata mesajı
-        console.error('Gemini Printer: chrome.storage erişim hatası:', storageHata.message); // debug
-        return;
+        console.log('Gemini Printer [DEBUG]: Toplam mesaj:', veri.mesajSayisi, ', Toplam resim:', toplamResim); // debug
+
+        // Ortak yazdırma başlatıcıyı kullan (ayarlar kalıcı storage'dan okur)
+        await yazdirmayaBasla(veri, uyariBalonuGoster); // ortak başlatma akışı
+    } finally { // işlem bitişinde oturum kapatılmalı
+        resimIslemOturumuBitir(); // deadline'ı sıfırla
     }
-
-    // Toplam resim sayısını hesapla (debug bilgi)
-    let toplamResim = 0; // resim sayacı
-    veri.mesajlar.forEach(m => { // her mesajdaki resimleri say
-        toplamResim += (m.html && m.html.match(/<img /gi) || []).length; // HTML içindeki img'ler
-        toplamResim += (m.resimler ? m.resimler.length : 0); // ekstra resimler
-    });
-    console.log('Gemini Printer [DEBUG]: Toplam mesaj:', veri.mesajSayisi, ', Toplam resim:', toplamResim); // debug
-
-    uyariBalonuGoster(veri.mesajSayisi + ' mesaj, ' + toplamResim + ' resim çıkarıldı. Yazdırma sayfası açılıyor...', 'basari'); // başarı mesajı
-
-    // Yazdırma sayfasını aç
-    chrome.runtime.sendMessage({ islem: 'yazdirmaSayfasiAc' }); // background'a mesaj gönder
 }
 
 // Sayfa içi uyarı balonu gösterir (toast notification)
@@ -275,8 +256,10 @@ async function konusmayiCikar() {
 
     // Konuşma başlığını sidebar'daki aktif linkten al
     const aktifLink = document.querySelector('conversations-list a.selected, conversations-list a[aria-current="page"], conversations-list a.active'); // sidebar aktif konuşma
-    const sidebarBaslik = aktifLink ? aktifLink.textContent?.trim().replace(/Sabitlenmiş sohbet$/, '').trim() : ''; // suffix temizle
-    const sayfaBasligi = sidebarBaslik || document.title?.replace(' - Google Gemini', '').replace('Google Gemini', '').trim() || 'Gemini Konuşması';
+    const sidebarHam = aktifLink ? aktifLink.textContent?.trim() || '' : ''; // sidebar ham başlık
+    const sidebarBaslik = basligiTemizle(sidebarHam, 'gemini'); // sidebar başlığını temizle
+    const docBaslik = basligiTemizle(document.title || '', 'gemini'); // doc başlığını temizle
+    const sayfaBasligi = sidebarBaslik || docBaslik || 'Gemini Konuşması'; // ilk dolu olanı kullan
 
     return {
         baslik: sayfaBasligi, // konuşma başlığı
@@ -298,10 +281,24 @@ function geminiPrefixTemizle(metin) {
     return metin; // prefix yoksa aynen döndür
 }
 
-// Popup'tan gelen mesajları da dinle (fallback)
+// Popup'tan ve background'tan gelen mesajları dinle
 chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => { // mesaj dinleyici
     if (mesaj.islem === 'konusmayiCikar') { // konuşma çıkarma isteği
-        konusmayiCikar().then(veri => yanitGonder(veri)); // async çıkar ve gönder
+        (async () => { // async IIFE
+            if (streamingMiKontrol('gemini')) { // streaming aktifse
+                yanitGonder({ hata: 'Gemini henüz yanıt yazıyor. Tamamlanmasını bekleyin.', mesajlar: [] }); // uyarı
+                return;
+            }
+            resimIslemOturumuBaslat(RESIM_TOPLAM_SURE_LIMIT); // resim oturumu
+            try { // oturum garanti kapatma
+                const veri = await konusmayiCikar(); // konuşma verisi
+                yanitGonder(veri); // popup'a gönder
+            } finally { // oturum kapat
+                resimIslemOturumuBitir();
+            }
+        })();
+    } else if (mesaj.islem === 'klavyeKisayoluYazdir') { // keyboard shortcut tetiklemesi
+        yazdirmaBaslat(); // sayfa içi yazdırma akışı
     }
     return true; // asenkron yanıt için true döndür
 });

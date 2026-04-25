@@ -3,18 +3,22 @@
 
 // Buton zaten enjekte edildi mi kontrolü
 let butonEnjekteEdildi = false; // tekrar enjekte etmeyi önle
+let observerAktif = null; // MutationObserver referansı (artifact çıkarırken geçici disconnect için)
+let artifactCikarmaAktif = false; // artifact çıkarma sırasında observer yeniden-enjeksiyonu baskılar
 
 // Sayfa yüklendiğinde ve navigasyon değişikliklerinde butonu enjekte et
 function baslat() {
     butonuEnjekteEt(); // ilk deneme
-    // Claude SPA olduğu için URL ve DOM değişikliklerini izle
-    const gozlemci = new MutationObserver(() => { // DOM değişikliklerini izle
+    // Claude SPA olduğu için URL ve DOM değişikliklerini izle — debounce ile CPU yükü düşür
+    const butonuKontrolEt = debounce(() => { // 200ms debounce'lu kontrol
+        if (artifactCikarmaAktif) return; // artifact çıkarma sırasında dokunma
         if (!document.querySelector('#claude-printer-buton')) { // buton kaybolmuşsa
             butonEnjekteEdildi = false; // tekrar enjekte edilebilir
             butonuEnjekteEt(); // butonu yeniden ekle
         }
-    });
-    gozlemci.observe(document.body, { childList: true, subtree: true }); // body'deki değişiklikleri izle
+    }, 200);
+    observerAktif = new MutationObserver(butonuKontrolEt); // debounce'lu observer
+    observerAktif.observe(document.body, { childList: true, subtree: true }); // body'deki değişiklikleri izle
 }
 
 // Yazdır butonunu Claude header'ına enjekte eder
@@ -122,61 +126,53 @@ function butonuEnjekteEt() {
 
 // Yazdırma işlemini başlatır
 async function yazdirmaBaslat() {
-    // Önce artifact içeriklerini çıkar (async — her birini açıp kapatır)
-    const artifactSayisi = document.querySelectorAll('.artifact-block-cell').length; // sayfadaki artifact sayısı
-    if (artifactSayisi > 0) { // artifact varsa
-        uyariBalonuGoster(artifactSayisi + ' artifact içeriği çıkarılıyor...', 'basari'); // bilgi mesajı
-    }
-    const artifactIcerikleri = await artifactIcerikleriniCikar(); // artifact içeriklerini topla
-
-    uyariBalonuGoster('Konuşma çıkarılıyor, resimler işleniyor...', 'basari'); // çıkarma aşaması bildirimi
-
-    // Konuşma verisini çıkar (artifact içerikleriyle birlikte, async — resim dönüşümü için)
-    const veri = await konusmayiCikar(artifactIcerikleri); // konuşma verisini çıkar
-
-    if (veri.hata) { // hata varsa
-        uyariBalonuGoster('Hata: ' + veri.hata, 'hata'); // hata mesajı göster
+    // Streaming kontrol — Claude yanıt yazıyorsa uyar
+    if (streamingMiKontrol('claude')) { // streaming aktifse
+        uyariBalonuGoster('Claude henüz yanıt yazıyor. Tamamlanmasını bekleyin.', 'hata'); // uyarı
         return;
     }
 
-    if (!veri.mesajlar || veri.mesajlar.length === 0) { // mesaj yoksa
-        uyariBalonuGoster('Konuşmada mesaj bulunamadı.', 'hata'); // uyarı göster
-        return;
-    }
+    resimIslemOturumuBaslat(RESIM_TOPLAM_SURE_LIMIT); // resim toplam süre limiti başlat
 
-    // Varsayılan ayarlar
-    const ayarlar = { // yazdırma ayarları
-        kodBloklari: true, // kod blokları dahil
-        otomatikYazdir: true, // otomatik yazdır
-        yaziBoyutu: '13' // normal yazı boyutu
-    };
-
-    // Veriyi chrome.storage.local'a kaydet (try-catch — eklenti yeniden yüklenince context kaybolabilir)
-    try {
-        await chrome.storage.local.set({ // geçici veri kaydet
-            konusmaVerisi: veri, // konuşma içeriği
-            yazdirAyarlari: ayarlar // yazdırma ayarları
+    try { // oturum bitirme garantisi
+        // Önce artifact içeriklerini çıkar (async — her birini açıp kapatır)
+        const artifactSayisi = document.querySelectorAll('.artifact-block-cell').length; // sayfadaki artifact sayısı
+        if (artifactSayisi > 0) { // artifact varsa
+            uyariBalonuGoster(artifactSayisi + ' artifact bulundu, içerikleri çıkarılıyor (0/' + artifactSayisi + ')...', 'basari'); // bilgi mesajı
+        }
+        const artifactIcerikleri = await artifactIcerikleriniCikar((mevcut, toplam) => { // progress callback
+            uyariBalonuGoster('Artifact ' + mevcut + '/' + toplam + ' çıkarılıyor...', 'basari'); // ilerleme güncelle
         });
-    } catch (storageHata) { // extension context kaybolmuşsa
-        uyariBalonuGoster('Eklenti bağlantısı koptu. Sayfayı yenileyip (F5) tekrar deneyin.', 'hata'); // hata mesajı
-        console.error('Claude Printer: chrome.storage erişim hatası:', storageHata.message); // debug
-        return;
+
+        uyariBalonuGoster('Konuşma çıkarılıyor, resimler işleniyor...', 'basari'); // çıkarma aşaması bildirimi
+
+        // Konuşma verisini çıkar (artifact içerikleriyle birlikte, async — resim dönüşümü için)
+        const veri = await konusmayiCikar(artifactIcerikleri); // konuşma verisini çıkar
+
+        // Ortak yazdırma başlatıcıyı kullan (ayarlar kalıcı storage'dan okur)
+        await yazdirmayaBasla(veri, uyariBalonuGoster); // ortak başlatma akışı
+    } finally { // işlem bitişinde oturum kapatılmalı
+        resimIslemOturumuBitir(); // deadline'ı sıfırla
     }
-
-    uyariBalonuGoster(veri.mesajSayisi + ' mesaj çıkarıldı. Yazdırma sayfası açılıyor...', 'basari'); // başarı mesajı
-
-    // Yazdırma sayfasını aç
-    chrome.runtime.sendMessage({ islem: 'yazdirmaSayfasiAc' }); // background'a mesaj gönder
 }
 
 // Sayfadaki tüm artifact bloklarının içeriklerini tıkla-aç-çıkar-kapat döngüsüyle toplar
-async function artifactIcerikleriniCikar() {
+// ilerlemeCallback(mevcut, toplam) — her artifact tamamlandığında çağrılır
+async function artifactIcerikleriniCikar(ilerlemeCallback) {
     const kartlar = document.querySelectorAll('.artifact-block-cell'); // tüm artifact kartları
     if (kartlar.length === 0) return []; // artifact yoksa boş dön
 
+    artifactCikarmaAktif = true; // observer'ı sustur — viewer açma-kapama race'ini önle
     const icerikleri = []; // çıkarılan içerikler
+    const toplamArtifact = kartlar.length; // toplam artifact sayısı
+    let mevcutIndex = 0; // işlenen artifact indeksi
 
+    try { // hata olsa bile flag'i mutlaka resetle
     for (const kart of kartlar) { // her artifact kartını işle
+        mevcutIndex++; // sayaç artır
+        if (ilerlemeCallback) { // progress callback verilmişse
+            try { ilerlemeCallback(mevcutIndex, toplamArtifact); } catch (e) {} // güvenli çağrı
+        }
         // Başlık: .line-clamp-1 div'lerden al (ilki başlık, ikincisi tür)
         const baslikEl = kart.querySelector('.leading-tight.line-clamp-1'); // başlık div'i
         const turEl = kart.querySelector('.text-text-400.line-clamp-1'); // tür div'i
@@ -260,7 +256,9 @@ async function artifactIcerikleriniCikar() {
 
         icerikleri.push({ baslik: baslik, tur: tur, icerik: icerik }); // sonucu ekle
     }
-
+    } finally { // hata olsa bile observer'ı tekrar aktif et
+        artifactCikarmaAktif = false; // observer tekrar aktif
+    }
     return icerikleri; // tüm artifact içerikleri
 }
 
@@ -376,8 +374,11 @@ async function konusmayiCikar(artifactIcerikleri) {
         }
     }
 
-    // Konuşma başlığını al
-    const sayfaBasligi = document.title?.replace(' - Claude', '').trim() || 'Claude Konuşması'; // sayfa başlığından çıkar
+    // Konuşma başlığını al — önce sidebar aktif linkten, sonra document.title
+    const aktifSidebar = document.querySelector('a[data-testid="recent-conversation"][aria-current="page"], a[href*="/chat/"][aria-current="page"], nav a.bg-bg-300, nav a[aria-current="true"]'); // aktif konuşma linki
+    const sidebarBaslik = aktifSidebar ? basligiTemizle(aktifSidebar.textContent?.trim() || '', 'claude') : ''; // sidebar başlığı
+    const docBaslik = basligiTemizle(document.title || '', 'claude'); // doc başlığı
+    const sayfaBasligi = sidebarBaslik || docBaslik || 'Claude Konuşması'; // ilk dolu olanı kullan
 
     return {
         baslik: sayfaBasligi, // konuşma başlığı
@@ -389,10 +390,25 @@ async function konusmayiCikar(artifactIcerikleri) {
     };
 }
 
-// Popup'tan gelen mesajları da dinle (fallback)
+// Popup'tan gelen mesajları da dinle (fallback) — artifact desteği dahil
 chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => { // mesaj dinleyici
     if (mesaj.islem === 'konusmayiCikar') { // konuşma çıkarma isteği
-        konusmayiCikar().then((veri) => yanitGonder(veri)); // async çıkar ve gönder
+        (async () => { // async IIFE — artifact önce çıkar
+            if (streamingMiKontrol('claude')) { // streaming aktifse
+                yanitGonder({ hata: 'Claude henüz yanıt yazıyor. Tamamlanmasını bekleyin.', mesajlar: [] }); // uyarı
+                return;
+            }
+            resimIslemOturumuBaslat(RESIM_TOPLAM_SURE_LIMIT); // resim oturumu başlat
+            try { // oturum kapatma garantisi
+                const artifactIcerikleri = await artifactIcerikleriniCikar(); // artifact içerikleri
+                const veri = await konusmayiCikar(artifactIcerikleri); // artifact'lı çıkarma
+                yanitGonder(veri); // popup'a dön
+            } finally { // oturum kapatma
+                resimIslemOturumuBitir(); // deadline sıfırla
+            }
+        })();
+    } else if (mesaj.islem === 'klavyeKisayoluYazdir') { // keyboard shortcut tetiklemesi
+        yazdirmaBaslat(); // sayfa içi yazdır akışını başlat
     }
     return true; // asenkron yanıt için true döndür
 });
