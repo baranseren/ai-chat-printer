@@ -117,11 +117,8 @@ function butonuEnjekteEt() {
 
 // Yazdırma işlemini başlatır
 async function yazdirmaBaslat() {
-    // Streaming kontrol — AI yanıt yazıyorsa uyar
-    if (streamingMiKontrol('gemini')) { // streaming aktifse
-        uyariBalonuGoster('Gemini henüz yanıt yazıyor. Tamamlanmasını bekleyin.', 'hata'); // uyarı
-        return;
-    }
+    // Streaming kontrol Gemini için kaldırıldı — false positive üretiyordu (gizli stop butonu kontrolü güvenilir değil)
+    // Kullanıcı yarım yanıt yazdırırsa kendi takdirinde
 
     uyariBalonuGoster('Konuşma çıkarılıyor, resimler işleniyor...', 'basari'); // işlem başladı bildirimi
     resimIslemOturumuBaslat(RESIM_TOPLAM_SURE_LIMIT); // resim toplam süre limiti başlat
@@ -287,10 +284,7 @@ function geminiPrefixTemizle(metin) {
 chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => { // mesaj dinleyici
     if (mesaj.islem === 'konusmayiCikar') { // konuşma çıkarma isteği
         (async () => { // async IIFE
-            if (streamingMiKontrol('gemini')) { // streaming aktifse
-                yanitGonder({ hata: 'Gemini henüz yanıt yazıyor. Tamamlanmasını bekleyin.', mesajlar: [] }); // uyarı
-                return;
-            }
+            // Streaming kontrol Gemini için kaldırıldı — false positive üretiyordu
             resimIslemOturumuBaslat(RESIM_TOPLAM_SURE_LIMIT); // resim oturumu
             try { // oturum garanti kapatma
                 const veri = await konusmayiCikar(); // konuşma verisi
