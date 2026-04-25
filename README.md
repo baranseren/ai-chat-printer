@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>v1.5.1</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
+  <strong>v1.5.2</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
 </p>
 
 ---
@@ -205,6 +205,12 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ---
 
 ## Degisiklik Gecmisi / Changelog
+
+### v1.5.2 (25.04.2026) — Gemini streaming false positive hotfix
+- **Gemini sayfasinda yanlis "henuz yanit yaziyor" toast'i kaldirildi**
+- Sebep: Gemini DOM'unda "Stop" butonu gizli (visibility:hidden / opacity:0) olarak duruyordu — `offsetParent !== null` bunu "gorunur" sayiyordu, surekli streaming sandiriyordu (false positive)
+- Cozum: Gemini icin streaming kontrolu tamamen kaldirildi (sayfa ici buton + popup mesaj handler)
+- Kullanici yarim yanit yazdirirsa kendi takdirinde — UI engellemesi yok
 
 ### v1.5.1 (25.04.2026) — Ticari kalite denetlemesi
 - **Guvenlik:** HTML sanitizer SVG data URI XSS acigi kapatildi (sadece raster format'lara izin)
