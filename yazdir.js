@@ -48,9 +48,15 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
     yuklemeMetniniGuncelle('Konuşma verisi okunuyor...'); // durum güncelle
 
     // chrome.storage.local'dan veriyi oku (try-catch)
+    // Multi-tab race condition: aynı anda 2+ sekmede yazdır yapılınca son yazılan kazanır
+    // Çözüm: oku-ve-hemen-sil pattern'i — bu sekme veriyi alır almaz storage'dan kaldırır
     let depolanmisVeri; // kayıtlı veri
     try { // erişim denemesi
         depolanmisVeri = await chrome.storage.local.get(['konusmaVerisi', 'yazdirAyarlari']); // oku
+        // Hemen sil — diğer sekmelerin aynı veriyi okumasını önle (race condition koruması)
+        if (depolanmisVeri.konusmaVerisi) { // veri varsa
+            chrome.storage.local.remove(['konusmaVerisi', 'yazdirAyarlari']).catch(() => {}); // arka planda sil
+        }
     } catch (okumaHata) { // storage erişilemezse
         yuklemeyiGizle(); // overlay'i gizle
         document.getElementById('mesajlarAlani').textContent = 'Storage erişim hatası: ' + okumaHata.message; // hata göster (textContent XSS-safe)
@@ -70,20 +76,32 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
 
     yuklemeMetniniGuncelle('İçerik işleniyor (' + konusma.mesajSayisi + ' mesaj)...'); // durum güncelle
 
-    // Kaynak bilgisini belirle
-    const kaynak = konusma.kaynak || 'gemini'; // varsayılan gemini
-    const yapayZekaAdi = kaynak === 'claude' ? 'CLAUDE' : kaynak === 'chatgpt' ? 'CHATGPT' : kaynak === 'grok' ? 'GROK' : 'GEMINI'; // etiket metni
-    const yapayZekaSinif = kaynak === 'claude' ? 'claude' : kaynak === 'chatgpt' ? 'chatgpt' : kaynak === 'grok' ? 'grok' : 'gemini'; // CSS sınıfı
-    const kaynakSite = kaynak === 'claude' ? 'claude.ai' : kaynak === 'chatgpt' ? 'chatgpt.com' : kaynak === 'grok' ? 'grok.com' : 'gemini.google.com'; // site adresi
+    // Kaynak bilgisini belirle (bilinen 4 site dışında "ai" generic theme)
+    const KAYNAK_HARITA = { // tek doğru kaynak — DRY
+        gemini: { ad: 'GEMINI', sinif: 'gemini', site: 'gemini.google.com', baslik: 'Gemini Konusmasi' },
+        claude: { ad: 'CLAUDE', sinif: 'claude', site: 'claude.ai', baslik: 'Claude Konusmasi' },
+        chatgpt: { ad: 'CHATGPT', sinif: 'chatgpt', site: 'chatgpt.com', baslik: 'ChatGPT Konusmasi' },
+        grok: { ad: 'GROK', sinif: 'grok', site: 'grok.com', baslik: 'Grok Konusmasi' }
+    };
+    const kaynak = konusma.kaynak || 'gemini'; // ham kaynak alanı
+    const kaynakBilgi = KAYNAK_HARITA[kaynak] || { ad: 'AI', sinif: 'ai', site: 'unknown', baslik: 'AI Konusmasi' }; // bilinmeyen → generic
+    const yapayZekaAdi = kaynakBilgi.ad; // etiket metni
+    const yapayZekaSinif = kaynakBilgi.sinif; // CSS sınıfı
+    const kaynakSite = kaynakBilgi.site; // site adresi
 
     // Yazı boyutunu uygula
     if (ayarlar.yaziBoyutu) { // yazı boyutu ayarı varsa
         document.getElementById('yazdirmaAlani').style.fontSize = ayarlar.yaziBoyutu + 'px'; // boyutu uygula
     }
 
+    // Footer'ı toggle et (kullanıcı imzayı kapatmışsa gizle)
+    if (ayarlar.footerGoster === false) { // varsayılan true; sadece açıkça false ise gizle
+        const footer = document.querySelector('.sayfa-alt-bilgi'); // footer elementi
+        if (footer) footer.style.display = 'none'; // gizle (yazdırmadan da çıkar)
+    }
+
     // Başlık ve tarih bilgisini yaz (tümü textContent — XSS-safe)
-    const varsayilanBaslik = kaynak === 'claude' ? 'Claude Konusmasi' : kaynak === 'chatgpt' ? 'ChatGPT Konusmasi' : kaynak === 'grok' ? 'Grok Konusmasi' : 'Gemini Konusmasi';
-    const konusmaBasligi = konusma.baslik || varsayilanBaslik;
+    const konusmaBasligi = konusma.baslik || kaynakBilgi.baslik;
     document.getElementById('konusmaBasligi').textContent = konusmaBasligi;
     document.getElementById('konusmaTarihi').textContent = (konusma.tarih || '') + ' ' + (konusma.saat || '');
     document.title = konusmaBasligi; // PDF dosya adı
@@ -215,20 +233,23 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
     // Loading overlay'i gizle
     yuklemeyiGizle();
 
-    // Yazdırma sonrası storage temizleme — render bittikten sonra temizle
-    const storageyiTemizle = async () => { // storage temizleme fonksiyonu
-        try { // storage erişim denemesi
-            await chrome.storage.local.remove(['konusmaVerisi', 'yazdirAyarlari']); // geçici veriyi sil
-        } catch (temizlemeHata) { // başarısızsa görmezden gel
-            console.warn('Storage temizleme başarısız:', temizlemeHata.message); // uyarı
-        }
-    };
-    window.addEventListener('afterprint', storageyiTemizle); // yazdırma diyaloğu kapandığında temizle
-    window.addEventListener('beforeunload', storageyiTemizle); // sekme kapandığında temizle
+    // Storage temizliği zaten oku-anında yapıldı (multi-tab race condition koruması)
+    // Bu noktada storage zaten boş, ek temizleme gereksiz
 
-    // Otomatik yazdır
+    // Otomatik yazdır — tüm resimlerin yüklenmesini bekle, sonra print
     if (ayarlar.otomatikYazdir) { // otomatik yazdır açıksa
-        setTimeout(() => { window.print(); }, 800); // 800ms bekle ve yazdır
+        const tumResimler = Array.from(document.querySelectorAll('#yazdirmaAlani img')); // tüm img elementleri
+        const yuklemeleriBekle = tumResimler.map((img) => { // her resim için promise
+            if (img.complete) return Promise.resolve(); // zaten yüklü
+            return new Promise((coz) => { // yüklenmeyi bekle
+                img.addEventListener('load', coz, { once: true }); // başarılı
+                img.addEventListener('error', coz, { once: true }); // başarısız da geç
+                setTimeout(coz, 3000); // max 3sn bekle (timeout)
+            });
+        });
+        Promise.all(yuklemeleriBekle).then(() => { // tüm resimler hazır
+            setTimeout(() => { window.print(); }, 200); // kısa render hazırlığı, sonra yazdır
+        });
     }
 
     // Kontrol butonları
@@ -397,14 +418,19 @@ function htmlTemizle(htmlString) {
                         }
                     }
 
-                    // IMG etiketi için src (güvenli şemalar: data:image/ / https: / blob:)
+                    // IMG etiketi için src (güvenli şemalar: data:image/{png,jpeg,jpg,gif,webp} / https: / blob:)
                     if (cocuk.tagName === 'IMG') {
                         const src = cocuk.getAttribute('src') || '';
-                        if (src.startsWith('data:image/') || src.startsWith('https://') || src.startsWith('blob:')) {
-                            yeniElement.setAttribute('src', src);
+                        // SVG data URI XSS koruması: sadece raster format'lara izin ver
+                        const guvenliDataUri = /^data:image\/(png|jpeg|jpg|gif|webp);(base64,|charset=)/i.test(src); // raster format kontrol
+                        const guvenliHttps = src.startsWith('https://') && !src.toLowerCase().includes('javascript:'); // https + javascript: önleme
+                        const guvenliBlob = src.startsWith('blob:'); // blob güvenli
+                        if (guvenliDataUri || guvenliHttps || guvenliBlob) { // sadece güvenli kaynak
+                            yeniElement.setAttribute('src', src); // güvenli src
                         }
                         yeniElement.setAttribute('alt', cocuk.getAttribute('alt') || 'Görsel');
                         yeniElement.setAttribute('loading', 'lazy');
+                        yeniElement.setAttribute('referrerpolicy', 'no-referrer'); // referrer leak önle
                     }
 
                     temizleVeKopyala(cocuk, yeniElement); // alt element'leri recursive temizle

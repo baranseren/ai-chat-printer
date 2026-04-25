@@ -34,8 +34,11 @@ chrome.commands.onCommand.addListener(async (komut) => { // komut tetiklendi
         // Content script'e yazdırma tetikle
         try { // mesaj gönderme denemesi
             await chrome.tabs.sendMessage(aktifSekme.id, { islem: 'klavyeKisayoluYazdir' }); // tetikle
-        } catch (iletisimHata) { // content script hazır değilse
-            console.warn('AI Chat Printer [Shortcut]: Content script erişilemedi:', iletisimHata.message); // uyarı
+        } catch (iletisimHata) { // content script hazır değilse — kullanıcıya badge ile bildir
+            console.warn('AI Chat Printer [Shortcut]: Content script erişilemedi:', iletisimHata.message); // log
+            chrome.action.setBadgeText({ text: 'F5', tabId: aktifSekme.id }); // sayfa yenileme önerisi
+            chrome.action.setBadgeBackgroundColor({ color: '#f59e0b', tabId: aktifSekme.id }); // amber uyarı
+            setTimeout(() => chrome.action.setBadgeText({ text: '', tabId: aktifSekme.id }), 4000); // 4sn temizle
         }
     } catch (hata) { // genel hata
         console.error('AI Chat Printer [Shortcut]: Komut işleme hatası:', hata.message); // hata

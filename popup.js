@@ -4,7 +4,8 @@
 const VARSAYILAN_POPUP_AYARLAR = { // popup tarafındaki varsayılanlar
     kodBloklari: true, // kod blokları dahil
     otomatikYazdir: true, // otomatik yazdır
-    yaziBoyutu: '13' // normal yazı boyutu
+    yaziBoyutu: '13', // normal yazı boyutu
+    footerGoster: true // eklenti imzasını göster (false = footer'ı kaldır)
 };
 
 // Sayfa yüklendiğinde çalış
@@ -13,6 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
     const kodBloklariCheck = document.getElementById('kodBloklari'); // kod blokları toggle
     const otomatikYazdirCheck = document.getElementById('otomatikYazdir'); // otomatik yazdır toggle
     const yaziBoyutuSelect = document.getElementById('yaziBoyutu'); // yazı boyutu select
+    const footerGosterCheck = document.getElementById('footerGoster'); // footer toggle
 
     // Kalıcı ayarları yükle ve UI'ya yansıt
     try { // storage erişim denemesi
@@ -21,8 +23,25 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
         kodBloklariCheck.checked = ayarlar.kodBloklari; // toggle durumu
         otomatikYazdirCheck.checked = ayarlar.otomatikYazdir; // toggle durumu
         yaziBoyutuSelect.value = ayarlar.yaziBoyutu; // select değeri
+        footerGosterCheck.checked = ayarlar.footerGoster !== false; // varsayılan true
     } catch (yukleHata) { // storage erişilemezse varsayılan kalır
         console.warn('AI Chat Printer: Ayar yükleme başarısız:', yukleHata.message); // uyarı
+    }
+
+    // Aktif sekmeyi proaktif kontrol et — desteklenmeyen sitedeyse bilgi ver
+    const DESTEKLENEN_URLLER = ['gemini.google.com', 'claude.ai', 'chatgpt.com', 'grok.com']; // tek doğru kaynak
+    try { // sekme bilgisi
+        const [aktif] = await chrome.tabs.query({ active: true, currentWindow: true }); // aktif sekme
+        const url = aktif?.url || ''; // URL
+        const desteklenenSite = DESTEKLENEN_URLLER.some((domain) => url.includes(domain)); // desteklenen mi
+        if (!desteklenenSite) { // değilse uyar
+            durumGoster('bilgi', 'Bu sayfa desteklenmiyor. Eklenti gemini.google.com, claude.ai, chatgpt.com ve grok.com sayfalarında çalışır.'); // bilgi mesajı
+            yazdirButonu.disabled = true; // yazdır butonunu disable et
+            yazdirButonu.style.opacity = '0.5'; // görsel feedback
+            yazdirButonu.style.cursor = 'not-allowed'; // imleç değişimi
+        }
+    } catch (sekmeHata) { // tabs API hatası — görmezden gel, normal akış devam etsin
+        console.warn('AI Chat Printer: Sekme kontrolü başarısız:', sekmeHata.message); // uyarı
     }
 
     // Ayar değiştiğinde otomatik kalıcı kaydet + feedback göster
@@ -30,7 +49,8 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
         const ayarlar = { // mevcut UI ayarları
             kodBloklari: kodBloklariCheck.checked, // kod blokları dahil mi
             otomatikYazdir: otomatikYazdirCheck.checked, // otomatik yazdır mı
-            yaziBoyutu: yaziBoyutuSelect.value // yazı boyutu
+            yaziBoyutu: yaziBoyutuSelect.value, // yazı boyutu
+            footerGoster: footerGosterCheck.checked // footer göster
         };
         try { // storage erişim denemesi
             await chrome.storage.sync.set({ kullaniciAyarlari: ayarlar }); // sync storage'a yaz
@@ -47,6 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
     kodBloklariCheck.addEventListener('change', ayarKaydet); // toggle değişimi
     otomatikYazdirCheck.addEventListener('change', ayarKaydet); // toggle değişimi
     yaziBoyutuSelect.addEventListener('change', ayarKaydet); // select değişimi
+    footerGosterCheck.addEventListener('change', ayarKaydet); // footer toggle değişimi
 
     // Yazdır butonuna tıklama olayı
     yazdirButonu.addEventListener('click', async () => { // tıklama dinleyici
@@ -58,8 +79,8 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
             // Aktif sekmeyi al
             const [aktifSekme] = await chrome.tabs.query({ active: true, currentWindow: true }); // aktif sekme bilgisi
 
-            // Desteklenen site kontrolü
-            const desteklenenSite = aktifSekme.url?.includes('gemini.google.com') || aktifSekme.url?.includes('claude.ai') || aktifSekme.url?.includes('chatgpt.com') || aktifSekme.url?.includes('grok.com'); // URL kontrolü
+            // Desteklenen site kontrolü (DRY — yukarıdaki DESTEKLENEN_URLLER ile aynı)
+            const desteklenenSite = DESTEKLENEN_URLLER.some((domain) => (aktifSekme.url || '').includes(domain)); // URL kontrolü
             if (!desteklenenSite) { // desteklenmeyen site
                 durumGoster('hata', 'Bu eklenti gemini.google.com, claude.ai, chatgpt.com ve grok.com sayfalarında çalışır.'); // hata mesajı
                 butonuSifirla(); // butonu eski haline getir
@@ -98,7 +119,8 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
             const ayarlar = { // kullanıcı tercihleri
                 kodBloklari: kodBloklariCheck.checked, // kod blokları dahil mi
                 otomatikYazdir: otomatikYazdirCheck.checked, // otomatik yazdır mı
-                yaziBoyutu: yaziBoyutuSelect.value // yazı boyutu
+                yaziBoyutu: yaziBoyutuSelect.value, // yazı boyutu
+                footerGoster: footerGosterCheck.checked // footer göster
             };
 
             // Ayarları kalıcı olarak kaydet (bu tıklamada değişmiş olabilir)

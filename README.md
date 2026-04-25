@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>v1.5.0</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
+  <strong>v1.5.1</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
 </p>
 
 ---
@@ -205,6 +205,23 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ---
 
 ## Degisiklik Gecmisi / Changelog
+
+### v1.5.1 (25.04.2026) — Ticari kalite denetlemesi
+- **Guvenlik:** HTML sanitizer SVG data URI XSS acigi kapatildi (sadece raster format'lara izin)
+- **Multi-tab race condition cozuldu:** oku-ve-hemen-sil pattern (ayni anda 2 sekmede yazdirma kaybi onlendi)
+- **MutationObserver memory leak fix:** 4 content script'te pagehide event ile disconnect
+- **i18n duzgun calisiyor:** manifest'te __MSG_*__ placeholder'lari kullanilarak _locales aktif edildi
+- **homepage_url duzeltildi:** ai-chat-printer (eski: GeminiPrinter — 404 veriyordu)
+- **Print otomasyon iyilesti:** sabit 800ms gecikme yerine resim yuklenmesini bekler (Promise.all + 3sn timeout)
+- **Bilinmeyen kaynak fallback:** sessizce gemini'ye dusmek yerine generic "ai" tema
+- **Storage quota dinamik:** chrome.storage.local.QUOTA_BYTES kullanir, hard-code degil
+- **Footer toggle:** popup'tan eklenti imzasi kaldirilabilir
+- **Klavye kisayolu uyari:** content script erisilemezse F5 badge gosterir
+- **Popup proaktif kontrol:** desteklenmeyen sayfada yazdir butonu disabled
+- **Turkce karakter regex fix:** content-grok.js'te \\b yerine non-word boundary
+- **Markdown export escape:** `#` ile baslayan kullanici metni baslik olmaz
+- **Dead code temizligi:** ortak-yardimcilar.js'te kullanilmayan storageErisimiVarMi kaldirildi
+- **referrerpolicy="no-referrer"** tum yazdirma resimlerinde — referrer leak onlendi
 
 ### v1.5.0 (25.04.2026) — Grok destegi
 - **Grok destegi eklendi** — grok.com konusmalarini yazdirma

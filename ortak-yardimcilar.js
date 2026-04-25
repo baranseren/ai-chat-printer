@@ -6,12 +6,14 @@
 const VARSAYILAN_AYARLAR = { // varsayılan kullanıcı ayarları
     kodBloklari: true, // kod blokları dahil
     otomatikYazdir: true, // otomatik yazdır
-    yaziBoyutu: '13' // normal yazı boyutu (px)
+    yaziBoyutu: '13', // normal yazı boyutu (px)
+    footerGoster: true // eklenti imzasını göster (true = footer aktif)
 };
 
-// chrome.storage.local'in resmi byte limiti (10MB) — güvenli kullanım sınırı
-const STORAGE_LOCAL_LIMIT = 10 * 1024 * 1024; // 10 MB
-const STORAGE_UYARI_ESIGI = 8 * 1024 * 1024; // 8 MB — bu eşikten sonra uyar
+// chrome.storage.local quota — API'den dinamik oku (varsayılan 10MB)
+// chrome.storage.local.QUOTA_BYTES = 10485760 (10MB) — bazı sürümlerde farklı olabilir
+const STORAGE_LOCAL_LIMIT = (typeof chrome !== 'undefined' && chrome.storage?.local?.QUOTA_BYTES) || (10 * 1024 * 1024); // resmi quota veya fallback
+const STORAGE_UYARI_ESIGI = Math.floor(STORAGE_LOCAL_LIMIT * 0.8); // %80 eşik (8 MB) — bu eşikten sonra uyar
 const RESIM_TOPLAM_SURE_LIMIT = 90 * 1000; // 90 saniye — tüm resim dönüşümleri için toplam limit
 
 // Ayarları chrome.storage.sync'ten yükler — kalıcı senkronize ayarlar
@@ -110,17 +112,6 @@ function basligiTemizle(hamBaslik, kaynak) {
     return baslik; // temizlenmiş başlık
 }
 
-// Chrome storage erişimi kontrolü (context invalidation kontrolü)
-async function storageErisimiVarMi() {
-    try { // küçük bir test okuma
-        if (!chrome.runtime?.id) return false; // runtime id yoksa context dead
-        await chrome.storage.local.get('_test_erisim'); // erişim testi
-        return true; // başarılı
-    } catch (hata) { // context kaybolmuşsa
-        return false; // başarısız
-    }
-}
-
 // Veriyi JSON string olarak boyut hesaplar (quota kontrolü için)
 function veriBoyutuHesapla(veri) {
     try { // JSON stringify edilir
@@ -202,6 +193,9 @@ async function yazdirmayaBasla(veri, uyariBalonuGoster) {
 function konusmayiMarkdowneDonustur(veri) {
     if (!veri || !veri.mesajlar) return ''; // veri yoksa boş
 
+    // Markdown başlık escape — "#" ile başlayan kullanıcı metni başlık gibi görünmesin
+    const mdBaslikEscape = (str) => (str || '').replace(/^(#{1,6})\s/gm, '\\$1 '); // satır başı # escape
+
     const yapayZekaAdi = veri.kaynak === 'claude' ? 'Claude' : veri.kaynak === 'chatgpt' ? 'ChatGPT' : veri.kaynak === 'grok' ? 'Grok' : 'Gemini'; // kaynak adı
     let md = '# ' + (veri.baslik || (yapayZekaAdi + ' Konuşması')) + '\n\n'; // başlık
     md += '**Tarih:** ' + (veri.tarih || '') + ' ' + (veri.saat || '') + '  \n'; // tarih
@@ -212,7 +206,7 @@ function konusmayiMarkdowneDonustur(veri) {
     veri.mesajlar.forEach((mesaj, idx) => { // her mesaj
         const rolAdi = mesaj.rol === 'kullanici' ? 'Kullanıcı' : yapayZekaAdi; // rol etiketi
         md += '## #' + (idx + 1) + ' — ' + rolAdi + '\n\n'; // mesaj başlığı
-        const metin = (mesaj.metin || '').trim(); // düz metin
+        const metin = mdBaslikEscape((mesaj.metin || '').trim()); // başlık escape uygulanan metin
         md += metin ? metin + '\n\n' : '_(boş mesaj)_\n\n'; // metin veya placeholder
 
         // Artifact'ları kod bloğu olarak ekle
