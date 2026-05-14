@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>v1.5.2</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
+  <strong>v1.6.1</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
 </p>
 
 ---
@@ -39,6 +39,7 @@ AI Chat Printer, Google Gemini, Claude.ai, ChatGPT ve Grok uzerinde yaptginiz ko
 | ChatGPT Destegi | chatgpt.com konusmalarini yazdirir |
 | Grok Destegi | grok.com konusmalarini yazdirir |
 | Sayfa Ici Buton | Popup acmadan dogrudan sayfadan yazdir |
+| Cevap Alti Indir (Gemini) | Her Gemini cevabinin altinda **↓ MD** ve **↓ TXT** butonlari — tek soru-cevabi anlik indir |
 | HTML Temizleme | XSS korumasli guvenli icerik render |
 | Mesaj Numaralama | Her mesaj sirayla numaralanir |
 | Kod Bloklari | Kod bloklari okunabilir formatta yazdirmaya dahil edilir |
@@ -101,6 +102,7 @@ AI Chat Printer lets you print or save as PDF your Google Gemini, Claude.ai, Cha
 | ChatGPT Support | Print conversations from chatgpt.com |
 | Grok Support | Print conversations from grok.com |
 | In-Page Button | Print directly from the page without opening a popup |
+| Per-Answer Download (Gemini) | **↓ MD** and **↓ TXT** buttons under each Gemini answer — instantly download a single Q&A pair |
 | HTML Sanitization | Secure content rendering with XSS protection |
 | Message Numbering | Each message is sequentially numbered |
 | Code Blocks | Code blocks are included in readable format |
@@ -205,6 +207,22 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ---
 
 ## Degisiklik Gecmisi / Changelog
+
+### v1.6.1 (15.05.2026) — Cevap alti MD/TXT indirme + storage sertlestirme
+
+**Yeni Ozellik / New Feature:**
+- **Gemini cevap alti indirme butonlari** — Her `model-response` action bar'ina **↓ MD** ve **↓ TXT** butonlari enjekte edilir. Tek bir soru-cevap ciftini Markdown veya duz metin olarak anlik indirir (tum konusmayi degil).
+- **Per-answer download buttons for Gemini** — Each `model-response` action bar gets **↓ MD** and **↓ TXT** buttons. Instantly downloads a single Q&A pair as Markdown or plain text (not the whole conversation).
+- Dosya adi soru metninden uretilir (80 karakter limit, FS yasakli karakterler temizlenir) / Filename derived from question text (80 char limit, FS-unsafe chars stripped).
+- MD ciktida tarih, konusma basligi, ayrac ile yapilandirilmis format. TXT ciktida 60 karakter `=` ayraclar.
+
+**Sertlestirme / Hardening:**
+- `chrome.storage` erisilemez durumlarda guvenli fallback — eklenti context invalidation sirasinda sessizce varsayilan ayarlar donulur. / Safe fallback when `chrome.storage` is inaccessible — silently returns defaults during extension context invalidation.
+- `console.warn` / `console.error` → `console.log` demote — eklenti `chrome://extensions` "Errors" sayfasinda gereksiz uyari biriktirmiyor. / Demoted to `console.log` so extension Errors page doesn't accumulate noise.
+- `yazdirmayaBasla()` icin `chrome.storage.local` mevcudiyet kontrolu erkene cekildi (try/catch oncesi). / `chrome.storage.local` existence check moved before try/catch in `yazdirmayaBasla()`.
+
+**MutationObserver Genisletildi:**
+- Gemini icin gozlemci artik yalnizca toolbar butonunu degil, yeni gelen `model-response`'lara da MD/TXT enjeksiyonu yapiyor (200ms debounce ile ayni dongude). / Gemini observer now also injects MD/TXT buttons into new `model-response` elements (same 200ms debounce cycle).
 
 ### v1.5.2 (25.04.2026) — Gemini streaming false positive hotfix
 - **Gemini sayfasinda yanlis "henuz yanit yaziyor" toast'i kaldirildi**
