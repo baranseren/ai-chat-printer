@@ -6,15 +6,17 @@ let butonEnjekteEdildi = false; // tekrar enjekte etmeyi önle
 
 // Sayfa yüklendiğinde ve navigasyon değişikliklerinde butonu enjekte et
 function baslat() {
-    butonuEnjekteEt(); // ilk deneme
+    butonuEnjekteEt(); // ilk deneme — toolbar yazdır butonu
+    indirmeButonlariniKontrolEt(); // ilk deneme — her cevabın altına MD/TXT indir butonları
     // Gemini SPA olduğu için URL değişikliklerini izle — debounce ile CPU yükü düşür
-    const butonuKontrolEt = debounce(() => { // 200ms debounce'lu kontrol
-        if (!document.querySelector('#gemini-printer-buton')) { // buton kaybolmuşsa
+    const gozlemKontrol = debounce(() => { // 200ms debounce'lu kontrol
+        if (!document.querySelector('#gemini-printer-buton')) { // toolbar buton kaybolmuşsa
             butonEnjekteEdildi = false; // tekrar enjekte edilebilir
             butonuEnjekteEt(); // butonu yeniden ekle
         }
+        indirmeButonlariniKontrolEt(); // yeni model-response'lara indir butonu ekle
     }, 200);
-    const gozlemci = new MutationObserver(butonuKontrolEt); // debounce'lu observer
+    const gozlemci = new MutationObserver(gozlemKontrol); // debounce'lu observer
     gozlemci.observe(document.body, { childList: true, subtree: true }); // body'deki değişiklikleri izle
     // Sayfa gizlenince observer'ı temizle (memory leak önleme)
     window.addEventListener('pagehide', () => gozlemci.disconnect(), { once: true }); // pagehide event
@@ -268,6 +270,184 @@ async function konusmayiCikar() {
         mesajlar: mesajlar, // mesaj dizisi
         kaynak: 'gemini' // hangi siteden geldiği
     };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CEVAP ALTI MD/TXT İNDİRME BUTONLARI — her model-response için 2 buton
+// ═══════════════════════════════════════════════════════════════════
+
+// Tüm model-response'ları tarar ve buton enjekte edilmemiş olanlara ekler
+function indirmeButonlariniKontrolEt() {
+    const tumYanitlar = document.querySelectorAll('model-response'); // tüm Gemini yanıtları
+    for (const yanit of tumYanitlar) { // her yanıt için
+        if (yanit.querySelector('.gp-indir-btn')) continue; // zaten enjekte edildiyse atla
+        if (!yanit.querySelector('.markdown, .response-content, message-content')) continue; // içerik yoksa atla
+        indirmeButonlariniEnjekte(yanit); // butonları ekle
+    }
+}
+
+// Bir model-response için action bar'ı bulup MD/TXT butonlarını ekler
+function indirmeButonlariniEnjekte(modelResponse) {
+    // Action bar adayları — Gemini farklı sürümlerde farklı container kullanıyor
+    const aksiyonBar = modelResponse.querySelector('message-actions') || // custom element
+        modelResponse.querySelector('.response-actions-container') || // container class
+        modelResponse.querySelector('.message-actions'); // alternatif class
+
+    if (!aksiyonBar) return; // action bar bulunamadıysa çık (henüz render olmamış olabilir)
+
+    // Action bar içindeki mevcut ikon butonları bul — onların gerçek parent'ına ekleyeceğiz
+    // (action bar bazen wrapper olur, asıl flex container içerideki bir div'dir)
+    const mevcutButonlar = aksiyonBar.querySelectorAll('button[mat-icon-button], button.mat-mdc-icon-button, button.mat-icon-button, button'); // ikon buton adayları
+    if (mevcutButonlar.length === 0) return; // hiç buton yoksa enjekte etme (yapı tanınamadı)
+    const sonButon = mevcutButonlar[mevcutButonlar.length - 1]; // en sondaki buton (⋮ more options)
+    const butonParent = sonButon.parentElement; // gerçek flex container — diğer butonların kardeşi olacağız
+    if (!butonParent) return; // parent yoksa çık
+
+    // Stil bir kez ekle
+    if (!document.querySelector('#gp-indir-stil')) { // stil yoksa
+        const stil = document.createElement('style'); // style elementi
+        stil.id = 'gp-indir-stil'; // benzersiz id
+        stil.textContent = [ // CSS kuralları — diğer ikon butonlarla yan yana hizalı
+            '.gp-indir-btn {',
+            '  display:inline-flex; align-items:center; justify-content:center;',
+            '  padding:0 10px; border:1px solid #dadce0; border-radius:14px;',
+            '  background:#ffffff; font-size:11px; cursor:pointer; color:#5f6368;',
+            '  font-family:"Google Sans Text","Google Sans",Roboto,Arial,sans-serif;',
+            '  font-weight:500; transition:background 0.15s, border-color 0.15s, color 0.15s;',
+            '  line-height:1; height:28px; margin:0 2px; flex-shrink:0;',
+            '  vertical-align:middle; white-space:nowrap;',
+            '}',
+            '.gp-indir-btn:hover { background:#e8f0fe; border-color:#1a73e8; color:#1a73e8; }',
+            '.gp-indir-btn.gp-md-btn { border-color:#d2e3fc; color:#1a73e8; }',
+            '.gp-indir-btn.gp-txt-btn { border-color:#dadce0; }',
+            '.gp-indir-btn:first-of-type { margin-left:8px; }'
+        ].join('\n'); // birleştir
+        document.head.appendChild(stil); // head'e ekle
+    }
+
+    // MD indir butonu
+    const mdBtn = document.createElement('button'); // MD butonu
+    mdBtn.type = 'button'; // form submit önle
+    mdBtn.className = 'gp-indir-btn gp-md-btn'; // CSS sınıfları
+    mdBtn.textContent = '↓ MD'; // metin (Türkçe karakter yok)
+    mdBtn.title = 'Bu soru-cevabı Markdown olarak indir'; // tooltip
+    mdBtn.setAttribute('aria-label', 'Markdown olarak indir'); // erişilebilirlik
+
+    // TXT indir butonu
+    const txtBtn = document.createElement('button'); // TXT butonu
+    txtBtn.type = 'button'; // form submit önle
+    txtBtn.className = 'gp-indir-btn gp-txt-btn'; // CSS sınıfları
+    txtBtn.textContent = '↓ TXT'; // metin
+    txtBtn.title = 'Bu soru-cevabı düz metin olarak indir'; // tooltip
+    txtBtn.setAttribute('aria-label', 'Düz metin olarak indir'); // erişilebilirlik
+
+    // Tıklama olayları — closure ile modelResponse referansını sabitle
+    mdBtn.addEventListener('click', (olay) => { // MD tıklama
+        olay.preventDefault(); olay.stopPropagation(); olay.stopImmediatePropagation(); // diğer handler'ları durdur
+        const soru = oncekiSoruMetniBul(modelResponse); // önceki kullanıcı sorusu
+        const cevap = cevapMetniniAl(modelResponse); // şu anki cevap metni
+        cevapIndir(soru, cevap, 'md'); // MD olarak indir
+    });
+    txtBtn.addEventListener('click', (olay) => { // TXT tıklama
+        olay.preventDefault(); olay.stopPropagation(); olay.stopImmediatePropagation(); // diğer handler'ları durdur
+        const soru = oncekiSoruMetniBul(modelResponse); // önceki kullanıcı sorusu
+        const cevap = cevapMetniniAl(modelResponse); // şu anki cevap metni
+        cevapIndir(soru, cevap, 'txt'); // TXT olarak indir
+    });
+
+    // Son ikon butonun yanına kardeş olarak ekle (aynı flex container içinde — yan yana hizalanır)
+    if (sonButon.nextSibling) { // son butondan sonra başka bir element varsa
+        butonParent.insertBefore(mdBtn, sonButon.nextSibling); // araya MD ekle
+        butonParent.insertBefore(txtBtn, mdBtn.nextSibling); // MD'nin yanına TXT ekle
+    } else { // son butondan sonra hiçbir şey yoksa
+        butonParent.appendChild(mdBtn); // sona MD ekle
+        butonParent.appendChild(txtBtn); // sona TXT ekle
+    }
+}
+
+// Bir model-response'tan önceki user-query'nin metnini bulur (soru eşleştirme)
+function oncekiSoruMetniBul(modelResponse) {
+    let oncekiKardes = modelResponse.previousElementSibling; // DOM'da önceki kardeş
+    while (oncekiKardes) { // user-query bulana kadar geri git
+        if (oncekiKardes.tagName && oncekiKardes.tagName.toLowerCase() === 'user-query') { // user-query elementi
+            const queryText = oncekiKardes.querySelector('.query-text') || // asıl metin
+                oncekiKardes.querySelector('.user-query-bubble-with-background') || // balon
+                oncekiKardes.querySelector('.query-content') || // içerik
+                oncekiKardes; // fallback
+            return geminiPrefixTemizle((queryText.textContent || '').trim()); // prefix temizle ve dön
+        }
+        oncekiKardes = oncekiKardes.previousElementSibling; // bir önceki kardeşe git
+    }
+    return ''; // bulunamadıysa boş
+}
+
+// Bir model-response'un cevap metnini düz text olarak çıkarır
+function cevapMetniniAl(modelResponse) {
+    const icerikEl = modelResponse.querySelector('.markdown') || // markdown bloğu
+        modelResponse.querySelector('.response-content') || // yanıt içeriği
+        modelResponse.querySelector('message-content'); // mesaj içeriği
+    return icerikEl ? (icerikEl.textContent || '').trim() : ''; // metni dön
+}
+
+// Soru-cevap çiftini MD veya TXT formatında dosyaya indirir
+function cevapIndir(soru, cevap, format) {
+    const tarih = new Date().toLocaleString('tr-TR'); // tarih saat damgası
+    const konusmaBasligi = basligiTemizle(document.title || '', 'gemini') || 'Gemini Konuşması'; // sayfa başlığı
+
+    let icerik; // dosya içeriği
+    let mimeType; // MIME tipi
+
+    if (format === 'md') { // Markdown format
+        icerik = '# Gemini Soru-Cevap\n\n' + // başlık
+            '**Tarih:** ' + tarih + '  \n' + // tarih
+            '**Konuşma:** ' + konusmaBasligi + '\n\n' + // konuşma adı
+            '---\n\n' + // ayırıcı
+            '## Soru\n\n' + // soru başlığı
+            (soru || '*(Soru metni alınamadı)*') + '\n\n' + // soru metni
+            '## Cevap\n\n' + // cevap başlığı
+            (cevap || '*(Cevap metni alınamadı)*') + '\n\n' + // cevap metni
+            '---\n*AI Chat Printer eklentisi ile indirildi*\n'; // imza
+        mimeType = 'text/markdown;charset=utf-8'; // markdown MIME
+    } else { // düz metin format
+        const ayirici = new Array(61).join('='); // 60 karakter = çizgisi
+        icerik = 'Gemini Soru-Cevap\n' + // başlık
+            ayirici + '\n' + // ayırıcı
+            'Tarih:    ' + tarih + '\n' + // tarih
+            'Konusma:  ' + konusmaBasligi + '\n' + // konuşma adı
+            ayirici + '\n\n' + // ayırıcı
+            'SORU:\n' + // soru başlığı
+            (soru || '(Soru metni alinamadi)') + '\n\n' + // soru
+            'CEVAP:\n' + // cevap başlığı
+            (cevap || '(Cevap metni alinamadi)') + '\n\n' + // cevap
+            ayirici + '\n' + // ayırıcı
+            'AI Chat Printer eklentisi ile indirildi\n'; // imza
+        mimeType = 'text/plain;charset=utf-8'; // plain text MIME
+    }
+
+    const dosyaAdi = indirmeDosyaAdiOlustur(soru, format); // güvenli dosya adı
+    const blob = new Blob([icerik], { type: mimeType }); // blob oluştur
+    const url = URL.createObjectURL(blob); // geçici URL
+    const link = document.createElement('a'); // gizli a etiketi
+    link.href = url; // blob URL
+    link.download = dosyaAdi; // indirilecek dosya adı
+    document.body.appendChild(link); // body'e ekle
+    link.click(); // tıkla — indirme başlar
+    document.body.removeChild(link); // hemen sil
+    setTimeout(() => URL.revokeObjectURL(url), 100); // 100ms sonra URL'i serbest bırak
+
+    uyariBalonuGoster('İndirildi: ' + dosyaAdi, 'basari'); // kullanıcıya bildir
+}
+
+// Soru metninden güvenli dosya adı üretir (FS yasaklı karakterler temizlenir)
+function indirmeDosyaAdiOlustur(soru, format) {
+    let temel = (soru || '').trim(); // ham soru metni
+    if (!temel) { // soru yoksa
+        temel = 'gemini-cevap-' + Date.now(); // timestamp ile fallback
+    } else { // soru varsa
+        temel = temel.replace(/[<>:"/\\|?*\n\r\t]/g, '').replace(/\s+/g, ' ').trim(); // FS yasaklı karakterleri temizle
+        if (temel.length > 80) temel = temel.substring(0, 80).trim(); // 80 karakterle sınırla
+    }
+    return temel + '.' + format; // uzantı ekle ve dön
 }
 
 // Gemini'nin kullanıcı mesajlarına eklediği erişilebilirlik prefix'lerini temizler
