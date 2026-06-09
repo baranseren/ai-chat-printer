@@ -353,7 +353,7 @@ async function konusmayiCikar() {
         const kaynakEl = enZenginIcerikDescendant(el); // en zengin içerikli element
         const htmlIcerik = await resimliHtmlCikar(kaynakEl); // resimleri base64'e çevirip HTML çıkar
         const ekstraResimler = await turnResimleriniTopla(el, kaynakEl); // kaynak dışındaki resimler
-        const metinIcerik = (kaynakEl.textContent || '').trim(); // düz metin
+        const metinIcerik = temizMetinCikar(kaynakEl); // UI sızıntısız düz metin
 
         if (!htmlIcerik && !metinIcerik && ekstraResimler.length === 0) { // tamamen boşsa atla
             console.log('AI Chat Printer [Grok DEBUG]: Boş container atlandı:', (el.className || '').toString().slice(0, 60)); // debug

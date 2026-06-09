@@ -6,6 +6,7 @@ let butonEnjekteEdildi = false; // tekrar enjekte etmeyi önle
 
 // Sayfa yüklendiğinde ve navigasyon değişikliklerinde butonu enjekte et
 function baslat() {
+    eskiIndirmeButonlariniTemizle(); // eklenti reload sonrası ölü handler'lı MD/TXT butonlarını sil
     butonuEnjekteEt(); // ilk deneme — toolbar yazdır butonu
     indirmeButonlariniKontrolEt(); // ilk deneme — her cevabın altına MD/TXT indir butonları
     // Gemini SPA olduğu için URL değişikliklerini izle — debounce ile CPU yükü düşür
@@ -222,7 +223,7 @@ async function konusmayiCikar() {
 
             if (kaynakElement) { // element bulunduysa
                 htmlIcerik = await resimliHtmlCikar(kaynakElement); // resimleri base64'e çevirip HTML çıkar
-                metinIcerik = geminiPrefixTemizle(kaynakElement.textContent?.trim() || ''); // prefix temizle
+                metinIcerik = geminiPrefixTemizle(temizMetinCikar(kaynakElement)); // UI temizliği + prefix temizle
             }
 
             // Turn genelinde kaynak element dışında kalan resimleri topla
@@ -255,7 +256,7 @@ async function konusmayiCikar() {
                 mesajlar.push({
                     rol: 'gemini', // mesaj rolü
                     html: htmlIcerik, // base64 resimli HTML içerik
-                    metin: kaynakElement ? kaynakElement.textContent?.trim() : '', // düz metin
+                    metin: kaynakElement ? temizMetinCikar(kaynakElement) : '', // UI sızıntısız düz metin
                     resimler: ekstraResimler // kaynak element dışındaki resimler
                 });
             }
@@ -282,6 +283,12 @@ async function konusmayiCikar() {
 // ═══════════════════════════════════════════════════════════════════
 // CEVAP ALTI MD/TXT İNDİRME BUTONLARI — her model-response için 2 buton
 // ═══════════════════════════════════════════════════════════════════
+
+// Eklenti reload'unda önceki content script'ten kalan ölü handler'lı indirme butonlarını siler
+// (toolbar butonundaki dead-handler-cleanup pattern'inin cevap altı butonlara uygulanmış hali)
+function eskiIndirmeButonlariniTemizle() {
+    document.querySelectorAll('.gp-indir-btn').forEach((buton) => buton.remove()); // ölü butonları sil — yenisi canlı handler'la enjekte edilir
+}
 
 // Tüm model-response'ları tarar ve buton enjekte edilmemiş olanlara ekler
 function indirmeButonlariniKontrolEt() {
@@ -381,7 +388,7 @@ function oncekiSoruMetniBul(modelResponse) {
                 oncekiKardes.querySelector('.user-query-bubble-with-background') || // balon
                 oncekiKardes.querySelector('.query-content') || // içerik
                 oncekiKardes; // fallback
-            return geminiPrefixTemizle((icerikKlonuTemizle(queryText).textContent || '').trim()); // UI temizliği + prefix temizle
+            return geminiPrefixTemizle(temizMetinCikar(queryText)); // UI temizliği + prefix temizle
         }
         oncekiKardes = oncekiKardes.previousElementSibling; // bir önceki kardeşe git
     }
@@ -395,24 +402,17 @@ function cevapIcerikElementiBul(modelResponse) {
         modelResponse.querySelector('message-content'); // mesaj içeriği
 }
 
-// İçerik klonundan UI çöplerini temizler — "Kodu kopyala" butonu, mat-icon ligature metni vb. çıktıya sızmasın
-function icerikKlonuTemizle(icerikEl) {
-    const klon = icerikEl.cloneNode(true); // orijinal DOM'a dokunma
-    klon.querySelectorAll('button, [role="button"], mat-icon, script, style, noscript, template, select, textarea').forEach((el) => el.remove()); // UI elementlerini içerikleriyle at
-    return klon; // temiz klon
-}
-
-// Bir model-response'un cevap metnini düz text olarak çıkarır
+// Bir model-response'un cevap metnini düz text olarak çıkarır (UI temizliği ortak modülden)
 function cevapMetniniAl(modelResponse) {
     const icerikEl = cevapIcerikElementiBul(modelResponse); // içerik elementi
-    return icerikEl ? (icerikKlonuTemizle(icerikEl).textContent || '').trim() : ''; // UI temizlenmiş metin
+    return icerikEl ? temizMetinCikar(icerikEl) : ''; // UI temizlenmiş metin
 }
 
 // Bir model-response'un cevabını gerçek Markdown olarak çıkarır (başlık/kod/liste/tablo korunur)
 function cevapMarkdownAl(modelResponse) {
     const icerikEl = cevapIcerikElementiBul(modelResponse); // içerik elementi
     if (!icerikEl) return ''; // element yoksa boş
-    const temizKlon = icerikKlonuTemizle(icerikEl); // UI çöpleri temizlenmiş klon
+    const temizKlon = uiTemizKlon(icerikEl); // UI çöpleri temizlenmiş klon (ortak modül)
     const md = htmlToMarkdown(temizKlon.innerHTML); // HTML'den markdown üret
     return md || (temizKlon.textContent || '').trim(); // dönüşüm boşsa düz metin fallback
 }

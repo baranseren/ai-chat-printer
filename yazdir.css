@@ -87,7 +87,7 @@ body {
     font-weight: 600; /* yarı kalın */
     letter-spacing: 0.3px; /* harf aralığı */
 }
-.kontrol-butonlar { display: flex; gap: 10px; } /* buton grubu */
+.kontrol-butonlar { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; } /* buton grubu — dar pencerede alt satıra sarar, taşmaz */
 .kontrol-buton {
     padding: 9px 24px; /* iç boşluk */
     border: none; /* kenarlık yok */

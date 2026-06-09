@@ -336,7 +336,7 @@ async function konusmayiCikar(artifactIcerikleri) {
             mesajlar.push({
                 rol: 'kullanici', // mesaj rolü
                 html: htmlIcerik, // base64 resimli HTML içerik
-                metin: kullaniciEl.textContent?.trim() || '', // düz metin
+                metin: temizMetinCikar(kullaniciEl), // UI sızıntısız düz metin
                 resimler: ekstraResimler // kullanıcı eki resimleri
             });
             continue; // sonraki turn'e geç
@@ -353,11 +353,11 @@ async function konusmayiCikar(artifactIcerikleri) {
             if (markdownlar.length > 0) { // en az bir markdown bulunduysa
                 for (const markdownEl of markdownlar) { // her bloğu birleştir (async — resim dönüşümü için)
                     birlesikHtml += await resimliHtmlCikar(markdownEl); // resimli HTML ekle
-                    birlesikMetin += (birlesikMetin ? '\n\n' : '') + (markdownEl.textContent?.trim() || ''); // metin ekle
+                    birlesikMetin += (birlesikMetin ? '\n\n' : '') + temizMetinCikar(markdownEl); // UI sızıntısız metin ekle
                 }
             } else { // markdown bulunamadıysa tüm Claude yanıtını al
                 birlesikHtml = await resimliHtmlCikar(claudeEl); // resimli HTML içerik
-                birlesikMetin = claudeEl.textContent?.trim() || ''; // düz metin
+                birlesikMetin = temizMetinCikar(claudeEl); // UI sızıntısız düz metin
             }
 
             // Bu turn'deki artifact kartlarını bul ve içeriklerini mesaja ekle

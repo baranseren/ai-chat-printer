@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>v1.7.1</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
+  <strong>v1.7.2</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
 </p>
 
 ---
@@ -209,6 +209,13 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ---
 
 ## Degisiklik Gecmisi / Changelog
+
+### v1.7.2 (10.06.2026) — TXT sizinti ayagi + olu indirme butonu duzeltmesi
+
+- **TXT ciktilarindaki UI sizintisi kapatildi** — `mesaj.metin` 4 content script'te artik `temizMetinCikar()` ile uretilir; kod blogu "Copy / Kodu kopyala" buton yazilari ve ikon metinleri duz metin kopyala/indir ciktilarina girmez (v1.7.1 sadece MD/yazdirma ayagini kapatmisti). / TXT-side UI leakage fixed across all 4 sites.
+- **Eklenti reload sonrasi olu MD/TXT butonlari** — content script basinda eski `.gp-indir-btn`'ler silinir, canli handler'la yeniden enjekte edilir (dead-handler-cleanup pattern'i cevap alti butonlara da uygulandi).
+- `uiTemizKlon()` + `temizMetinCikar()` ortak modulde — content.js'teki yerel kopya kaldirildi (DRY).
+- Yazdirma onizleme kontrol cubugu dar pencerede tasmaz (`flex-wrap`).
 
 ### v1.7.1 (10.06.2026) — UI metni sizintisi duzeltmesi
 

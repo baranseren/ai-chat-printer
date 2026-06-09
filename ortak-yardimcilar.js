@@ -380,6 +380,19 @@ function konusmayiMarkdowneDonustur(veri) {
     return md; // markdown string
 }
 
+// Elementin UI çöplerinden (buton, ikon, form, script/style) arındırılmış klonunu döndürür
+function uiTemizKlon(element) {
+    const klon = element.cloneNode(true); // orijinal DOM'a dokunma
+    klon.querySelectorAll('button, [role="button"], mat-icon, svg, script, style, noscript, template, select, textarea').forEach((el) => el.remove()); // UI elementlerini içerikleriyle at
+    return klon; // temiz klon
+}
+
+// Elementin UI metni sızıntısız düz metnini döndürür ("Kodu kopyala", content_copy vb. dahil edilmez)
+function temizMetinCikar(element) {
+    if (!element) return ''; // element yoksa boş
+    return (uiTemizKlon(element).textContent || '').trim(); // temiz klondan metin
+}
+
 // İçeriği dosya olarak indirir — Blob + gizli <a download> pattern'i (tüm context'lerde çalışır)
 function dosyayaIndir(icerik, dosyaAdi, mimeType) {
     const blob = new Blob([icerik], { type: mimeType }); // içerik blob'u

@@ -208,7 +208,7 @@ async function konusmayiCikar() {
             mesajlar.push({
                 rol: 'kullanici', // mesaj rolü
                 html: htmlIcerik, // base64 resimli HTML içerik
-                metin: kaynakEl.textContent?.trim() || '', // düz metin
+                metin: temizMetinCikar(kaynakEl), // UI sızıntısız düz metin
                 resimler: ekstraResimler // kullanıcı eki resimleri
             });
         } else if (rol === 'assistant') { // ChatGPT yanıtı
@@ -221,7 +221,7 @@ async function konusmayiCikar() {
             mesajlar.push({
                 rol: 'chatgpt', // mesaj rolü
                 html: htmlIcerik, // base64 resimli HTML içerik
-                metin: kaynakEl.textContent?.trim() || '', // düz metin
+                metin: temizMetinCikar(kaynakEl), // UI sızıntısız düz metin (kod kopyala butonu metni dahil edilmez)
                 resimler: ekstraResimler // yanıt içindeki ekstra resimler
             });
         }
