@@ -426,12 +426,13 @@ function cevapIndir(soru, cevap, format) {
     let mimeType; // MIME tipi
 
     if (format === 'md') { // Markdown format
+        const mdSoru = (soru || '').replace(/^(#{1,6})\s/gm, '\\$1 '); // soru düz metin — satır başı # sahte başlık olmasın
         icerik = '# Gemini Soru-Cevap\n\n' + // başlık
             '**Tarih:** ' + tarih + '  \n' + // tarih
             '**Konuşma:** ' + konusmaBasligi + '\n\n' + // konuşma adı
             '---\n\n' + // ayırıcı
             '## Soru\n\n' + // soru başlığı
-            (soru || '*(Soru metni alınamadı)*') + '\n\n' + // soru metni
+            (mdSoru || '*(Soru metni alınamadı)*') + '\n\n' + // escape'li soru metni
             '## Cevap\n\n' + // cevap başlığı
             (cevap || '*(Cevap metni alınamadı)*') + '\n\n' + // cevap metni (gerçek markdown)
             '---\n*AI Chat Printer eklentisi ile indirildi*\n'; // imza

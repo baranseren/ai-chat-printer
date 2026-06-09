@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>v1.7.2</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
+  <strong>v1.7.3</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
 </p>
 
 ---
@@ -209,6 +209,12 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ---
 
 ## Degisiklik Gecmisi / Changelog
+
+### v1.7.3 (10.06.2026) — Markdown fence kacisi duzeltmesi
+
+- **Fence kacisi bug'i kapatildi** — kod blogu veya artifact iceriginde ``` gectiginde (markdown ogreten cevaplar, README.md artifact'lari) MD ciktisi artik kirilmiyor: `mdFenceUret()` icerikteki en uzun backtick dizisinden 1 uzun fence secer (CommonMark uyumlu). / Fence escaping fixed: code blocks containing ``` no longer break MD output.
+- **Quota mesaji dinamik** — "Storage siniri 10 MB" sabit metni yerine gercek `QUOTA_BYTES` degerinden hesaplanan limit gosterilir.
+- **Cevap alti MD sablonunda soru escape** — satir basi `#` ile baslayan kullanici sorusu sahte baslik olusturmaz.
 
 ### v1.7.2 (10.06.2026) — TXT sizinti ayagi + olu indirme butonu duzeltmesi
 

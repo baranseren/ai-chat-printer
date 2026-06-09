@@ -134,8 +134,9 @@ function veriBoyutuHesapla(veri) {
 function quotaKontrol(veri) {
     const boyut = veriBoyutuHesapla(veri); // byte cinsinden boyut
     const mbBoyut = (boyut / (1024 * 1024)).toFixed(2); // MB cinsinden
+    const limitMb = (STORAGE_LOCAL_LIMIT / (1024 * 1024)).toFixed(0); // gerçek limit MB (dinamik — sabit "10" yazmak yanlış bilgi olur)
     if (boyut > STORAGE_LOCAL_LIMIT) { // hard limit aşıldı
-        return { gecerli: false, boyut: boyut, mbBoyut: mbBoyut, mesaj: 'Konuşma çok büyük (' + mbBoyut + ' MB). Storage sınırı 10 MB. Lütfen daha kısa bir konuşma seçin.' };
+        return { gecerli: false, boyut: boyut, mbBoyut: mbBoyut, mesaj: 'Konuşma çok büyük (' + mbBoyut + ' MB). Storage sınırı ' + limitMb + ' MB. Lütfen daha kısa bir konuşma seçin.' };
     }
     if (boyut > STORAGE_UYARI_ESIGI) { // uyarı eşiği aşıldı ama hala geçerli
         return { gecerli: true, uyari: true, boyut: boyut, mbBoyut: mbBoyut, mesaj: 'Konuşma büyük (' + mbBoyut + ' MB). Yazdırma biraz yavaş olabilir.' };
@@ -199,6 +200,14 @@ async function yazdirmayaBasla(veri, uyariBalonuGoster) {
         return false;
     }
     return true; // başarılı
+}
+
+// İçerikteki backtick dizilerinden daha uzun bir Markdown fence üretir (fence kaçışı önleme)
+// Örn. markdown öğreten bir cevapta ``` geçiyorsa fence ```` olur — blok erken kapanmaz
+function mdFenceUret(icerik) {
+    const diziler = (icerik || '').match(/`{3,}/g); // içerikteki 3+ backtick dizileri
+    const enUzun = diziler ? Math.max(...diziler.map((s) => s.length)) : 0; // en uzun dizi
+    return '`'.repeat(Math.max(3, enUzun + 1)); // içeriktekinden en az 1 fazla, min 3
 }
 
 // HTML string'ini gerçek Markdown'a dönüştürür (başlık, kod, liste, tablo, link korunur)
@@ -293,7 +302,8 @@ function htmlToMarkdown(htmlString) {
             case 'PRE': {
                 const dil = preDilBul(dugum); // dil tahmini
                 const ham = dugum.textContent.replace(/\n$/, ''); // sondaki newline'ı kırp
-                return '\n\n```' + dil + '\n' + ham + '\n```\n\n'; // çitli kod bloğu
+                const fence = mdFenceUret(ham); // içerikteki ``` ile çakışmayan fence uzunluğu
+                return '\n\n' + fence + dil + '\n' + ham + '\n' + fence + '\n\n'; // çitli kod bloğu
             }
             case 'A': {
                 const href = dugum.getAttribute('href') || ''; // ham href
@@ -364,7 +374,8 @@ function konusmayiMarkdowneDonustur(veri) {
         if (mesaj.artifactlar && mesaj.artifactlar.length > 0) { // artifact varsa
             mesaj.artifactlar.forEach((artifact) => { // her artifact
                 md += '### ' + (artifact.baslik || 'Dosya') + (artifact.tur ? ' (' + artifact.tur + ')' : '') + '\n\n'; // artifact başlığı
-                md += '```\n' + (artifact.icerik || '(içerik çıkarılamadı)') + '\n```\n\n'; // kod bloğu
+                const fence = mdFenceUret(artifact.icerik || ''); // artifact içindeki ``` ile çakışmayan fence (örn. README.md artifact'ı)
+                md += fence + '\n' + (artifact.icerik || '(içerik çıkarılamadı)') + '\n' + fence + '\n\n'; // kod bloğu
             });
         }
 
