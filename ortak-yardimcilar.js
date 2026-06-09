@@ -258,10 +258,14 @@ function htmlToMarkdown(htmlString) {
         }
         if (dugum.nodeType !== Node.ELEMENT_NODE) return ''; // diğer düğüm tipleri atlanır
 
-        const etiket = dugum.tagName; // büyük harf tag adı
+        const etiket = dugum.tagName.toUpperCase(); // normalize tag adı (SVG namespace lowercase dönebilir)
         const ic = () => dugumleriCevir(dugum, preIcinde); // çocukları işleyen kısayol
 
         switch (etiket) {
+            case 'SCRIPT': case 'STYLE': case 'NOSCRIPT': case 'TEMPLATE': case 'IFRAME':
+            case 'BUTTON': case 'SELECT': case 'TEXTAREA': case 'SVG': case 'CANVAS':
+            case 'AUDIO': case 'VIDEO': case 'MAT-ICON':
+                return ''; // UI/aktif içerik — metni markdown çıktısına SIZDIRMA ("Kodu kopyala", ikon ligature, CSS kuralı vb.)
             case 'H1': case 'H2': case 'H3': case 'H4': case 'H5': case 'H6':
                 return '\n\n' + '#'.repeat(parseInt(etiket[1], 10)) + ' ' + ic().trim() + '\n\n'; // başlık seviyesi
             case 'P': case 'FIGURE': case 'FIGCAPTION':

@@ -381,7 +381,7 @@ function oncekiSoruMetniBul(modelResponse) {
                 oncekiKardes.querySelector('.user-query-bubble-with-background') || // balon
                 oncekiKardes.querySelector('.query-content') || // içerik
                 oncekiKardes; // fallback
-            return geminiPrefixTemizle((queryText.textContent || '').trim()); // prefix temizle ve dön
+            return geminiPrefixTemizle((icerikKlonuTemizle(queryText).textContent || '').trim()); // UI temizliği + prefix temizle
         }
         oncekiKardes = oncekiKardes.previousElementSibling; // bir önceki kardeşe git
     }
@@ -395,18 +395,26 @@ function cevapIcerikElementiBul(modelResponse) {
         modelResponse.querySelector('message-content'); // mesaj içeriği
 }
 
+// İçerik klonundan UI çöplerini temizler — "Kodu kopyala" butonu, mat-icon ligature metni vb. çıktıya sızmasın
+function icerikKlonuTemizle(icerikEl) {
+    const klon = icerikEl.cloneNode(true); // orijinal DOM'a dokunma
+    klon.querySelectorAll('button, [role="button"], mat-icon, script, style, noscript, template, select, textarea').forEach((el) => el.remove()); // UI elementlerini içerikleriyle at
+    return klon; // temiz klon
+}
+
 // Bir model-response'un cevap metnini düz text olarak çıkarır
 function cevapMetniniAl(modelResponse) {
     const icerikEl = cevapIcerikElementiBul(modelResponse); // içerik elementi
-    return icerikEl ? (icerikEl.textContent || '').trim() : ''; // metni dön
+    return icerikEl ? (icerikKlonuTemizle(icerikEl).textContent || '').trim() : ''; // UI temizlenmiş metin
 }
 
 // Bir model-response'un cevabını gerçek Markdown olarak çıkarır (başlık/kod/liste/tablo korunur)
 function cevapMarkdownAl(modelResponse) {
     const icerikEl = cevapIcerikElementiBul(modelResponse); // içerik elementi
     if (!icerikEl) return ''; // element yoksa boş
-    const md = htmlToMarkdown(icerikEl.innerHTML); // HTML'den markdown üret
-    return md || (icerikEl.textContent || '').trim(); // dönüşüm boşsa düz metin fallback
+    const temizKlon = icerikKlonuTemizle(icerikEl); // UI çöpleri temizlenmiş klon
+    const md = htmlToMarkdown(temizKlon.innerHTML); // HTML'den markdown üret
+    return md || (temizKlon.textContent || '').trim(); // dönüşüm boşsa düz metin fallback
 }
 
 // Soru-cevap çiftini MD veya TXT formatında dosyaya indirir

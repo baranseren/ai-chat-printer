@@ -417,6 +417,10 @@ function htmlTemizle(htmlString) {
         'BLOCKQUOTE', 'A', 'SPAN', 'DIV', 'HR', 'SUP', 'SUB', 'IMG', 'FIGURE', 'FIGCAPTION',
         'DEL', 'S', 'MARK', 'SMALL', 'KBD', 'SAMP', 'VAR', 'DL', 'DT', 'DD']; // whitelist
 
+    // İçeriğiyle birlikte tamamen atlanacak etiketler — UI metni çıktıya sızmasın ("Kodu kopyala" butonu, mat-icon ligature, CSS kuralı)
+    const atlanacakEtiketler = ['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'IFRAME', 'OBJECT', 'EMBED',
+        'BUTTON', 'SELECT', 'TEXTAREA', 'SVG', 'CANVAS', 'AUDIO', 'VIDEO', 'MAT-ICON']; // içerikle birlikte at
+
     // DOMParser ile güvenli parse — script çalıştırılmaz
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlString, 'text/html');
@@ -465,6 +469,8 @@ function htmlTemizle(htmlString) {
 
                     temizleVeKopyala(cocuk, yeniElement); // alt element'leri recursive temizle
                     hedef.appendChild(yeniElement);
+                } else if (atlanacakEtiketler.includes(cocuk.tagName.toUpperCase())) { // UI/aktif element
+                    // tamamen atla — içeriği de kopyalanmaz (buton yazısı, ikon metni, CSS sızıntısı önlenir)
                 } else { // whitelist dışı — içeriği al, tag'i at
                     temizleVeKopyala(cocuk, hedef);
                 }
