@@ -201,12 +201,147 @@ async function yazdirmayaBasla(veri, uyariBalonuGoster) {
     return true; // başarılı
 }
 
-// Konuşma verisini Markdown formatına dönüştürür (clipboard export için)
+// HTML string'ini gerçek Markdown'a dönüştürür (başlık, kod, liste, tablo, link korunur)
+function htmlToMarkdown(htmlString) {
+    if (!htmlString) return ''; // boş girdi kontrolü
+
+    const parser = new DOMParser(); // güvenli parse (script çalışmaz)
+    const doc = parser.parseFromString(htmlString, 'text/html'); // HTML belge
+
+    // PRE içindeki code'un class'ından dil adını çıkarır (language-python → python)
+    function preDilBul(preElement) {
+        const kodEl = preElement.querySelector('code'); // code çocuğu
+        const sinif = (kodEl && typeof kodEl.className === 'string' ? kodEl.className : '') + ' ' + (typeof preElement.className === 'string' ? preElement.className : ''); // iki class birleşimi
+        const eslesme = sinif.match(/language-([\w+-]+)/); // language-xxx kalıbı
+        return eslesme ? eslesme[1] : ''; // dil adı veya boş
+    }
+
+    // Tablo elementini Markdown pipe tablosuna çevirir
+    function tabloyuCevir(tablo) {
+        const satirlar = Array.from(tablo.querySelectorAll('tr')); // tüm satırlar
+        if (satirlar.length === 0) return ''; // boş tablo
+        const hucreMetni = (hucre) => dugumleriCevir(hucre, false).replace(/\|/g, '\\|').replace(/\n+/g, ' ').trim(); // pipe escape + tek satıra indir
+        const satirMd = (tr) => '| ' + Array.from(tr.querySelectorAll('th, td')).map(hucreMetni).join(' | ') + ' |'; // satırı pipe formatla
+        const kolonSayisi = satirlar[0].querySelectorAll('th, td').length; // ilk satır kolon sayısı
+        let md = satirMd(satirlar[0]) + '\n'; // ilk satır = header varsay
+        md += '|' + ' --- |'.repeat(kolonSayisi) + '\n'; // ayırıcı satır
+        for (let i = 1; i < satirlar.length; i++) md += satirMd(satirlar[i]) + '\n'; // veri satırları
+        return '\n\n' + md + '\n'; // blok olarak döndür
+    }
+
+    // Liste elementini (UL/OL) girintili Markdown listesine çevirir
+    function listeyiCevir(liste, derinlik) {
+        const sirali = liste.tagName === 'OL'; // numaralı mı
+        const girinti = '  '.repeat(derinlik); // 2 boşluk/derinlik girinti
+        let sayac = parseInt(liste.getAttribute('start') || '1', 10) || 1; // başlangıç numarası
+        let md = ''; // birikecek markdown
+        for (const li of liste.children) { // her liste öğesi
+            if (li.tagName !== 'LI') continue; // LI dışını atla
+            let icerik = ''; // öğe içeriği
+            for (const cocuk of li.childNodes) { // LI çocuklarını işle
+                if (cocuk.nodeType === Node.ELEMENT_NODE && (cocuk.tagName === 'UL' || cocuk.tagName === 'OL')) {
+                    icerik += '\n' + listeyiCevir(cocuk, derinlik + 1); // iç içe liste — alt satıra girintili
+                } else {
+                    icerik += dugumCevir(cocuk, false); // normal içerik
+                }
+            }
+            icerik = icerik.replace(/\n{2,}/g, '\n').replace(/\n(?!\s*$)/g, '\n' + girinti + '  ').trim(); // çok satırlıyı marker hizasına girintile
+            md += girinti + (sirali ? (sayac++) + '. ' : '- ') + icerik + '\n'; // marker + içerik
+        }
+        return md; // liste markdown'ı
+    }
+
+    // Tek bir DOM düğümünü Markdown'a çevirir (preIcinde = ham metin korunur)
+    function dugumCevir(dugum, preIcinde) {
+        if (dugum.nodeType === Node.TEXT_NODE) { // metin düğümü
+            return preIcinde ? dugum.textContent : dugum.textContent.replace(/\s+/g, ' '); // pre'de ham, dışında boşluk normalize
+        }
+        if (dugum.nodeType !== Node.ELEMENT_NODE) return ''; // diğer düğüm tipleri atlanır
+
+        const etiket = dugum.tagName; // büyük harf tag adı
+        const ic = () => dugumleriCevir(dugum, preIcinde); // çocukları işleyen kısayol
+
+        switch (etiket) {
+            case 'H1': case 'H2': case 'H3': case 'H4': case 'H5': case 'H6':
+                return '\n\n' + '#'.repeat(parseInt(etiket[1], 10)) + ' ' + ic().trim() + '\n\n'; // başlık seviyesi
+            case 'P': case 'FIGURE': case 'FIGCAPTION':
+                return '\n\n' + ic().trim() + '\n\n'; // paragraf bloğu
+            case 'BR':
+                return '\n'; // satır kırma
+            case 'HR':
+                return '\n\n---\n\n'; // yatay çizgi
+            case 'STRONG': case 'B': {
+                const kalin = ic().trim(); // iç metin
+                return kalin ? '**' + kalin + '**' : ''; // kalın
+            }
+            case 'EM': case 'I': {
+                const italik = ic().trim(); // iç metin
+                return italik ? '*' + italik + '*' : ''; // italik
+            }
+            case 'DEL': case 'S': {
+                const ustu = ic().trim(); // iç metin
+                return ustu ? '~~' + ustu + '~~' : ''; // üstü çizili
+            }
+            case 'CODE': { // inline kod (pre içindeki code dugumleriCevir'de ham işlenir)
+                const kod = dugum.textContent; // ham içerik
+                return kod.includes('`') ? '`` ' + kod + ' ``' : '`' + kod + '`'; // backtick çakışmasına çift sargı
+            }
+            case 'PRE': {
+                const dil = preDilBul(dugum); // dil tahmini
+                const ham = dugum.textContent.replace(/\n$/, ''); // sondaki newline'ı kırp
+                return '\n\n```' + dil + '\n' + ham + '\n```\n\n'; // çitli kod bloğu
+            }
+            case 'A': {
+                const href = dugum.getAttribute('href') || ''; // ham href
+                const metin = ic().trim() || href; // link metni
+                return /^https?:\/\//.test(href) ? '[' + metin + '](' + href + ')' : metin; // güvenli şema → link, değilse düz metin
+            }
+            case 'IMG': {
+                const alt = dugum.getAttribute('alt') || 'Görsel'; // alt metin
+                const src = dugum.getAttribute('src') || ''; // kaynak
+                return src.startsWith('https://') ? '![' + alt + '](' + src + ')' : '*[Görsel: ' + alt + ']*'; // https → gömülü, base64 → placeholder (MB şişmesin)
+            }
+            case 'UL': case 'OL':
+                return '\n\n' + listeyiCevir(dugum, 0) + '\n'; // liste bloğu
+            case 'BLOCKQUOTE':
+                return '\n\n' + ic().trim().split('\n').map((satir) => '> ' + satir).join('\n') + '\n\n'; // her satıra alıntı işareti
+            case 'TABLE':
+                return tabloyuCevir(dugum); // pipe tablo
+            case 'DIV': case 'SECTION': case 'ARTICLE': {
+                const blok = ic(); // içerik
+                return blok.trim() ? '\n' + blok + '\n' : ''; // div = yumuşak blok sınırı
+            }
+            default:
+                return ic(); // SPAN, SUP, SUB vb. şeffaf — sadece içeriği geçir
+        }
+    }
+
+    // Bir düğümün tüm çocuklarını sırayla Markdown'a çevirir
+    function dugumleriCevir(ebeveyn, preIcinde) {
+        let sonuc = ''; // birikecek markdown
+        for (const cocuk of ebeveyn.childNodes) sonuc += dugumCevir(cocuk, preIcinde); // her çocuğu işle
+        return sonuc; // birleşik metin
+    }
+
+    return dugumleriCevir(doc.body, false)
+        .replace(/[ \t]+\n/g, '\n') // satır sonu boşluklarını kırp
+        .replace(/\n{3,}/g, '\n\n') // 3+ boş satırı 2'ye indir
+        .trim(); // kenarları temizle
+}
+
+// Mesajın en zengin Markdown temsilini döndürür — HTML varsa dönüştür, yoksa düz metin
+function mesajMarkdownIcerigi(mesaj) {
+    if (mesaj.html) { // HTML içerik mevcutsa
+        const md = htmlToMarkdown(mesaj.html); // gerçek markdown dönüşümü
+        if (md) return md; // dönüşüm başarılıysa kullan
+    }
+    // Fallback: düz metin — satır başı # işaretlerini escape et (sahte başlık önleme)
+    return (mesaj.metin || '').trim().replace(/^(#{1,6})\s/gm, '\\$1 '); // escape'li düz metin
+}
+
+// Konuşma verisini Markdown formatına dönüştürür (clipboard ve dosya export için)
 function konusmayiMarkdowneDonustur(veri) {
     if (!veri || !veri.mesajlar) return ''; // veri yoksa boş
-
-    // Markdown başlık escape — "#" ile başlayan kullanıcı metni başlık gibi görünmesin
-    const mdBaslikEscape = (str) => (str || '').replace(/^(#{1,6})\s/gm, '\\$1 '); // satır başı # escape
 
     const yapayZekaAdi = veri.kaynak === 'claude' ? 'Claude' : veri.kaynak === 'chatgpt' ? 'ChatGPT' : veri.kaynak === 'grok' ? 'Grok' : 'Gemini'; // kaynak adı
     let md = '# ' + (veri.baslik || (yapayZekaAdi + ' Konuşması')) + '\n\n'; // başlık
@@ -218,7 +353,7 @@ function konusmayiMarkdowneDonustur(veri) {
     veri.mesajlar.forEach((mesaj, idx) => { // her mesaj
         const rolAdi = mesaj.rol === 'kullanici' ? 'Kullanıcı' : yapayZekaAdi; // rol etiketi
         md += '## #' + (idx + 1) + ' — ' + rolAdi + '\n\n'; // mesaj başlığı
-        const metin = mdBaslikEscape((mesaj.metin || '').trim()); // başlık escape uygulanan metin
+        const metin = mesajMarkdownIcerigi(mesaj); // HTML'den gerçek markdown (başlık/kod/liste/tablo korunur)
         md += metin ? metin + '\n\n' : '_(boş mesaj)_\n\n'; // metin veya placeholder
 
         // Artifact'ları kod bloğu olarak ekle
@@ -239,4 +374,17 @@ function konusmayiMarkdowneDonustur(veri) {
 
     md += '\n> Bu çıktı AI Chat Printer eklentisi ile oluşturulmuştur.\n'; // footer
     return md; // markdown string
+}
+
+// İçeriği dosya olarak indirir — Blob + gizli <a download> pattern'i (tüm context'lerde çalışır)
+function dosyayaIndir(icerik, dosyaAdi, mimeType) {
+    const blob = new Blob([icerik], { type: mimeType }); // içerik blob'u
+    const url = URL.createObjectURL(blob); // geçici URL
+    const link = document.createElement('a'); // gizli indirme linki
+    link.href = url; // blob URL
+    link.download = dosyaAdi; // indirilecek dosya adı
+    document.body.appendChild(link); // DOM'a ekle (Firefox uyumu)
+    link.click(); // indirmeyi tetikle
+    document.body.removeChild(link); // hemen kaldır
+    setTimeout(() => URL.revokeObjectURL(url), 1000); // 1sn sonra URL'i serbest bırak
 }

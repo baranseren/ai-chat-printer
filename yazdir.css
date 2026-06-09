@@ -458,25 +458,12 @@ body {
         box-shadow: none; /* gölge yok */
     }
 
-    /* Sayfa numarası, üst/alt bilgi ve A4 varsayılan boyut */
+    /* A4 varsayılan sayfa boyutu ve kenar boşlukları */
+    /* Not: @page margin box'ları (@bottom-right sayfa numarası vb.) Chrome'da desteklenmiyor — */
+    /* sayfa numarası gerekiyorsa yazdırma diyaloğunda "Üstbilgi ve altbilgiler" seçeneği kullanılır */
     @page {
         size: A4; /* varsayılan A4 kağıt boyutu */
         margin: 2cm 1.5cm; /* sayfa kenar boşlukları */
-        @bottom-right {
-            content: "Sayfa " counter(page) " / " counter(pages); /* sayfa numarası */
-            font-size: 10pt; /* numara boyutu */
-            color: #888888; /* soluk renk */
-        }
-        @bottom-left {
-            content: "AI Chat Printer"; /* eklenti imzası */
-            font-size: 9pt; /* küçük boyut */
-            color: #aaaaaa; /* soluk renk */
-        }
-    }
-
-    /* Geniş içerikler için yatay @page alternatif */
-    @page landscape {
-        size: A4 landscape; /* yatay A4 */
     }
 
     /* Link URL'lerini yazdırmada parantez içinde göster (sadece http linkler için) */

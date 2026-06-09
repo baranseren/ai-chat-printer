@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>v1.6.1</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
+  <strong>v1.7.0</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
 </p>
 
 ---
@@ -40,6 +40,8 @@ AI Chat Printer, Google Gemini, Claude.ai, ChatGPT ve Grok uzerinde yaptginiz ko
 | Grok Destegi | grok.com konusmalarini yazdirir |
 | Sayfa Ici Buton | Popup acmadan dogrudan sayfadan yazdir |
 | Cevap Alti Indir (Gemini) | Her Gemini cevabinin altinda **↓ MD** ve **↓ TXT** butonlari — tek soru-cevabi anlik indir |
+| Gercek Markdown Cikti | HTML→Markdown donusturucu: baslik, kod blogu, liste, tablo, link korunur (duz metin degil) |
+| Konusma Dosya Indirme | Yazdirma onizleme sayfasindan tum konusmayi **.md** veya **.txt** dosyasi olarak indir |
 | HTML Temizleme | XSS korumasli guvenli icerik render |
 | Mesaj Numaralama | Her mesaj sirayla numaralanir |
 | Kod Bloklari | Kod bloklari okunabilir formatta yazdirmaya dahil edilir |
@@ -175,7 +177,7 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ## Teknik Detaylar / Technical Details
 
 - **Manifest Version:** V3 (Chrome'un en guncel standardi)
-- **Permissions:** `activeTab`, `scripting`, `storage` (minimum gerekli izinler)
+- **Permissions:** `activeTab`, `storage`, `clipboardWrite` (minimum gerekli izinler)
 - **Dependencies:** Yok / None (saf JavaScript, harici kutuphane kullanilmaz)
 - **Data Storage:** Yazdirma verisi gecici olarak `chrome.storage.local`'da tutulur ve kullanildiktan sonra silinir. Hicbir veri disariya gonderilmez.
 - **Security:** HTML icerik whitelist tabanli sanitizer ile temizlenir (XSS korumasi)
@@ -207,6 +209,28 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ---
 
 ## Degisiklik Gecmisi / Changelog
+
+### v1.7.0 (10.06.2026) — Gercek Markdown motoru + dosya indirme + derin denetim duzeltmeleri
+
+**Yeni Ozellik / New Feature:**
+- **Gercek HTML→Markdown donusturucu** (`htmlToMarkdown`) — Markdown ciktilarinda artik baslik (`#`), kod bloklari (dil etiketli ``` fence), inline kod, kalin/italik, ic ice listeler, linkler, tablolar (pipe format), alintilar ve yatay cizgiler korunur. Onceden tum Markdown ciktilari duz `textContent` idi. / Real HTML→Markdown converter — headings, fenced code blocks (with language), lists, links, tables, blockquotes now preserved in all Markdown exports (previously plain text).
+- **Yazdirma sayfasindan dosya indirme** — Kontrol cubuguna **↓ MD** ve **↓ TXT** butonlari eklendi; tum konusma tek tikla `.md` / `.txt` dosyasi olarak iner (pano kopyalamanin dosya karsiligi). / Download whole conversation as `.md` / `.txt` file from the print preview toolbar.
+- **Gemini cevap alti ↓ MD butonu artik gercek Markdown uretir** (eskiden duz metin). / Gemini per-answer ↓ MD button now produces real Markdown.
+
+**Duzeltmeler / Fixes:**
+- **Yanlis F5 badge duzeltildi** — klavye kisayolu mesajinda content script yanit gondermeden kanali acik tutuyordu; background "port closed" hatasi alip gereksiz F5 badge gosteriyordu. 4 content script'te mesaj dinleyici duzeltildi. / Fixed false F5 badge: keyboard-shortcut message channel was left open without a response.
+- **Cikarma hatalari artik dogru raporlaniyor** — `konusmayiCikar` beklenmedik hata firlatirsa popup yanlis "content script yuklenmemis" yerine gercek hata mesajini gosterir; sayfa ici akista toast takili kalmaz (4 content script'e catch eklendi).
+- **F5 dayanikliligi** — yazdirma sayfasi verisi sekmeye ozel `sessionStorage`'a yedeklenir; F5 sonrasi "veri bulunamadi" hatasi kalkti (multi-tab race condition korumasi bozulmadan).
+- **Gereksiz `scripting` izni kaldirildi** — kodda hic kullanilmiyordu; Chrome Web Store gereksiz izin reddi riski giderildi.
+- **blob: tutarsizligi giderildi** — CSP `img-src`'de olmayan ve cross-origin'de zaten calismayan blob URL kabulleri sanitizer ve render'dan kaldirildi.
+- **Duz metin mesajlarda satir sonu korunuyor** — HTML fallback render'inda newline'lar artik `<br>`'a cevriliyor.
+- **Sayfa resim handler'lari korunuyor** — resim base64 donusumu artik sayfanin kendi `onload`/`onerror` handler'larini ezmiyor (`addEventListener` + timeout temizligi).
+- **Olmeyen sayfa numarasi CSS'i temizlendi** — `@page` margin box'lari (`@bottom-right` sayfa numarasi) Chrome'da desteklenmiyor; dead CSS kaldirildi. Sayfa numarasi gerekirse yazdirma diyalogundaki "Ustbilgi ve altbilgiler" secenegi kullanilir.
+
+**Hijyen / Housekeeping:**
+- `popup.html` artik `ortak-yardimcilar.js` yukluyor — `VARSAYILAN_AYARLAR` duplikasyonu kaldirildi, popup yazdirma akisina da storage quota kontrolu eklendi.
+- Eklenti kurulum/guncellemesinde kalinti gecici konusma verisi otomatik temizlenir (`onInstalled`).
+- Ortak `dosyayaIndir()` yardimcisi — Gemini cevap alti indirme ve yazdirma sayfasi indirme ayni Blob pattern'ini paylasir.
 
 ### v1.6.1 (15.05.2026) — Cevap alti MD/TXT indirme + storage sertlestirme
 

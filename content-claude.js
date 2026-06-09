@@ -153,6 +153,9 @@ async function yazdirmaBaslat() {
 
         // Ortak yazdırma başlatıcıyı kullan (ayarlar kalıcı storage'dan okur)
         await yazdirmayaBasla(veri, uyariBalonuGoster); // ortak başlatma akışı
+    } catch (cikarmaHata) { // çıkarma sırasında beklenmeyen hata
+        uyariBalonuGoster('Konuşma çıkarılamadı: ' + cikarmaHata.message, 'hata'); // kullanıcıya bildir
+        console.log('AI Chat Printer: Çıkarma hatası:', cikarmaHata); // sessiz log
     } finally { // işlem bitişinde oturum kapatılmalı
         resimIslemOturumuBitir(); // deadline'ı sıfırla
     }
@@ -405,14 +408,19 @@ chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => { // mesa
                 const artifactIcerikleri = await artifactIcerikleriniCikar(); // artifact içerikleri
                 const veri = await konusmayiCikar(artifactIcerikleri); // artifact'lı çıkarma
                 yanitGonder(veri); // popup'a dön
+            } catch (hata) { // çıkarma hatası — popup yanlış "yüklenmemiş" mesajı göstermesin
+                yanitGonder({ hata: 'Konuşma çıkarılamadı: ' + hata.message, mesajlar: [] }); // hata yanıtı
             } finally { // oturum kapatma
                 resimIslemOturumuBitir(); // deadline sıfırla
             }
         })();
-    } else if (mesaj.islem === 'klavyeKisayoluYazdir') { // keyboard shortcut tetiklemesi
-        yazdirmaBaslat(); // sayfa içi yazdır akışını başlat
+        return true; // asenkron yanıt — kanalı açık tut
     }
-    return true; // asenkron yanıt için true döndür
+    if (mesaj.islem === 'klavyeKisayoluYazdir') { // keyboard shortcut tetiklemesi
+        yazdirmaBaslat(); // sayfa içi yazdır akışını başlat
+        yanitGonder({ basari: true }); // background'ın await'i temiz kapansın (yanlış F5 badge önleme)
+    }
+    return false; // senkron yanıt — kanal kapanabilir
 });
 
 // Sayfa hazır olduğunda başlat

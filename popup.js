@@ -1,12 +1,5 @@
 // Popup script - AI konuşmasını çıkarıp yazdırma sayfasını açar
-
-// Varsayılan ayarlar (ortak-yardimcilar.js content script tarafı içindir; popup tarafında burada tekrar tanımlı)
-const VARSAYILAN_POPUP_AYARLAR = { // popup tarafındaki varsayılanlar
-    kodBloklari: true, // kod blokları dahil
-    otomatikYazdir: true, // otomatik yazdır
-    yaziBoyutu: '13', // normal yazı boyutu
-    footerGoster: true // eklenti imzasını göster (false = footer'ı kaldır)
-};
+// VARSAYILAN_AYARLAR ve quotaKontrol ortak-yardimcilar.js'ten gelir (popup.html'de önce yüklenir)
 
 // Sayfa yüklendiğinde çalış
 document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğunda
@@ -19,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
     // Kalıcı ayarları yükle ve UI'ya yansıt
     try { // storage erişim denemesi
         const kayit = await chrome.storage.sync.get(['kullaniciAyarlari']); // sync storage'dan oku
-        const ayarlar = { ...VARSAYILAN_POPUP_AYARLAR, ...(kayit.kullaniciAyarlari || {}) }; // varsayılanları override et
+        const ayarlar = { ...VARSAYILAN_AYARLAR, ...(kayit.kullaniciAyarlari || {}) }; // varsayılanları override et (ortak modülden)
         kodBloklariCheck.checked = ayarlar.kodBloklari; // toggle durumu
         otomatikYazdirCheck.checked = ayarlar.otomatikYazdir; // toggle durumu
         yaziBoyutuSelect.value = ayarlar.yaziBoyutu; // select değeri
@@ -111,6 +104,14 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
 
             if (!yanit.mesajlar || yanit.mesajlar.length === 0) { // mesaj yoksa
                 durumGoster('hata', 'Konuşmada mesaj bulunamadı. Bir sohbet açık olduğundan emin olun.'); // uyarı
+                butonuSifirla(); // butonu sıfırla
+                return;
+            }
+
+            // Storage quota kontrolü (ortak modülden) — sayfa içi buton akışıyla aynı koruma
+            const quotaDurum = quotaKontrol(yanit); // veri boyutu kontrolü
+            if (!quotaDurum.gecerli) { // hard limit aşılmışsa
+                durumGoster('hata', quotaDurum.mesaj); // spesifik quota mesajı
                 butonuSifirla(); // butonu sıfırla
                 return;
             }

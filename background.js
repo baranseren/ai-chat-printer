@@ -52,4 +52,6 @@ chrome.runtime.onInstalled.addListener((detaylar) => { // kurulum olayı
     } else if (detaylar.reason === 'update') { // güncelleme
         console.log('AI Chat Printer: v' + chrome.runtime.getManifest().version + ' sürümüne güncellendi.'); // sürüm bilgisi
     }
+    // Kalıntı temizliği: yazdir.html hiç açılmadan kalan geçici konuşma verisini sil (10MB'a kadar yer tutabilir)
+    chrome.storage.local.remove(['konusmaVerisi', 'yazdirAyarlari']).catch(() => {}); // sessiz temizlik
 });

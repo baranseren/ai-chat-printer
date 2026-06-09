@@ -37,9 +37,10 @@ async function resmiBase64Yap(resimElementi) {
         // Resim henüz yüklenmediyse bekle
         if (!resimElementi.complete) { // yüklenmemiş resim
             await new Promise((coz, reddet) => { // yüklenme promise'i
-                resimElementi.onload = coz; // yüklenince çöz
-                resimElementi.onerror = reddet; // hata olursa reddet
-                setTimeout(reddet, TEK_RESIM_TIMEOUT); // tek resim timeout
+                // addEventListener kullan — sayfanın kendi onload/onerror handler'larını EZME
+                const zamanlayici = setTimeout(() => reddet(new Error('resim timeout')), TEK_RESIM_TIMEOUT); // tek resim timeout
+                resimElementi.addEventListener('load', () => { clearTimeout(zamanlayici); coz(); }, { once: true }); // yüklenince çöz
+                resimElementi.addEventListener('error', () => { clearTimeout(zamanlayici); reddet(new Error('resim yüklenemedi')); }, { once: true }); // hata olursa reddet
             });
         }
 

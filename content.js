@@ -35,7 +35,11 @@ function butonuEnjekteEt() {
 
     // Eski butonu sil (eklenti yeniden yüklenince ölü handler kalır)
     const eskiButon = document.querySelector('#gemini-printer-buton'); // eski buton
-    if (eskiButon) eskiButon.closest('.buttons-container')?.remove() || eskiButon.remove(); // container ile birlikte sil
+    if (eskiButon) { // varsa
+        const eskiContainer = eskiButon.closest('.buttons-container'); // bizim eklediğimiz container
+        if (eskiContainer) eskiContainer.remove(); // container ile birlikte sil
+        else eskiButon.remove(); // container yoksa sadece butonu sil
+    }
 
     // Buton container oluştur (Gemini'nin buton stiline uyumlu)
     const butonContainer = document.createElement('div'); // container div
@@ -138,6 +142,9 @@ async function yazdirmaBaslat() {
 
         // Ortak yazdırma başlatıcıyı kullan (ayarlar kalıcı storage'dan okur)
         await yazdirmayaBasla(veri, uyariBalonuGoster); // ortak başlatma akışı
+    } catch (cikarmaHata) { // çıkarma sırasında beklenmeyen hata
+        uyariBalonuGoster('Konuşma çıkarılamadı: ' + cikarmaHata.message, 'hata'); // kullanıcıya bildir
+        console.log('AI Chat Printer: Çıkarma hatası:', cikarmaHata); // sessiz log
     } finally { // işlem bitişinde oturum kapatılmalı
         resimIslemOturumuBitir(); // deadline'ı sıfırla
     }
@@ -345,7 +352,7 @@ function indirmeButonlariniEnjekte(modelResponse) {
     mdBtn.addEventListener('click', (olay) => { // MD tıklama
         olay.preventDefault(); olay.stopPropagation(); olay.stopImmediatePropagation(); // diğer handler'ları durdur
         const soru = oncekiSoruMetniBul(modelResponse); // önceki kullanıcı sorusu
-        const cevap = cevapMetniniAl(modelResponse); // şu anki cevap metni
+        const cevap = cevapMarkdownAl(modelResponse); // cevap gerçek Markdown olarak (başlık/kod/liste korunur)
         cevapIndir(soru, cevap, 'md'); // MD olarak indir
     });
     txtBtn.addEventListener('click', (olay) => { // TXT tıklama
@@ -381,12 +388,25 @@ function oncekiSoruMetniBul(modelResponse) {
     return ''; // bulunamadıysa boş
 }
 
-// Bir model-response'un cevap metnini düz text olarak çıkarır
-function cevapMetniniAl(modelResponse) {
-    const icerikEl = modelResponse.querySelector('.markdown') || // markdown bloğu
+// Bir model-response'un içerik elementini döndürür (selektör fallback zinciri)
+function cevapIcerikElementiBul(modelResponse) {
+    return modelResponse.querySelector('.markdown') || // markdown bloğu
         modelResponse.querySelector('.response-content') || // yanıt içeriği
         modelResponse.querySelector('message-content'); // mesaj içeriği
+}
+
+// Bir model-response'un cevap metnini düz text olarak çıkarır
+function cevapMetniniAl(modelResponse) {
+    const icerikEl = cevapIcerikElementiBul(modelResponse); // içerik elementi
     return icerikEl ? (icerikEl.textContent || '').trim() : ''; // metni dön
+}
+
+// Bir model-response'un cevabını gerçek Markdown olarak çıkarır (başlık/kod/liste/tablo korunur)
+function cevapMarkdownAl(modelResponse) {
+    const icerikEl = cevapIcerikElementiBul(modelResponse); // içerik elementi
+    if (!icerikEl) return ''; // element yoksa boş
+    const md = htmlToMarkdown(icerikEl.innerHTML); // HTML'den markdown üret
+    return md || (icerikEl.textContent || '').trim(); // dönüşüm boşsa düz metin fallback
 }
 
 // Soru-cevap çiftini MD veya TXT formatında dosyaya indirir
@@ -405,7 +425,7 @@ function cevapIndir(soru, cevap, format) {
             '## Soru\n\n' + // soru başlığı
             (soru || '*(Soru metni alınamadı)*') + '\n\n' + // soru metni
             '## Cevap\n\n' + // cevap başlığı
-            (cevap || '*(Cevap metni alınamadı)*') + '\n\n' + // cevap metni
+            (cevap || '*(Cevap metni alınamadı)*') + '\n\n' + // cevap metni (gerçek markdown)
             '---\n*AI Chat Printer eklentisi ile indirildi*\n'; // imza
         mimeType = 'text/markdown;charset=utf-8'; // markdown MIME
     } else { // düz metin format
@@ -425,15 +445,7 @@ function cevapIndir(soru, cevap, format) {
     }
 
     const dosyaAdi = indirmeDosyaAdiOlustur(soru, format); // güvenli dosya adı
-    const blob = new Blob([icerik], { type: mimeType }); // blob oluştur
-    const url = URL.createObjectURL(blob); // geçici URL
-    const link = document.createElement('a'); // gizli a etiketi
-    link.href = url; // blob URL
-    link.download = dosyaAdi; // indirilecek dosya adı
-    document.body.appendChild(link); // body'e ekle
-    link.click(); // tıkla — indirme başlar
-    document.body.removeChild(link); // hemen sil
-    setTimeout(() => URL.revokeObjectURL(url), 100); // 100ms sonra URL'i serbest bırak
+    dosyayaIndir(icerik, dosyaAdi, mimeType); // ortak indirme yardımcısı (Blob + a[download])
 
     uyariBalonuGoster('İndirildi: ' + dosyaAdi, 'basari'); // kullanıcıya bildir
 }
@@ -469,14 +481,19 @@ chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => { // mesa
             try { // oturum garanti kapatma
                 const veri = await konusmayiCikar(); // konuşma verisi
                 yanitGonder(veri); // popup'a gönder
+            } catch (hata) { // çıkarma hatası — popup yanlış "yüklenmemiş" mesajı göstermesin
+                yanitGonder({ hata: 'Konuşma çıkarılamadı: ' + hata.message, mesajlar: [] }); // hata yanıtı
             } finally { // oturum kapat
                 resimIslemOturumuBitir();
             }
         })();
-    } else if (mesaj.islem === 'klavyeKisayoluYazdir') { // keyboard shortcut tetiklemesi
-        yazdirmaBaslat(); // sayfa içi yazdırma akışı
+        return true; // asenkron yanıt — kanalı açık tut
     }
-    return true; // asenkron yanıt için true döndür
+    if (mesaj.islem === 'klavyeKisayoluYazdir') { // keyboard shortcut tetiklemesi
+        yazdirmaBaslat(); // sayfa içi yazdırma akışı
+        yanitGonder({ basari: true }); // background'ın await'i temiz kapansın (yanlış F5 badge önleme)
+    }
+    return false; // senkron yanıt — kanal kapanabilir
 });
 
 // Sayfa hazır olduğunda başlat

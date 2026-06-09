@@ -63,8 +63,25 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
         return;
     }
 
-    const konusma = depolanmisVeri.konusmaVerisi; // konuşma verisi
-    const ayarlar = depolanmisVeri.yazdirAyarlari || {}; // yazdırma ayarları
+    let konusma = depolanmisVeri.konusmaVerisi; // konuşma verisi
+    let ayarlar = depolanmisVeri.yazdirAyarlari || {}; // yazdırma ayarları
+
+    // F5 dayanıklılığı: storage boşsa bu sekmenin sessionStorage yedeğinden geri yükle
+    // (sessionStorage sekmeye özeldir — multi-tab race condition korumasını bozmaz)
+    if (!konusma) { // storage'dan veri gelmedi (muhtemelen F5)
+        try { // sessionStorage okuma denemesi
+            const yedek = sessionStorage.getItem('aiChatPrinterYedek'); // bu sekmenin yedeği
+            if (yedek) { // yedek varsa
+                const cozulmus = JSON.parse(yedek); // JSON çöz
+                konusma = cozulmus.konusmaVerisi; // konuşma geri geldi
+                ayarlar = cozulmus.yazdirAyarlari || {}; // ayarlar geri geldi
+            }
+        } catch (yedekHata) {} // yedek bozuksa normal hata akışına düş
+    } else { // storage'dan taze veri geldi — F5 için bu sekmeye yedekle
+        try { // quota aşımında sessizce vazgeç (davranış eskisi gibi kalır)
+            sessionStorage.setItem('aiChatPrinterYedek', JSON.stringify({ konusmaVerisi: konusma, yazdirAyarlari: ayarlar })); // sekme içi yedek
+        } catch (yedekHata) {} // büyük konuşma sessionStorage'a sığmayabilir — kritik değil
+    }
 
     if (!konusma || !konusma.mesajlar || konusma.mesajlar.length === 0) { // veri yoksa
         yuklemeyiGizle(); // overlay'i gizle
@@ -139,7 +156,9 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
         const icerikDiv = document.createElement('div'); // içerik elementi
         icerikDiv.className = 'mesaj-icerigi ' + (mesaj.rol === 'kullanici' ? 'kullanici' : yapayZekaSinif); // rol sınıfı
 
-        const temizHtml = htmlTemizle(mesaj.html || mesaj.metin || ''); // HTML'i güvenli sanitize et
+        // Düz metin fallback'inde newline'ları koru — HTML parse boşlukları yutar
+        const hamIcerik = mesaj.html || (mesaj.metin || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>'); // escape + satır kırma
+        const temizHtml = htmlTemizle(hamIcerik); // HTML'i güvenli sanitize et
         if (temizHtml.childNodes.length > 0) { // içerik varsa
             icerikDiv.appendChild(temizHtml); // temizlenmiş içeriği ekle (createElement ile oluşturulan — güvenli)
         } else if (mesaj.resimler && mesaj.resimler.length > 0) { // sadece resim olan mesajsa
@@ -171,7 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
         if (mesaj.resimler && mesaj.resimler.length > 0) { // ekstra resim varsa
             mesaj.resimler.forEach((resim) => { // her resmi render et
                 const src = resim.src || ''; // kaynak URL
-                if (!src.startsWith('data:image/') && !src.startsWith('https://') && !src.startsWith('blob:')) return; // güvensiz — atla
+                if (!src.startsWith('data:image/') && !src.startsWith('https://')) return; // sadece base64 + https (blob: cross-origin'de zaten ölü, CSP de engelliyor)
                 const resimElementi = document.createElement('img'); // img oluştur
                 resimElementi.src = src; // güvenli kaynak
                 resimElementi.className = 'mesaj-resim'; // CSS sınıfı
@@ -274,6 +293,18 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
         if (basari) toastGoster('Düz metin panoya kopyalandı.', 'basari'); // başarı
         else toastGoster('Kopyalama başarısız. Tarayıcı izinlerini kontrol edin.', 'hata'); // hata
     });
+
+    // Tüm konuşmayı dosya olarak indir (MD veya TXT) — panoya kopyalamanın dosya karşılığı
+    const konusmayiDosyaIndir = (format) => { // format: 'md' | 'txt'
+        if (!mevcutKonusma) return; // veri yoksa çık
+        const icerik = format === 'md' ? konusmayiMarkdowneDonustur(mevcutKonusma) : konusmayiDuzMetneDonustur(mevcutKonusma); // formata göre içerik
+        const mimeType = format === 'md' ? 'text/markdown;charset=utf-8' : 'text/plain;charset=utf-8'; // MIME tipi
+        const dosyaAdi = (mevcutKonusma.baslik || 'AI Konusmasi') + '.' + format; // başlık content script'te zaten FS-güvenli temizlendi
+        dosyayaIndir(icerik, dosyaAdi, mimeType); // ortak indirme yardımcısı
+        toastGoster('İndirildi: ' + dosyaAdi, 'basari'); // bildirim
+    };
+    document.getElementById('markdownIndir').addEventListener('click', () => konusmayiDosyaIndir('md')); // MD indir butonu
+    document.getElementById('metinIndir').addEventListener('click', () => konusmayiDosyaIndir('txt')); // TXT indir butonu
 
     // Kapat butonu
     document.getElementById('sayfayiKapat').addEventListener('click', sayfayiKapat); // kapat dinleyici
@@ -418,14 +449,13 @@ function htmlTemizle(htmlString) {
                         }
                     }
 
-                    // IMG etiketi için src (güvenli şemalar: data:image/{png,jpeg,jpg,gif,webp} / https: / blob:)
+                    // IMG etiketi için src (güvenli şemalar: data:image/{png,jpeg,jpg,gif,webp} / https:)
                     if (cocuk.tagName === 'IMG') {
                         const src = cocuk.getAttribute('src') || '';
                         // SVG data URI XSS koruması: sadece raster format'lara izin ver
                         const guvenliDataUri = /^data:image\/(png|jpeg|jpg|gif|webp);(base64,|charset=)/i.test(src); // raster format kontrol
                         const guvenliHttps = src.startsWith('https://') && !src.toLowerCase().includes('javascript:'); // https + javascript: önleme
-                        const guvenliBlob = src.startsWith('blob:'); // blob güvenli
-                        if (guvenliDataUri || guvenliHttps || guvenliBlob) { // sadece güvenli kaynak
+                        if (guvenliDataUri || guvenliHttps) { // sadece güvenli kaynak (blob: kaldırıldı — cross-origin'de ölü + CSP dışı)
                             yeniElement.setAttribute('src', src); // güvenli src
                         }
                         yeniElement.setAttribute('alt', cocuk.getAttribute('alt') || 'Görsel');
