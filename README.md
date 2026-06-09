@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>v1.7.0</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
+  <strong>v1.7.1</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
 </p>
 
 ---
@@ -209,6 +209,12 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ---
 
 ## Degisiklik Gecmisi / Changelog
+
+### v1.7.1 (10.06.2026) — UI metni sizintisi duzeltmesi
+
+- **Markdown/yazdirma ciktisina UI metni sizmasi kapatildi** — "Kodu kopyala" buton yazisi, `mat-icon` ligature metni (`content_copy`), inline `<style>` CSS kurallari artik ciktiya girmez. / UI text leakage fixed: copy-button labels, icon ligatures and inline CSS no longer leak into Markdown or print output.
+- `htmlToMarkdown` ve `htmlTemizle` artik BUTTON/MAT-ICON/STYLE/SCRIPT/SELECT/TEXTAREA/SVG/IFRAME vb. etiketleri **icerikleriyle birlikte** atlar.
+- Gemini cevap alti ↓ MD / ↓ TXT cikarimi klon uzerinde UI temizliginden gecer (`icerikKlonuTemizle`).
 
 ### v1.7.0 (10.06.2026) — Gercek Markdown motoru + dosya indirme + derin denetim duzeltmeleri
 
