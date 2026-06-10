@@ -115,6 +115,11 @@ async function resimliHtmlCikar(element) {
     return kopya.innerHTML; // base64 resimli HTML döndür
 }
 
+// Bir element UI bileşeni (buton/ikon) içinde mi — UI görselleri içerik resmi DEĞİLDİR
+function uiElementiIcindeMi(element) {
+    return !!(element.closest && element.closest('button, [role="button"], mat-icon')); // beğen/kopyala ikonları, buton görselleri
+}
+
 // Turn/container elementinde kaynak element dışında kalan resimleri toplar (img + background-image)
 async function turnResimleriniTopla(turn, kaynakElement) {
     const resimler = []; // ekstra resim dizisi
@@ -124,6 +129,7 @@ async function turnResimleriniTopla(turn, kaynakElement) {
 
     for (const resim of turnResimleri) { // her resmi kontrol et
         if (kaynakElement && kaynakElement.contains(resim)) continue; // kaynak element içindeyse atla (zaten yakalandı)
+        if (uiElementiIcindeMi(resim)) continue; // buton/ikon içindeki görsel — çıktıya alma
         if (resimDeadlineDoldu()) break; // deadline dolmuşsa döngüyü kır
         const base64 = await resmiBase64Yap(resim); // base64'e çevir
         if (base64) { // dönüşüm başarılıysa
@@ -136,6 +142,7 @@ async function turnResimleriniTopla(turn, kaynakElement) {
         const tumElementler = turn.querySelectorAll('*'); // turn'deki tüm elementler
         for (const element of tumElementler) { // her elementi kontrol et
             if (kaynakElement && kaynakElement.contains(element)) continue; // kaynak element içindeyse atla
+            if (uiElementiIcindeMi(element)) continue; // buton/ikon arka plan görseli (hover sprite vb.) — çıktıya alma
             if (resimDeadlineDoldu()) break; // deadline dolmuşsa döngüyü kır
             const stil = window.getComputedStyle(element); // hesaplanmış stil
             const arkaplanResim = stil.backgroundImage; // background-image değeri

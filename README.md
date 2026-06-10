@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>v1.7.3</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
+  <strong>v1.7.4</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
 </p>
 
 ---
@@ -209,6 +209,10 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ---
 
 ## Degisiklik Gecmisi / Changelog
+
+### v1.7.4 (10.06.2026) — Resim kanalinda UI gorsel filtresi
+
+- **Buton/ikon gorselleri artik "ekstra resim" olarak toplanmiyor** — `turnResimleriniTopla()` buton, `[role="button"]` ve `mat-icon` icindeki img + background-image gorsellerini atlar; begen/kopyala ikonlari ve hover sprite'lari yazdirma ciktisina giremez (UI ≠ icerik ilkesinin 4. kanali: html, metin, md'den sonra resim). / Button/icon images are no longer collected as content images.
 
 ### v1.7.3 (10.06.2026) — Markdown fence kacisi duzeltmesi
 
