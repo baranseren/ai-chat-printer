@@ -596,7 +596,7 @@ chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => {
 
 `htmlTemizle(htmlString) -> HTMLDivElement` — **innerHTML hiçbir yerde kullanılmaz**; her düğüm `createElement`/`createTextNode` ile yeniden üretilir.
 
-**İzinli etiketler (whitelist, 41):**
+**İzinli etiketler (whitelist, 46):**
 `P H1-H6 UL OL LI PRE CODE STRONG B EM I U BR TABLE THEAD TBODY TR TH TD TFOOT CAPTION BLOCKQUOTE A SPAN DIV HR SUP SUB IMG FIGURE FIGCAPTION DEL S MARK SMALL KBD SAMP VAR DL DT DD`
 
 **İçerikleriyle atlanan etiketler:** `SCRIPT STYLE NOSCRIPT TEMPLATE IFRAME OBJECT EMBED BUTTON SELECT TEXTAREA SVG CANVAS AUDIO VIDEO MAT-ICON` (`tagName.toUpperCase()` ile) — buton yazısı/ikon ligature/CSS kuralı çıktıya giremez.
