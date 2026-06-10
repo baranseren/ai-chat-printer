@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>v1.7.4</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
+  <strong>v1.7.5</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
 </p>
 
 ---
@@ -209,6 +209,12 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ---
 
 ## Degisiklik Gecmisi / Changelog
+
+### v1.7.5 (10.06.2026) — MD link sozdizimi cakismasi + olcek dayanikliligi
+
+- **Parantezli URL'ler linki kirmiyor** — Wikipedia tarzi `.../X_(album)` URL'leri CommonMark `<>` sargisiyla yazilir; `(` `)` veya bosluk iceren href/src MD linkini erken kapatmaz. / Parenthesized URLs wrapped in `<>` per CommonMark.
+- **Link metni ve img alt'inda `[` `]` escape** — `dizi[0]` gibi metinler link yapisini bozmaz.
+- **mdFenceUret stack overflow korumasi** — `Math.max(...spread)` yerine `reduce`; cok sayida backtick dizisi iceren dev iceriklerde (200k+ dizi) export crash etmez.
 
 ### v1.7.4 (10.06.2026) — Resim kanalinda UI gorsel filtresi
 

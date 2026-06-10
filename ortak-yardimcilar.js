@@ -206,7 +206,7 @@ async function yazdirmayaBasla(veri, uyariBalonuGoster) {
 // Örn. markdown öğreten bir cevapta ``` geçiyorsa fence ```` olur — blok erken kapanmaz
 function mdFenceUret(icerik) {
     const diziler = (icerik || '').match(/`{3,}/g); // içerikteki 3+ backtick dizileri
-    const enUzun = diziler ? Math.max(...diziler.map((s) => s.length)) : 0; // en uzun dizi
+    const enUzun = diziler ? diziler.reduce((enBuyuk, dizi) => Math.max(enBuyuk, dizi.length), 0) : 0; // en uzun dizi (reduce — spread dev dizide stack overflow yapar)
     return '`'.repeat(Math.max(3, enUzun + 1)); // içeriktekinden en az 1 fazla, min 3
 }
 
@@ -307,13 +307,17 @@ function htmlToMarkdown(htmlString) {
             }
             case 'A': {
                 const href = dugum.getAttribute('href') || ''; // ham href
-                const metin = ic().trim() || href; // link metni
-                return /^https?:\/\//.test(href) ? '[' + metin + '](' + href + ')' : metin; // güvenli şema → link, değilse düz metin
+                const metin = (ic().trim() || href).replace(/([\[\]])/g, '\\$1'); // link metni — köşeli parantez escape (yapı kırılmasın)
+                if (!/^https?:\/\//.test(href)) return metin; // güvensiz şema → düz metin
+                const guvenliHref = /[()\s]/.test(href) ? '<' + href + '>' : href; // parantezli/boşluklu URL → <> sargısı (Wikipedia linkleri linki erken kapatmasın)
+                return '[' + metin + '](' + guvenliHref + ')'; // markdown link
             }
             case 'IMG': {
-                const alt = dugum.getAttribute('alt') || 'Görsel'; // alt metin
+                const alt = (dugum.getAttribute('alt') || 'Görsel').replace(/([\[\]])/g, '\\$1'); // alt metin — köşeli parantez escape
                 const src = dugum.getAttribute('src') || ''; // kaynak
-                return src.startsWith('https://') ? '![' + alt + '](' + src + ')' : '*[Görsel: ' + alt + ']*'; // https → gömülü, base64 → placeholder (MB şişmesin)
+                if (!src.startsWith('https://')) return '*[Görsel: ' + alt + ']*'; // base64 → placeholder (MB şişmesin)
+                const guvenliSrc = /[()\s]/.test(src) ? '<' + src + '>' : src; // parantezli/boşluklu URL → <> sargısı
+                return '![' + alt + '](' + guvenliSrc + ')'; // gömülü görsel
             }
             case 'UL': case 'OL':
                 return '\n\n' + listeyiCevir(dugum, 0) + '\n'; // liste bloğu
