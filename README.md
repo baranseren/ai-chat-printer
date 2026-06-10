@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>v1.7.7</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
+  <strong>v1.7.8</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
 </p>
 
 ---
@@ -209,6 +209,10 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ---
 
 ## Degisiklik Gecmisi / Changelog
+
+### v1.7.8 (10.06.2026) — Cift tiklama reentrance korumasi
+
+- **Yazdir butonuna art arda basmak artik paralel akis baslatmiyor** — 4 content script'te `yazdirmaIslemiSuruyor` kilidi: ikinci tiklama "islem zaten suruyor" uyarisi verir. Onceden cift tiklama iki cikarma akisi + iki yazdirma sekmesi acabiliyor, paylasilan resim-deadline'i cakisiyordu; **Claude'da** paralel artifact tikla-ac-kapat donguleri viewer'i cakistirip icerikleri karistirabiliyordu (popup mesaj yolu da kilitli). / Double-click no longer spawns parallel extraction flows; Claude artifact loop protected on both trigger paths.
 
 ### v1.7.7 (10.06.2026) — Linkli resim MD duzeltmesi + uctan uca render dogrulamasi
 

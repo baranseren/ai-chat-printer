@@ -3,6 +3,7 @@
 
 // Buton zaten enjekte edildi mi kontrolü
 let butonEnjekteEdildi = false; // tekrar enjekte etmeyi önle
+let yazdirmaIslemiSuruyor = false; // çift tıklama reentrance koruması — paralel çıkarma akışını önler
 
 // Sayfa yüklendiğinde ve navigasyon değişikliklerinde butonu enjekte et
 function baslat() {
@@ -127,6 +128,12 @@ async function yazdirmaBaslat() {
     // Streaming kontrol Gemini için kaldırıldı — false positive üretiyordu (gizli stop butonu kontrolü güvenilir değil)
     // Kullanıcı yarım yanıt yazdırırsa kendi takdirinde
 
+    if (yazdirmaIslemiSuruyor) { // çift tıklama — ikinci akışı başlatma (iki sekme + deadline çakışması önlenir)
+        uyariBalonuGoster('Yazdırma işlemi zaten sürüyor, lütfen bekleyin...', 'hata'); // bilgi
+        return;
+    }
+    yazdirmaIslemiSuruyor = true; // akış kilidi
+
     uyariBalonuGoster('Konuşma çıkarılıyor, resimler işleniyor...', 'basari'); // işlem başladı bildirimi
     resimIslemOturumuBaslat(RESIM_TOPLAM_SURE_LIMIT); // resim toplam süre limiti başlat
 
@@ -147,6 +154,7 @@ async function yazdirmaBaslat() {
         uyariBalonuGoster('Konuşma çıkarılamadı: ' + cikarmaHata.message, 'hata'); // kullanıcıya bildir
         console.log('AI Chat Printer: Çıkarma hatası:', cikarmaHata); // sessiz log
     } finally { // işlem bitişinde oturum kapatılmalı
+        yazdirmaIslemiSuruyor = false; // akış kilidini bırak
         resimIslemOturumuBitir(); // deadline'ı sıfırla
     }
 }

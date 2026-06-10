@@ -5,6 +5,7 @@
 let butonEnjekteEdildi = false; // tekrar enjekte etmeyi önle
 let observerAktif = null; // MutationObserver referansı (artifact çıkarırken geçici disconnect için)
 let artifactCikarmaAktif = false; // artifact çıkarma sırasında observer yeniden-enjeksiyonu baskılar
+let yazdirmaIslemiSuruyor = false; // çift tıklama reentrance koruması — paralel artifact döngüsü viewer'ı çakıştırır
 
 // Sayfa yüklendiğinde ve navigasyon değişikliklerinde butonu enjekte et
 function baslat() {
@@ -134,6 +135,12 @@ async function yazdirmaBaslat() {
         return;
     }
 
+    if (yazdirmaIslemiSuruyor) { // çift tıklama — paralel artifact tıkla-aç-kapat döngüsü viewer'ı çakıştırır
+        uyariBalonuGoster('Yazdırma işlemi zaten sürüyor, lütfen bekleyin...', 'hata'); // bilgi
+        return;
+    }
+    yazdirmaIslemiSuruyor = true; // akış kilidi
+
     resimIslemOturumuBaslat(RESIM_TOPLAM_SURE_LIMIT); // resim toplam süre limiti başlat
 
     try { // oturum bitirme garantisi
@@ -157,6 +164,7 @@ async function yazdirmaBaslat() {
         uyariBalonuGoster('Konuşma çıkarılamadı: ' + cikarmaHata.message, 'hata'); // kullanıcıya bildir
         console.log('AI Chat Printer: Çıkarma hatası:', cikarmaHata); // sessiz log
     } finally { // işlem bitişinde oturum kapatılmalı
+        yazdirmaIslemiSuruyor = false; // akış kilidini bırak
         resimIslemOturumuBitir(); // deadline'ı sıfırla
     }
 }
@@ -403,6 +411,11 @@ chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => { // mesa
                 yanitGonder({ hata: 'Claude henüz yanıt yazıyor. Tamamlanmasını bekleyin.', mesajlar: [] }); // uyarı
                 return;
             }
+            if (yazdirmaIslemiSuruyor) { // sayfa içi akışla paralel artifact döngüsü viewer'ı çakıştırır
+                yanitGonder({ hata: 'Yazdırma işlemi zaten sürüyor. Lütfen bekleyin.', mesajlar: [] }); // bilgi
+                return;
+            }
+            yazdirmaIslemiSuruyor = true; // akış kilidi (popup yolu da artifact döngüsü çalıştırıyor)
             resimIslemOturumuBaslat(RESIM_TOPLAM_SURE_LIMIT); // resim oturumu başlat
             try { // oturum kapatma garantisi
                 const artifactIcerikleri = await artifactIcerikleriniCikar(); // artifact içerikleri
@@ -411,6 +424,7 @@ chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => { // mesa
             } catch (hata) { // çıkarma hatası — popup yanlış "yüklenmemiş" mesajı göstermesin
                 yanitGonder({ hata: 'Konuşma çıkarılamadı: ' + hata.message, mesajlar: [] }); // hata yanıtı
             } finally { // oturum kapatma
+                yazdirmaIslemiSuruyor = false; // akış kilidini bırak
                 resimIslemOturumuBitir(); // deadline sıfırla
             }
         })();
