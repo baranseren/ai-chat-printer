@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>v1.7.5</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
+  <strong>v1.7.6</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
 </p>
 
 ---
@@ -209,6 +209,10 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ---
 
 ## Degisiklik Gecmisi / Changelog
+
+### v1.7.6 (10.06.2026) — Kullanici ciktilarinda tam Turkce diakritik
+
+- **Runtime ciktilarindaki ASCII Turkce metinler duzeltildi** — yazdirma onizleme basligi/butonu/footer'i ("Yazdırma Önizleme", "Yazdır", "Bu çıktı ... oluşturulmuştur."), varsayilan konusma basliklari ("Gemini Konuşması" vb.) ve TXT indirme sablonu ("Konuşma:", "alınamadı") artik tam diakritikli. UTF-8 byte butunlugu dogrulandi, NTFS dosya adlarinda Turkce karakter sorunsuz. / All user-facing runtime strings now use proper Turkish diacritics.
 
 ### v1.7.5 (10.06.2026) — MD link sozdizimi cakismasi + olcek dayanikliligi
 

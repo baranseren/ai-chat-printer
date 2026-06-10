@@ -442,12 +442,12 @@ function cevapIndir(soru, cevap, format) {
         icerik = 'Gemini Soru-Cevap\n' + // başlık
             ayirici + '\n' + // ayırıcı
             'Tarih:    ' + tarih + '\n' + // tarih
-            'Konusma:  ' + konusmaBasligi + '\n' + // konuşma adı
+            'Konuşma:  ' + konusmaBasligi + '\n' + // konuşma adı (UTF-8 dosya — tam diakritik)
             ayirici + '\n\n' + // ayırıcı
             'SORU:\n' + // soru başlığı
-            (soru || '(Soru metni alinamadi)') + '\n\n' + // soru
+            (soru || '(Soru metni alınamadı)') + '\n\n' + // soru
             'CEVAP:\n' + // cevap başlığı
-            (cevap || '(Cevap metni alinamadi)') + '\n\n' + // cevap
+            (cevap || '(Cevap metni alınamadı)') + '\n\n' + // cevap
             ayirici + '\n' + // ayırıcı
             'AI Chat Printer eklentisi ile indirildi\n'; // imza
         mimeType = 'text/plain;charset=utf-8'; // plain text MIME

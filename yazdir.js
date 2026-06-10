@@ -94,14 +94,14 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
     yuklemeMetniniGuncelle('İçerik işleniyor (' + konusma.mesajSayisi + ' mesaj)...'); // durum güncelle
 
     // Kaynak bilgisini belirle (bilinen 4 site dışında "ai" generic theme)
-    const KAYNAK_HARITA = { // tek doğru kaynak — DRY
-        gemini: { ad: 'GEMINI', sinif: 'gemini', site: 'gemini.google.com', baslik: 'Gemini Konusmasi' },
-        claude: { ad: 'CLAUDE', sinif: 'claude', site: 'claude.ai', baslik: 'Claude Konusmasi' },
-        chatgpt: { ad: 'CHATGPT', sinif: 'chatgpt', site: 'chatgpt.com', baslik: 'ChatGPT Konusmasi' },
-        grok: { ad: 'GROK', sinif: 'grok', site: 'grok.com', baslik: 'Grok Konusmasi' }
+    const KAYNAK_HARITA = { // tek doğru kaynak — DRY (başlıklar tam Türkçe diakritikli — NTFS/ekran ikisi de Unicode destekler)
+        gemini: { ad: 'GEMINI', sinif: 'gemini', site: 'gemini.google.com', baslik: 'Gemini Konuşması' },
+        claude: { ad: 'CLAUDE', sinif: 'claude', site: 'claude.ai', baslik: 'Claude Konuşması' },
+        chatgpt: { ad: 'CHATGPT', sinif: 'chatgpt', site: 'chatgpt.com', baslik: 'ChatGPT Konuşması' },
+        grok: { ad: 'GROK', sinif: 'grok', site: 'grok.com', baslik: 'Grok Konuşması' }
     };
     const kaynak = konusma.kaynak || 'gemini'; // ham kaynak alanı
-    const kaynakBilgi = KAYNAK_HARITA[kaynak] || { ad: 'AI', sinif: 'ai', site: 'unknown', baslik: 'AI Konusmasi' }; // bilinmeyen → generic
+    const kaynakBilgi = KAYNAK_HARITA[kaynak] || { ad: 'AI', sinif: 'ai', site: 'unknown', baslik: 'AI Konuşması' }; // bilinmeyen → generic
     const yapayZekaAdi = kaynakBilgi.ad; // etiket metni
     const yapayZekaSinif = kaynakBilgi.sinif; // CSS sınıfı
     const kaynakSite = kaynakBilgi.site; // site adresi
@@ -299,7 +299,7 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
         if (!mevcutKonusma) return; // veri yoksa çık
         const icerik = format === 'md' ? konusmayiMarkdowneDonustur(mevcutKonusma) : konusmayiDuzMetneDonustur(mevcutKonusma); // formata göre içerik
         const mimeType = format === 'md' ? 'text/markdown;charset=utf-8' : 'text/plain;charset=utf-8'; // MIME tipi
-        const dosyaAdi = (mevcutKonusma.baslik || 'AI Konusmasi') + '.' + format; // başlık content script'te zaten FS-güvenli temizlendi
+        const dosyaAdi = (mevcutKonusma.baslik || 'AI Konuşması') + '.' + format; // başlık content script'te zaten FS-güvenli temizlendi (Türkçe karakter NTFS'te sorunsuz)
         dosyayaIndir(icerik, dosyaAdi, mimeType); // ortak indirme yardımcısı
         toastGoster('İndirildi: ' + dosyaAdi, 'basari'); // bildirim
     };
