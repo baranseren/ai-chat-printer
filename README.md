@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>v1.7.6</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
+  <strong>v1.7.7</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
 </p>
 
 ---
@@ -209,6 +209,11 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ---
 
 ## Degisiklik Gecmisi / Changelog
+
+### v1.7.7 (10.06.2026) — Linkli resim MD duzeltmesi + uctan uca render dogrulamasi
+
+- **Linkli resim Markdown'da bozulmuyor** — `<a><img></a>` (Gemini gorsel sonuclari) artik `[![alt](src)](href)` olarak dogru uretilir; `[]` escape'i yalnizca duz metinli linklere uygulanir (ic ice markdown sozdizimi korunur). / Linked images no longer broken by bracket escaping.
+- **Uctan uca render testi** — chrome API mock'u ile yazdir.js'in tam akisi (storage → sanitize → render) 21 senaryoda dogrulandi: XSS script/onerror/SVG-data-URI engelleme, buton/style sizinti filtreleri, prefix temizleme, artifact render, sessionStorage F5 yedegi, PDF baslik atamasi.
 
 ### v1.7.6 (10.06.2026) — Kullanici ciktilarinda tam Turkce diakritik
 

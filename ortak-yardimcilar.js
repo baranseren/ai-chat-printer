@@ -307,7 +307,8 @@ function htmlToMarkdown(htmlString) {
             }
             case 'A': {
                 const href = dugum.getAttribute('href') || ''; // ham href
-                const metin = (ic().trim() || href).replace(/([\[\]])/g, '\\$1'); // link metni — köşeli parantez escape (yapı kırılmasın)
+                const ham = ic().trim() || href; // işlenmiş iç içerik (element çocuklarda markdown üretmiş olabilir)
+                const metin = dugum.children.length === 0 ? ham.replace(/([\[\]])/g, '\\$1') : ham; // [] escape SADECE düz metinli linkte — linkli resmin ![alt](src) sözdizimi bozulmasın
                 if (!/^https?:\/\//.test(href)) return metin; // güvensiz şema → düz metin
                 const guvenliHref = /[()\s]/.test(href) ? '<' + href + '>' : href; // parantezli/boşluklu URL → <> sargısı (Wikipedia linkleri linki erken kapatmasın)
                 return '[' + metin + '](' + guvenliHref + ')'; // markdown link
