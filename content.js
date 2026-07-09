@@ -480,13 +480,10 @@ function indirmeDosyaAdiOlustur(soru, format) {
 }
 
 // Gemini'nin kullanıcı mesajlarına eklediği erişilebilirlik prefix'lerini temizler
+// Regex tabanlı — prefix sonrası boşluk/satır kırması olmasa da yakalar (startsWith boşluk varyantını kaçırıyordu)
 function geminiPrefixTemizle(metin) {
     if (!metin) return ''; // boş metin kontrolü
-    const prefixler = ['Siz şunu dediniz: ', 'Siz şunu söylediniz: ', 'You said: ']; // bilinen prefix'ler
-    for (const prefix of prefixler) { // her prefix'i kontrol et
-        if (metin.startsWith(prefix)) return metin.substring(prefix.length).trim(); // prefix'i kaldır
-    }
-    return metin; // prefix yoksa aynen döndür
+    return metin.replace(/^\s*(Siz şunu dediniz:|Siz şunu söylediniz:|You said:)\s*/, '').trim(); // prefix + çevresindeki boşlukları at
 }
 
 // Popup'tan ve background'tan gelen mesajları dinle

@@ -466,16 +466,17 @@ async function panoyaKopyala(metin) {
 }
 
 // DOM üzerinde "Siz şunu dediniz:" prefix'ini temizler
+// Regex tabanlı + ilk DOLU text node aranır (whitespace node'lar ve boşluksuz prefix startsWith'i kaçırıyordu)
 function prefixTemizleDOM(element) {
-    const prefixler = ['Siz şunu dediniz: ', 'Siz şunu söylediniz: ', 'You said: ']; // bilinen prefix'ler
+    const prefixKalip = /^\s*(Siz şunu dediniz:|Siz şunu söylediniz:|You said:)\s*/; // bilinen prefix'ler
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT); // text node'ları tara
-    const ilkTextNode = walker.nextNode(); // ilk text node
-    if (ilkTextNode) { // text node bulunduysa
-        for (const prefix of prefixler) { // her prefix'i kontrol et
-            if (ilkTextNode.textContent.startsWith(prefix)) { // prefix ile başlıyorsa
-                ilkTextNode.textContent = ilkTextNode.textContent.substring(prefix.length); // prefix'i kaldır
-                break; // ilk eşleşmede dur
-            }
+    let dugum = walker.nextNode(); // ilk text node
+    while (dugum && !dugum.textContent.trim()) dugum = walker.nextNode(); // whitespace node'ları atla — ilk dolu node'u bul
+    if (dugum && prefixKalip.test(dugum.textContent)) { // prefix ile başlıyorsa
+        dugum.textContent = dugum.textContent.replace(prefixKalip, ''); // prefix'i kaldır
+        if (!dugum.textContent.trim()) { // node tamamen boşaldıysa (prefix kendi bloğundaydı)
+            const blok = dugum.parentElement; // sarmalayan element
+            if (blok && blok !== element && !blok.textContent.trim()) blok.remove(); // boş kalan bloğu at (görsel boşluk kalmasın)
         }
     }
 }
