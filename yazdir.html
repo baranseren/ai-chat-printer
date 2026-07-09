@@ -16,8 +16,32 @@
             <button id="metinKopyala" class="kontrol-buton ikincil" aria-label="Düz metin olarak panoya kopyala" title="Düz metin olarak panoya kopyala">Metin</button>
             <button id="markdownIndir" class="kontrol-buton ikincil" aria-label="Markdown dosyası olarak indir" title="Markdown dosyası olarak indir (.md)">&#8595; MD</button>
             <button id="metinIndir" class="kontrol-buton ikincil" aria-label="Metin dosyası olarak indir" title="Düz metin dosyası olarak indir (.txt)">&#8595; TXT</button>
+            <button id="htmlIndir" class="kontrol-buton ikincil" aria-label="HTML dosyası olarak indir" title="Tek dosya HTML olarak indir (.html)">&#8595; HTML</button>
+            <button id="jsonIndir" class="kontrol-buton ikincil" aria-label="JSON dosyası olarak indir" title="Yapılandırılmış veri olarak indir (.json)">&#8595; JSON</button>
             <button id="sayfayiKapat" class="kontrol-buton ikincil" aria-label="Sayfayı kapat" title="Sayfayı kapat (Esc)">Kapat</button>
         </div>
+    </div>
+
+    <!-- Canlı ayar çubuğu (sadece ekranda, yazıcıya gitmez) -->
+    <div class="ayar-cubugu" id="ayarCubugu" role="toolbar" aria-label="Önizleme Ayarları">
+        <label class="ayar-oge" for="canliYaziBoyutu">
+            <span>Yazı boyutu</span>
+            <select id="canliYaziBoyutu" aria-label="Yazı boyutu seç">
+                <option value="11">Küçük (11px)</option>
+                <option value="13">Normal (13px)</option>
+                <option value="15">Büyük (15px)</option>
+            </select>
+        </label>
+        <label class="ayar-oge">
+            <input type="checkbox" id="canliKodBloklari" checked>
+            <span>Kod blokları</span>
+        </label>
+        <label class="ayar-oge">
+            <input type="checkbox" id="mesajSecimModu">
+            <span>Mesaj seçimi</span>
+        </label>
+        <button id="tumunuSecKaldir" class="kontrol-buton ikincil kucuk gizli-buton" aria-label="Tüm mesajları seç veya kaldır" title="Tüm mesajları seç / kaldır">Tümünü Kaldır</button>
+        <span id="secimBilgisi" class="secim-bilgisi" aria-live="polite"></span>
     </div>
 
     <!-- Loading overlay (veri yüklenirken gösterilir) -->

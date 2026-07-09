@@ -9,6 +9,11 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
     const yaziBoyutuSelect = document.getElementById('yaziBoyutu'); // yazı boyutu select
     const footerGosterCheck = document.getElementById('footerGoster'); // footer toggle
 
+    // Sürüm bilgisini manifest'ten dinamik oku (hardcoded sürüm güncel kalmıyordu)
+    try { // manifest erişim denemesi
+        document.getElementById('surumBilgisi').textContent = 'AI Chat Printer v' + chrome.runtime.getManifest().version; // dinamik sürüm
+    } catch (surumHata) {} // erişilemezse sadece ad kalır
+
     // Kalıcı ayarları yükle ve UI'ya yansıt
     try { // storage erişim denemesi
         const kayit = await chrome.storage.sync.get(['kullaniciAyarlari']); // sync storage'dan oku

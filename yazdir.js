@@ -130,15 +130,28 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
     let mesajSirasi = 0; // mesaj numaralandırma sayacı
     let tabloVarMi = false; // geniş tablo kontrolü için
 
-    konusma.mesajlar.forEach((mesaj) => { // her mesajı işle
+    konusma.mesajlar.forEach((mesaj, mesajIndex) => { // her mesajı işle
         mesajSirasi++; // sıra numarasını artır
 
         const mesajBlogu = document.createElement('div'); // mesaj bloğu oluştur
         mesajBlogu.className = 'mesaj-blogu'; // CSS sınıfı
+        mesajBlogu.dataset.mesajIndex = String(mesajIndex); // export filtresi için orijinal indeks
 
         // Etiket satırı (numara + Kullanıcı/Claude/Gemini)
         const etiketSatiri = document.createElement('div'); // etiket satırı container
         etiketSatiri.className = 'mesaj-etiket-satiri'; // CSS sınıfı
+
+        // Mesaj seçim checkbox'ı (sadece ekranda, seçim modunda görünür)
+        const secimKutusu = document.createElement('input'); // checkbox elementi
+        secimKutusu.type = 'checkbox'; // tip
+        secimKutusu.className = 'mesaj-secim-kutusu'; // CSS sınıfı
+        secimKutusu.checked = true; // varsayılan: mesaj dahil
+        secimKutusu.setAttribute('aria-label', 'Mesaj #' + mesajSirasi + ' çıktıya dahil'); // erişilebilirlik
+        secimKutusu.addEventListener('change', () => { // seçim değişimi
+            mesajBlogu.classList.toggle('mesaj-secilmedi', !secimKutusu.checked); // görsel + çıktı durumu
+            secimBilgisiniGuncelle(); // sayaç güncelle
+        });
+        etiketSatiri.appendChild(secimKutusu); // checkbox'ı etiket satırına ekle
 
         const numara = document.createElement('span'); // sıra numarası
         numara.className = 'mesaj-numara'; // CSS sınıfı
@@ -177,11 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
             prefixTemizleDOM(icerikDiv); // DOM üzerinde prefix temizle
         }
 
-        // Kod bloklarını kaldır seçeneği
-        if (!ayarlar.kodBloklari) { // kod blokları dahil değilse
-            const kodBloklari = icerikDiv.querySelectorAll('pre'); // tüm pre elementleri
-            kodBloklari.forEach((blok) => blok.remove()); // pre bloklarını sil
-        }
+        // Kod blokları gizleme artık body.kod-gizli class'ı ile yapılır (canlı toggle — DOM silinmez)
 
         // Tablo varlığını kontrol et (landscape uyarısı için)
         if (icerikDiv.querySelector('table')) tabloVarMi = true; // tablo var
@@ -230,16 +239,45 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
                     artifactDiv.appendChild(uyari); // uyarıyı ekle
                 }
 
-                // Kod blokları dahil değilse artifact'ı da gizle
-                if (!ayarlar.kodBloklari) { // kod blokları kapalıysa
-                    artifactDiv.style.display = 'none'; // gizle
-                }
-
+                // Artifact gizleme body.kod-gizli class'ı ile yapılır (canlı toggle — DOM silinmez)
                 mesajBlogu.appendChild(artifactDiv); // artifact'ı mesaja ekle
             });
         }
 
         mesajlarAlani.appendChild(mesajBlogu); // mesajı sayfaya ekle
+    });
+
+    // Kod blokları başlangıç durumu (kayıtlı ayara göre) — canlı toggle ile değiştirilebilir
+    document.body.classList.toggle('kod-gizli', ayarlar.kodBloklari === false); // false ise gizle
+
+    // ─── Canlı ayar çubuğu bağlantıları ───
+    const canliYaziBoyutu = document.getElementById('canliYaziBoyutu'); // yazı boyutu select
+    const canliKodBloklari = document.getElementById('canliKodBloklari'); // kod blokları toggle
+    const mesajSecimModu = document.getElementById('mesajSecimModu'); // mesaj seçim modu toggle
+    const tumunuSecKaldir = document.getElementById('tumunuSecKaldir'); // tümünü seç/kaldır butonu
+
+    canliYaziBoyutu.value = ayarlar.yaziBoyutu || '13'; // kayıtlı boyutu yansıt
+    canliKodBloklari.checked = ayarlar.kodBloklari !== false; // kayıtlı kod bloğu ayarını yansıt
+
+    canliYaziBoyutu.addEventListener('change', () => { // yazı boyutu canlı değişim
+        document.getElementById('yazdirmaAlani').style.fontSize = canliYaziBoyutu.value + 'px'; // anında uygula
+    });
+    canliKodBloklari.addEventListener('change', () => { // kod blokları canlı toggle
+        document.body.classList.toggle('kod-gizli', !canliKodBloklari.checked); // gizle/göster
+    });
+    mesajSecimModu.addEventListener('change', () => { // seçim modu aç/kapat
+        document.body.classList.toggle('secim-modu-acik', mesajSecimModu.checked); // checkbox görünürlüğü
+        tumunuSecKaldir.classList.toggle('gizli-buton', !mesajSecimModu.checked); // toplu buton görünürlüğü
+        secimBilgisiniGuncelle(); // sayaç güncelle
+    });
+    tumunuSecKaldir.addEventListener('click', () => { // toplu seç/kaldır
+        const kutular = Array.from(document.querySelectorAll('.mesaj-secim-kutusu')); // tüm checkbox'lar
+        const hepsiSecili = kutular.every((kutu) => kutu.checked); // hepsi seçili mi
+        kutular.forEach((kutu) => { // her checkbox'ı çevir
+            kutu.checked = !hepsiSecili; // hepsi seçiliyse kaldır, değilse seç
+            kutu.closest('.mesaj-blogu').classList.toggle('mesaj-secilmedi', hepsiSecili); // görsel durum
+        });
+        secimBilgisiniGuncelle(); // sayaç güncelle
     });
 
     // Geniş tablo varsa landscape önerisi göster
@@ -276,19 +314,21 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
         window.print(); // yazdırma dialogunu aç
     });
 
-    // Markdown kopyala
+    // Markdown kopyala (mesaj seçimine saygılı)
     document.getElementById('markdownKopyala').addEventListener('click', async () => { // markdown butonu
-        if (!mevcutKonusma) return; // veri yoksa çık
-        const md = konusmayiMarkdowneDonustur(mevcutKonusma); // markdown string
+        const veri = seciliKonusmaVerisi(); // seçili mesajlarla filtreli veri
+        if (!veri) return; // veri yoksa çık
+        const md = konusmayiMarkdowneDonustur(veri); // markdown string
         const basari = await panoyaKopyala(md); // panoya kopyala
         if (basari) toastGoster('Markdown panoya kopyalandı.', 'basari'); // başarı bildirimi
         else toastGoster('Kopyalama başarısız. Tarayıcı izinlerini kontrol edin.', 'hata'); // hata
     });
 
-    // Düz metin kopyala
+    // Düz metin kopyala (mesaj seçimine saygılı)
     document.getElementById('metinKopyala').addEventListener('click', async () => { // metin butonu
-        if (!mevcutKonusma) return; // veri yoksa çık
-        const metin = konusmayiDuzMetneDonustur(mevcutKonusma); // düz metin
+        const veri = seciliKonusmaVerisi(); // seçili mesajlarla filtreli veri
+        if (!veri) return; // veri yoksa çık
+        const metin = konusmayiDuzMetneDonustur(veri); // düz metin
         const basari = await panoyaKopyala(metin); // panoya kopyala
         if (basari) toastGoster('Düz metin panoya kopyalandı.', 'basari'); // başarı
         else toastGoster('Kopyalama başarısız. Tarayıcı izinlerini kontrol edin.', 'hata'); // hata
@@ -296,15 +336,52 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
 
     // Tüm konuşmayı dosya olarak indir (MD veya TXT) — panoya kopyalamanın dosya karşılığı
     const konusmayiDosyaIndir = (format) => { // format: 'md' | 'txt'
-        if (!mevcutKonusma) return; // veri yoksa çık
-        const icerik = format === 'md' ? konusmayiMarkdowneDonustur(mevcutKonusma) : konusmayiDuzMetneDonustur(mevcutKonusma); // formata göre içerik
+        const veri = seciliKonusmaVerisi(); // seçili mesajlarla filtreli veri
+        if (!veri) return; // veri yoksa çık
+        const icerik = format === 'md' ? konusmayiMarkdowneDonustur(veri) : konusmayiDuzMetneDonustur(veri); // formata göre içerik
         const mimeType = format === 'md' ? 'text/markdown;charset=utf-8' : 'text/plain;charset=utf-8'; // MIME tipi
-        const dosyaAdi = (mevcutKonusma.baslik || 'AI Konuşması') + '.' + format; // başlık content script'te zaten FS-güvenli temizlendi (Türkçe karakter NTFS'te sorunsuz)
+        const dosyaAdi = (veri.baslik || 'AI Konuşması') + '.' + format; // başlık content script'te zaten FS-güvenli temizlendi (Türkçe karakter NTFS'te sorunsuz)
         dosyayaIndir(icerik, dosyaAdi, mimeType); // ortak indirme yardımcısı
         toastGoster('İndirildi: ' + dosyaAdi, 'basari'); // bildirim
     };
     document.getElementById('markdownIndir').addEventListener('click', () => konusmayiDosyaIndir('md')); // MD indir butonu
     document.getElementById('metinIndir').addEventListener('click', () => konusmayiDosyaIndir('txt')); // TXT indir butonu
+
+    // Tek dosya HTML olarak indir — mevcut render + gömülü CSS (kendi kendine yeterli belge)
+    document.getElementById('htmlIndir').addEventListener('click', async () => { // HTML indir butonu
+        const veri = seciliKonusmaVerisi(); // dosya adı ve kontrol için
+        if (!veri) return; // veri yoksa çık
+        let cssMetni = ''; // gömülecek stil
+        try { // extension kendi CSS dosyasını okuyabilir
+            const yanit = await fetch(chrome.runtime.getURL('yazdir.css')); // stil dosyasını çek
+            cssMetni = await yanit.text(); // metin olarak al
+        } catch (cssHata) {} // stil alınamazsa çıplak HTML yine de üretilir
+        const alanKlon = document.getElementById('yazdirmaAlani').cloneNode(true); // render edilmiş içeriğin klonu
+        alanKlon.querySelectorAll('.mesaj-secim-kutusu').forEach((kutu) => kutu.remove()); // ekran checkbox'ları çıkar
+        alanKlon.querySelectorAll('.mesaj-blogu.mesaj-secilmedi').forEach((blok) => blok.remove()); // seçilmeyen mesajları çıkar
+        if (document.body.classList.contains('kod-gizli')) { // kod blokları gizliyse dosyada da olmasın
+            alanKlon.querySelectorAll('pre, .artifact-blogu').forEach((blok) => blok.remove()); // kod + artifact çıkar
+        }
+        const yaziBoyutuStil = document.getElementById('yazdirmaAlani').style.fontSize || ''; // canlı yazı boyutu
+        const htmlBelge = '<!DOCTYPE html>\n<html lang="tr">\n<head>\n<meta charset="UTF-8">\n' + // belge iskeleti
+            '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n' + // responsive
+            '<title>' + (veri.baslik || 'AI Konuşması').replace(/</g, '&lt;') + '</title>\n' + // güvenli başlık
+            '<style>\n' + cssMetni + '\n.yazdirma-alani{margin:32px auto;}\n</style>\n</head>\n' + // gömülü stil + bağımsız üst boşluk
+            '<body>\n<div class="yazdirma-alani"' + (yaziBoyutuStil ? ' style="font-size:' + yaziBoyutuStil + '"' : '') + '>' + // canlı boyut korunur
+            alanKlon.innerHTML + '</div>\n</body>\n</html>'; // içerik + kapanış
+        const dosyaAdi = (veri.baslik || 'AI Konuşması') + '.html'; // dosya adı
+        dosyayaIndir(htmlBelge, dosyaAdi, 'text/html;charset=utf-8'); // indir
+        toastGoster('İndirildi: ' + dosyaAdi, 'basari'); // bildirim
+    });
+
+    // JSON olarak indir — yapılandırılmış ham veri (arşivleme / başka araçlara aktarım)
+    document.getElementById('jsonIndir').addEventListener('click', () => { // JSON indir butonu
+        const veri = seciliKonusmaVerisi(); // seçili mesajlarla filtreli veri
+        if (!veri) return; // veri yoksa çık
+        const dosyaAdi = (veri.baslik || 'AI Konuşması') + '.json'; // dosya adı
+        dosyayaIndir(JSON.stringify(veri, null, 2), dosyaAdi, 'application/json;charset=utf-8'); // okunabilir JSON indir
+        toastGoster('İndirildi: ' + dosyaAdi, 'basari'); // bildirim
+    });
 
     // Kapat butonu
     document.getElementById('sayfayiKapat').addEventListener('click', sayfayiKapat); // kapat dinleyici
@@ -320,6 +397,34 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
         }
     });
 });
+
+// Seçim modunda işareti kaldırılan mesajları çıkararak filtreli konuşma verisi döndürür
+// Hiç mesaj gizlenmemişse orijinal veri aynen döner (eski davranış birebir korunur)
+function seciliKonusmaVerisi() {
+    if (!mevcutKonusma) return null; // veri yoksa null
+    const gizliIndeksler = new Set( // seçilmeyen mesajların orijinal indeksleri
+        Array.from(document.querySelectorAll('.mesaj-blogu.mesaj-secilmedi')).map((blok) => parseInt(blok.dataset.mesajIndex, 10))
+    );
+    if (gizliIndeksler.size === 0) return mevcutKonusma; // filtre yoksa orijinal veri
+    const mesajlar = mevcutKonusma.mesajlar.filter((mesaj, indeks) => !gizliIndeksler.has(indeks)); // seçili mesajlar
+    return { ...mevcutKonusma, mesajlar: mesajlar, mesajSayisi: mesajlar.length }; // filtreli kopya
+}
+
+// Ayar çubuğundaki seçim sayacını ve toplu buton etiketini günceller
+function secimBilgisiniGuncelle() {
+    const bilgi = document.getElementById('secimBilgisi'); // sayaç alanı
+    const tumunuButon = document.getElementById('tumunuSecKaldir'); // toplu buton
+    const secimModu = document.getElementById('mesajSecimModu'); // seçim modu toggle
+    if (!bilgi || !tumunuButon || !secimModu) return; // elementler yoksa çık
+    if (!secimModu.checked) { // seçim modu kapalıysa
+        bilgi.textContent = ''; // sayaç gizli
+        return;
+    }
+    const toplam = document.querySelectorAll('.mesaj-blogu').length; // toplam mesaj
+    const secili = toplam - document.querySelectorAll('.mesaj-blogu.mesaj-secilmedi').length; // seçili mesaj
+    bilgi.textContent = secili + ' / ' + toplam + ' mesaj seçili'; // sayaç metni
+    tumunuButon.textContent = secili === toplam ? 'Tümünü Kaldır' : 'Tümünü Seç'; // duruma göre etiket
+}
 
 // Sayfayı kapat — storage temizle + chrome.tabs.remove
 async function sayfayiKapat() {

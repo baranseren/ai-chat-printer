@@ -108,6 +108,70 @@ body {
 }
 .kontrol-buton.ikincil:hover { background: #4a4a6a; } /* hover efekti */
 .kontrol-buton:focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; } /* erişilebilirlik: klavye odak */
+.kontrol-buton.kucuk { padding: 5px 14px; font-size: 12px; } /* ayar çubuğu için kompakt buton */
+.gizli-buton { display: none; } /* seçim modu kapalıyken gizli */
+
+/* ─── Canlı Ayar Çubuğu (sadece ekranda) ─── */
+.ayar-cubugu {
+    position: fixed; /* kontrol çubuğunun hemen altında sabit */
+    top: 58px; /* kontrol çubuğu yüksekliği kadar aşağıda */
+    left: 0; /* solda */
+    right: 0; /* sağda */
+    background: #24243e; /* kontrol çubuğundan bir ton açık */
+    color: #ccccdd; /* açık metin */
+    padding: 8px 28px; /* iç boşluk */
+    display: flex; /* yatay düzen */
+    align-items: center; /* dikey ortala */
+    gap: 22px; /* öğeler arası boşluk */
+    z-index: 999; /* kontrol çubuğunun altında ama içeriğin üstünde */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18); /* hafif gölge */
+    font-family: 'Segoe UI', Tahoma, sans-serif; /* sistem fontu */
+    font-size: 13px; /* metin boyutu */
+    flex-wrap: wrap; /* dar pencerede sar */
+}
+.ayar-oge {
+    display: flex; /* etiket + kontrol yatay */
+    align-items: center; /* dikey ortala */
+    gap: 7px; /* etiket-kontrol arası boşluk */
+    cursor: pointer; /* tıklanabilir */
+    user-select: none; /* çift tıklama metin seçimini önle */
+}
+.ayar-oge select {
+    background: #3a3a5a; /* koyu arka plan */
+    color: #e0e0e0; /* açık metin */
+    border: 1px solid #4a4a6a; /* kenarlık */
+    border-radius: 4px; /* köşe yuvarlatma */
+    padding: 3px 8px; /* iç boşluk */
+    font-size: 12px; /* metin boyutu */
+    cursor: pointer; /* tıklanabilir */
+}
+.ayar-oge input[type="checkbox"] {
+    width: 15px; /* checkbox genişliği */
+    height: 15px; /* checkbox yüksekliği */
+    accent-color: #4a8cff; /* tema mavisi işaret rengi */
+    cursor: pointer; /* tıklanabilir */
+}
+.secim-bilgisi {
+    font-size: 12px; /* küçük bilgi metni */
+    color: #8888aa; /* soluk renk */
+}
+
+/* ─── Mesaj Seçim Checkbox'ları (sadece ekranda) ─── */
+.mesaj-secim-kutusu {
+    width: 17px; /* checkbox genişliği */
+    height: 17px; /* checkbox yüksekliği */
+    accent-color: #4a8cff; /* tema mavisi */
+    cursor: pointer; /* tıklanabilir */
+    margin-right: 2px; /* etiketle mesafe */
+    display: none; /* seçim modu kapalıyken gizli */
+}
+body.secim-modu-acik .mesaj-secim-kutusu { display: inline-block; } /* seçim modunda görünür */
+.mesaj-blogu.mesaj-secilmedi { opacity: 0.35; } /* seçilmeyen mesaj ekranda soluk */
+body:not(.secim-modu-acik) .mesaj-blogu.mesaj-secilmedi { display: none; } /* seçim modu kapatılınca tamamen gizli */
+
+/* ─── Kod Blokları Canlı Gizleme ─── */
+body.kod-gizli .mesaj-icerigi pre { display: none; } /* pre blokları gizli (ekran + yazdırma) */
+body.kod-gizli .artifact-blogu { display: none; } /* artifact blokları gizli */
 
 /* Sadece resim olan mesaj bilgi paragrafı */
 .salt-resim-bilgi { font-style: italic; color: #777777; font-size: 0.9em; }
@@ -116,7 +180,7 @@ body {
 /* ─── Yazdırma Alanı ─── */
 .yazdirma-alani {
     max-width: 820px; /* maksimum genişlik */
-    margin: 76px auto 48px; /* üst: kontrol çubuğu altı, yatay: orta */
+    margin: 118px auto 48px; /* üst: kontrol + ayar çubuğu altı, yatay: orta */
     background: #ffffff; /* beyaz arka plan */
     padding: 48px 56px; /* geniş iç boşluk */
     box-shadow: 0 1px 6px rgba(0,0,0,0.08); /* hafif gölge */
@@ -383,10 +447,15 @@ body {
 
 /* ─── Yazdırma Stilleri ─── */
 @media print {
-    /* Kontrol çubuğunu, loading overlay'i ve toast'ı gizle */
+    /* Kontrol çubuğunu, ayar çubuğunu, loading overlay'i ve toast'ı gizle */
     .kontrol-cubugu,
+    .ayar-cubugu,
     .yukleme-overlay,
     .toast-alani { display: none !important; }
+
+    /* Seçim checkbox'ları ve seçilmeyen mesajlar yazıcıya gitmez */
+    .mesaj-secim-kutusu { display: none !important; } /* checkbox çıktıda görünmez */
+    .mesaj-blogu.mesaj-secilmedi { display: none !important; } /* seçilmeyen mesaj çıktı dışı */
 
     /* Tüm renkli elementler için renk koruma (yazıcı beyaz basmasın) */
     * {
