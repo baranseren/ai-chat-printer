@@ -1,8 +1,10 @@
-# AI Chat Printer — Teknik Dokümantasyon (v1.7.8)
+# AI Chat Printer — Teknik Dokümantasyon (v1.8.1)
 
 > Bu belge, projeyi **sıfırdan birebir yeniden inşa edebilmek** için hazırlanmıştır. Düşük yetenekli bir LLM dahi bu dokümandaki adımları, fonksiyon imzalarını, selektör tablolarını, algoritma adımlarını ve birebir kod kurallarını takip ederek **fonksiyonel olarak özdeş bir eklenti** üretebilir. Hiçbir karar "açık" bırakılmamıştır — buton piksel boyutlarından sanitizer whitelist'ine, Markdown fence algoritmasından mesaj kanalı semantiğine, toast renklerinden storage anahtarlarına kadar her şey burada tanımlıdır.
 >
 > **SÜRÜM NOTU (10.06.2026):** Belge **v1.7.8**'i anlatır (commit `2547bab`). v1.7.x serisi, v1.7.0 derin denetimi + 8 saatlik öz-denetim turunun ürünüdür; turlarda bulunan 14 gerçek bug'ın düzeltmeleri gövdeye işlenmiş durumdadır (ayrıca bkz. EK G ve EK H — "neden böyle" kuralları bu bulgulardan doğdu).
+>
+> **SÜRÜM NOTU (19.07.2026 — v1.8.1):** claude.ai 2026-07 UI güncellemesi eklentiyi tamamen kırdı; Bölüm 11 ve EK C canlı DOM analiziyle yeniden yazıldı. Kırılan 5 nokta: (1) `page-header` → `chat-header`, (2) turn-bazlı mesaj döngüsü → document-order `querySelectorAll` akışı (tüm konuşma artık `children[0]` tek ağaç), (3) artifact aç `[role="button"]` → grup içi `button[aria-label^="View"]`, (4) viewer kapat `Close` → `Go back`, (5) başlık sidebar linki → `chat-title-split`. Ayrıca Grok rol tespitine `data-testid` katmanı eklendi. Tüm yeni selektörler eski UI fallback'leriyle birlikte uygulanır — belge gövdesindeki v1.7.8 anlatımı bu bölümler dışında geçerliliğini korur.
 
 ---
 
@@ -480,10 +482,10 @@ Gemini erişilebilirlik önekleri `startsWith` ile soyulur: `'Siz şunu dediniz:
 ### Global state
 `butonEnjekteEdildi`, `observerAktif` (MutationObserver referansı), `artifactCikarmaAktif` (artifact döngüsü sırasında observer'ı susturur — viewer aç/kapa DOM değişimi yeniden-enjeksiyon tetiklemesin), `yazdirmaIslemiSuruyor`.
 
-### Buton Enjeksiyonu
-- Header: `[data-testid="page-header"]` → içinde `.flex.w-full.items-center.justify-between`; ikisi de retry'lı
+### Buton Enjeksiyonu (v1.8.1 — 2026-07 UI)
+- Header: `[data-testid="chat-header"]` (yeni `.dframe-header`) → fallback `[data-testid="page-header"]` (eski UI); içinde `#dframe-header-actions-slot` → fallback `.flex.w-full.items-center.justify-between`; ikisi de retry'lı
 - Buton: 36×36 px, radius 8px, ikon 18px, renk `#6b7280`, hover `#d97706` (amber)
-- Konum: `textContent === 'Share'` olan butonun **kendi parent'ına** `insertBefore` (Share `md:absolute md:right-0 z-20` — farklı container'a koymak üst üste bindirir); fallback `#archive-button` (NotebookLM) önüne; o da yoksa header içine
+- Konum: `[data-testid="wiggle-controls-actions-share"]` (yeni) → fallback `textContent === 'Share'` butonunun **kendi parent'ına** `insertBefore`; fallback `#archive-button` (NotebookLM — 2026-07 UI'da kalktı) önüne; o da yoksa aksiyon alanının başına `insertBefore(firstChild)`
 
 ### `yazdirmaBaslat()`
 `streamingMiKontrol('claude')` → uyar+çık; reentrance kilidi; artifact sayısı toastı (`'N artifact bulundu, içerikleri çıkarılıyor (0/N)...'`); `artifactIcerikleriniCikar(progressCallback)`; "Konuşma çıkarılıyor..." toastı; `konusmayiCikar(artifactIcerikleri)`; `yazdirmayaBasla`; catch+finally standart.
@@ -494,23 +496,28 @@ artifactCikarmaAktif = true     (try/finally garantili reset)
 her .artifact-block-cell kartı için sırayla:
   1. progress callback (mevcut/toplam) — try'lı güvenli çağrı
   2. başlık = '.leading-tight.line-clamp-1', tür = '.text-text-400.line-clamp-1'
-  3. tıklanabilir = kart.closest('[role="button"]'); yoksa {baslik, tur, icerik:null} ekle, geç
+  3. tıklanabilir zinciri (v1.8.1): kartGrubu = kart.closest('[class*="group/artifact-block"]') →
+     grup içi button[aria-label^="View"] (yeni UI overlay) || kart.closest('[role="button"]') (eski UI) || kartGrubu;
+     hiçbiri yoksa {baslik, tur, icerik:null} ekle, geç
   4. click() → viewer bekleme: 6×500ms (3 sn) '#wiggle-file-content' DOM'a gelene dek; gelmezse icerik:null
   5. 1 sn ekstra render beklemesi
-  6. STABİLİTE POLLING (16×500ms = 8 sn): hedef = '#wiggle-file-content .code-block__code' || '... .standard-markdown'
+  6. STABİLİTE POLLING (16×500ms = 8 sn): hedef = '#wiggle-file-content .code-block__code' || '... pre' || '... .standard-markdown' || panelin kendisi
      uzunluk öncekiyle AYNI ve >10 ise stabilSayac++; 2 ardışık eşitlikte içerik kesinleşti (streaming yarım okuma önlenir)
-  7. stabilite sağlanamadıysa son durumda >10 karakter varsa onu al
-  8. kapat: button[aria-label="Close"].click() → 600 ms animasyon → 6×300ms '#wiggle-file-content' silinene dek doğrula
+  7. stabilite sağlanamadıysa son durumda >10 karakter varsa onu al (aynı 4'lü hedef zinciri)
+  8. kapat: button[aria-label="Go back"] (yeni UI) || button[aria-label="Close"] (eski UI) .click() → 600 ms animasyon → 6×300ms '#wiggle-file-content' silinene dek doğrula
   9. {baslik, tur, icerik} listeye
 artifactCikarmaAktif = false
 ```
 
-### `konusmayiCikar(artifactIcerikleri)`
-- Konteyner: `.flex-1.flex.flex-col.px-4.max-w-3xl`; çocuklar sırayla gezilir; `className.includes('h-px')` ayırıcılar atlanır
-- **Kullanıcı:** `[data-testid="user-message"]` → html/metin/resimler üçlüsü
-- **Claude:** `[class*="font-claude-response"]` → içindeki TÜM `.standard-markdown` blokları birleştirilir (`birlesikHtml += resimliHtmlCikar`, `birlesikMetin += temizMetinCikar` `\n\n` ile); hiç yoksa claudeEl'in kendisi. **Thinking block filtresi:** `.standard-markdown` yalnız `claudeEl.querySelectorAll` ile arandığı için document-genelindeki thinking accordion içerikleri gelmez
-- **Artifact eşleştirme:** turn içindeki `.artifact-block-cell` sayısı kadar, global `artifactSayaci` ile önceden çıkarılmış listeden sıralı atanır; `artifactlar` alanı yalnız doluysa konur
-- Başlık: `a[data-testid="recent-conversation"][aria-current="page"]` vb. sidebar → doc.title → `'Claude Konuşması'`
+### `konusmayiCikar(artifactIcerikleri)` (v1.8.1 — document-order akış)
+- Konteyner: `.flex-1.flex.flex-col.px-4.max-w-3xl`
+- **2026-07 UI kırılması:** eski DOM'da her mesaj konteynerin ayrı bir çocuğuydu (turn döngüsü `children[i]`); yeni DOM'da TÜM konuşma `children[0]` içinde tek ağaç → turn döngüsü yalnız ilk mesajı bulup Claude yanıtlarını kaybediyordu
+- **Yeni algoritma:** `konusmaAlani.querySelectorAll('[data-testid="user-message"], .font-claude-response')` — querySelectorAll document-order garantilidir, eski turn-bazlı DOM'da da aynı sırayı verir (geriye uyumlu). Nested guard: elemanın `parentElement.closest()`'i başka bir mesaj elemanına çıkıyorsa atla
+- **`.font-claude-response` TAM class:** `[class*="font-claude-response"]` substring'i yanıt içindeki arbitrary-variant class'larda (`[&_...]:font-claude-response`) 36 sahte eşleşme veriyordu; CSS class selektörü token-eşleşmesi yapar (gerçek yanıt wrapper'ları)
+- **Kullanıcı:** `[data-testid="user-message"]` → html/metin/resimler üçlüsü ("You said:" sr-only prefix'i elementin DIŞINDA — sızmaz)
+- **Claude:** içindeki TÜM `.standard-markdown` blokları birleştirilir (`birlesikHtml += resimliHtmlCikar`, `birlesikMetin += temizMetinCikar` `\n\n` ile); hiç yoksa claudeEl'in kendisi. Tool-call accordion metinleri ("Created a file...") yalnız `.standard-markdown` dışında kalır
+- **Artifact eşleştirme:** yanıt içindeki `.artifact-block-cell` sayısı kadar, global `artifactSayaci` ile önceden çıkarılmış listeden sıralı atanır; `artifactlar` alanı yalnız doluysa konur (artifact kartı yeni UI'da da yanıt elementinin descendant'ı — eşleşme korunur)
+- Başlık: `[data-testid="chat-title-split"]` (yeni UI header başlığı) → eski sidebar selektörleri (`a[aria-current="page"]` vb. — 2026-07 UI'da `<a href="/chat/">` linkleri tamamen kalktı) → doc.title → `'Claude Konuşması'`
 
 ### Mesaj dinleyicisi
 `konusmayiCikar` yolu popup için artifact'ları da çıkarır (v1.3.0 kritik düzeltmesi) ve **reentrance kilidine tabidir** (sayfa içi akışla paralel artifact döngüsü viewer'ı çakıştırır).
@@ -527,7 +534,7 @@ artifactCikarmaAktif = false
 ## 13. Grok Content Script
 
 - **Floating buton:** Grok'un agresif React reconciliation'ı header enjeksiyonunu siliyor → buton `document.body`'ye `position:fixed; top:14px; right:240px` 36×36 yuvarlak beyaz buton olarak eklenir (React DOM'una dokunulmaz)
-- `grokMesajRolu(el)` — 3 stratejili rol tespiti: (1) data attribute'lar (`data-message-author-role`, `data-role`, `data-author`, `data-sender`, `data-message-role` → user/human vs assistant/grok/ai/bot/model), (2) aria-label substring (ASCII-boundary regex — Türkçe karakter `\b` ile çalışmaz: `/(^|[^a-z])(user|you|sen|kullanıcı|kullanici)([^a-z]|$)/i`), (3) class regex (user-message/query-bubble vs assistant-message/response-bubble havuzları)
+- `grokMesajRolu(el)` — 4 stratejili rol tespiti: (0) **data-testid** (v1.8.1 — 2026-07 Grok DOM'u `.message-bubble` balonlarını `data-testid="user-message"` / `"assistant-message"` ile işaretler; `/(^|-)(user|human)(-|$)/` ve `/(^|-)(assistant|grok|ai|bot|model)(-|$)/` kalıpları), (1) data attribute'lar (`data-message-author-role`, `data-role`, `data-author`, `data-sender`, `data-message-role` → user/human vs assistant/grok/ai/bot/model), (2) aria-label substring (ASCII-boundary regex — Türkçe karakter `\b` ile çalışmaz: `/(^|[^a-z])(user|you|sen|kullanıcı|kullanici)([^a-z]|$)/i`), (3) class regex (user-message/query-bubble vs assistant-message/response-bubble havuzları)
 - `konusmayiCikar()` — **5 kademeli konteyner stratejisi** (sırayla, ≥2 aday bulan kazanır): (1) scroll alanı doğrudan çocukları (`main [class*="overflow-y"]` vb. 7 aday selektör; çocuk yetersizse `:scope > * > *` derinliği), (2) data-attribute taraması, (3) aria-label taraması, (4) `article, [role="article"]`, (5) geniş class regex havuzu. Her stratejinin sonucu `[Grok DEBUG]` console loglarına yazılır (hata mesajı kullanıcıyı F12'ye yönlendirir — bilinçli üretim logu)
 - Rol bulunamazsa **alternating fallback** (`oncekiRol` ters çevirme, ilk mesaj user varsayımı); içerik `enZenginIcerikDescendant` (öncelik `.markdown/.prose/[class*="message-text"]`; yoksa en uzun metinli descendant)
 - Tema: koyu gri `#1f2937`; toast başarı koyu gri, hata `#dc2626`
@@ -802,16 +809,18 @@ Kırılganlık: 🟢 attribute/custom-element (dayanıklı) · 🟡 anlamsal cla
 | Cevap action bar | `message-actions` → `.response-actions-container` → `.message-actions` | 🟢→🟡 |
 | Sidebar aktif | `conversations-list a.selected` / `a[aria-current="page"]` / `a.active` | 🟡 |
 
-### Claude
+### Claude (v1.8.1 — 2026-07 UI; her satırda yeni → eski fallback)
 | Amaç | Selektör | K |
 |------|----------|---|
-| Header | `[data-testid="page-header"]` → `.flex.w-full.items-center.justify-between` | 🟢→🔴 |
+| Header | `[data-testid="chat-header"]` → `[data-testid="page-header"]`; içinde `#dframe-header-actions-slot` → `.flex.w-full.items-center.justify-between` | 🟢→🔴 |
 | Kullanıcı | `[data-testid="user-message"]` | 🟢 |
-| Yanıt | `[class*="font-claude-response"]` → `.standard-markdown` (descendant) | 🟡 |
-| Turn ayırıcı | `className.includes('h-px')` → atla | 🔴 |
+| Yanıt | `.font-claude-response` TAM class (`[class*=]` substring arbitrary-variant'larda sahte eşleşir) → `.standard-markdown` (descendant) | 🟡 |
+| Mesaj akışı | `querySelectorAll('[data-testid="user-message"], .font-claude-response')` document-order (turn döngüsü 2026-07'de öldü — tüm konuşma `children[0]` tek ağaç) | 🟢 |
+| Başlık | `[data-testid="chat-title-split"]` → sidebar linkleri (öldü) → doc.title | 🟢 |
 | Artifact kart/başlık/tür | `.artifact-block-cell` / `.leading-tight.line-clamp-1` / `.text-text-400.line-clamp-1` | 🟡→🔴 |
-| Artifact viewer/içerik | `#wiggle-file-content` → `.code-block__code` \| `.standard-markdown` | 🟢→🟡 |
-| Viewer kapat / Share | `button[aria-label="Close"]` / `textContent === 'Share'` | 🟢/🔴(dil) |
+| Artifact aç | kart grubu `[class*="group/artifact-block"]` içi `button[aria-label^="View"]` → `closest('[role="button"]')` | 🟢→🟡 |
+| Artifact viewer/içerik | `#wiggle-file-content` → `.code-block__code` \| `pre` \| `.standard-markdown` \| panel | 🟢→🟡 |
+| Viewer kapat / Share | `button[aria-label="Go back"]` → `"Close"` / `[data-testid="wiggle-controls-actions-share"]` → `textContent === 'Share'` | 🟢/🟢 |
 
 ### ChatGPT
 | Amaç | Selektör | K |
@@ -822,7 +831,7 @@ Kırılganlık: 🟢 attribute/custom-element (dayanıklı) · 🟡 anlamsal cla
 | Sidebar aktif | `nav a[href^="/c/"][data-active="true"]` vb. 3'lü | 🟡 |
 
 ### Grok
-Tek selektöre güvenilmez — Bölüm 13'teki 5 strateji + 3 katmanlı rol tespiti + `[Grok DEBUG]` teşhis logları bütün olarak uygulanır. 🔴 doğası gereği; dayanıklılık stratejilerin çokluğundan gelir.
+Tek selektöre güvenilmez — Bölüm 13'teki 5 strateji + 4 katmanlı rol tespiti (v1.8.1: `data-testid="user-message"/"assistant-message"` en öncelikli) + `[Grok DEBUG]` teşhis logları bütün olarak uygulanır. 🔴 doğası gereği; dayanıklılık stratejilerin çokluğundan gelir. 2026-07 DOM: mesajlar `.message-bubble` + data-testid; yanıt içeriği `.response-content-markdown.markdown` (thinking `.thinking-container` ayrı — öncelikli aday seçimi sızmayı önler).
 
 ## EK D — Veri Akışı Sırası (Tam Tur)
 

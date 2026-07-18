@@ -28,8 +28,8 @@ function baslat() {
 function butonuEnjekteEt() {
     if (butonEnjekteEdildi) return; // zaten enjekte edildiyse çık
 
-    // Sayfa header'ını bul
-    const header = document.querySelector('[data-testid="page-header"]'); // üst çubuk
+    // Sayfa header'ını bul (2026-07 UI: chat-header; eski UI: page-header)
+    const header = document.querySelector('[data-testid="chat-header"]') || document.querySelector('[data-testid="page-header"]'); // üst çubuk
     if (!header) { // header henüz yüklenmediyse
         setTimeout(butonuEnjekteEt, 1000); // 1 saniye sonra tekrar dene
         return;
@@ -39,8 +39,8 @@ function butonuEnjekteEt() {
     const eskiButon = document.querySelector('#claude-printer-buton'); // eski buton
     if (eskiButon) eskiButon.remove(); // sil ve yenisini oluştur
 
-    // Header'daki içerik div'ini bul (flex items-center justify-between)
-    const icerikDiv = header.querySelector('.flex.w-full.items-center.justify-between'); // butonlar alanı
+    // Header'daki aksiyon alanını bul (yeni UI: dframe-header-actions-slot; eski UI: flex justify-between)
+    const icerikDiv = header.querySelector('#dframe-header-actions-slot') || header.querySelector('.flex.w-full.items-center.justify-between'); // butonlar alanı
     if (!icerikDiv) { // alan bulunamadıysa
         setTimeout(butonuEnjekteEt, 1000); // tekrar dene
         return;
@@ -109,8 +109,8 @@ function butonuEnjekteEt() {
     // Tıklama olayı
     yazdirButonu.addEventListener('click', yazdirmaBaslat); // yazdırma işlemini başlat
 
-    // Share butonunun soluna ekle (Share absolute positioned, z-20 — aynı container'a eklenmeli)
-    const shareButonu = Array.from(document.querySelectorAll('button')).find( // Share butonunu bul
+    // Share butonunun soluna ekle (yeni UI: wiggle-controls-actions-share testid; eski UI: textContent)
+    const shareButonu = document.querySelector('[data-testid="wiggle-controls-actions-share"]') || Array.from(document.querySelectorAll('button')).find( // Share butonunu bul
         (b) => b.textContent?.trim() === 'Share'
     );
     if (shareButonu && shareButonu.parentElement) { // Share butonu bulunduysa
@@ -119,8 +119,8 @@ function butonuEnjekteEt() {
         const notebookBtn = document.querySelector('#archive-button'); // NotebookLM butonu
         if (notebookBtn && notebookBtn.parentElement) { // bulunduysa
             notebookBtn.parentElement.insertBefore(yazdirButonu, notebookBtn); // önüne ekle
-        } else { // hiçbiri yoksa header'a ekle
-            icerikDiv.appendChild(yazdirButonu);
+        } else { // hiçbiri yoksa header aksiyon alanının başına ekle
+            icerikDiv.insertBefore(yazdirButonu, icerikDiv.firstChild);
         }
     }
 
@@ -192,9 +192,11 @@ async function artifactIcerikleriniCikar(ilerlemeCallback) {
         let baslik = baslikEl?.textContent?.trim() || ''; // artifact başlığı
         let tur = turEl?.textContent?.trim() || ''; // artifact türü (Document · MD vs.)
 
-        // Tıklanabilir parent'ı bul (role="button")
-        const tiklanabilir = kart.closest('[role="button"]'); // tıklanabilir kart
-        if (!tiklanabilir) { // bulunamazsa sadece başlık ile ekle
+        // Tıklanabilir hedefi bul (2026-07 UI: grup içi "View ..." overlay butonu; eski UI: role="button" parent)
+        const kartGrubu = kart.closest('[class*="group/artifact-block"]'); // yeni kart sarmalayıcısı
+        const viewButonu = kartGrubu ? kartGrubu.querySelector('button[aria-label^="View"]') : null; // yeni overlay aç butonu
+        const tiklanabilir = viewButonu || kart.closest('[role="button"]') || kartGrubu; // fallback zinciri
+        if (!tiklanabilir) { // hiçbir tıklama hedefi yoksa sadece başlık ile ekle
             icerikleri.push({ baslik: baslik, tur: tur, icerik: null });
             continue;
         }
@@ -226,9 +228,9 @@ async function artifactIcerikleriniCikar(ilerlemeCallback) {
 
         for (let deneme = 0; deneme < 16; deneme++) { // 16 deneme x 500ms = 8sn
             await new Promise((coz) => setTimeout(coz, 500)); // 500ms bekle
-            const kodBlok = document.querySelector('#wiggle-file-content .code-block__code'); // kod bloğu
+            const kodBlok = document.querySelector('#wiggle-file-content .code-block__code') || document.querySelector('#wiggle-file-content pre'); // kod bloğu (yeni UI pre fallback)
             const markdownBlok = document.querySelector('#wiggle-file-content .standard-markdown'); // markdown bloğu
-            const hedef = kodBlok || markdownBlok; // hangisi varsa onu al
+            const hedef = kodBlok || markdownBlok || document.querySelector('#wiggle-file-content'); // hiçbiri yoksa panelin kendisi (son çare)
 
             if (hedef && hedef.textContent?.length > 0) { // içerik varsa
                 const mevcutUzunluk = hedef.textContent.length; // mevcut uzunluk
@@ -248,14 +250,14 @@ async function artifactIcerikleriniCikar(ilerlemeCallback) {
 
         // Son kontrol — eğer stabilite sağlanamadıysa mevcut içeriği al
         if (!icerik) { // stabilite kontrolü geçemediyse
-            const sonHedef = document.querySelector('#wiggle-file-content .code-block__code') || document.querySelector('#wiggle-file-content .standard-markdown'); // son deneme
+            const sonHedef = document.querySelector('#wiggle-file-content .code-block__code') || document.querySelector('#wiggle-file-content pre') || document.querySelector('#wiggle-file-content .standard-markdown') || document.querySelector('#wiggle-file-content'); // son deneme (panel fallback dahil)
             if (sonHedef && sonHedef.textContent?.length > 10) { // en az 10 karakter varsa
                 icerik = sonHedef.textContent; // ne varsa al
             }
         }
 
-        // Viewer'ı kapat
-        const kapatButonu = document.querySelector('button[aria-label="Close"]'); // kapat butonu
+        // Viewer'ı kapat (2026-07 UI: "Go back" butonu; eski UI: "Close" butonu)
+        const kapatButonu = document.querySelector('button[aria-label="Go back"]') || document.querySelector('button[aria-label="Close"]'); // kapat butonu
         if (kapatButonu) { // buton bulunduysa
             kapatButonu.click(); // kapat
         }
@@ -329,69 +331,68 @@ async function konusmayiCikar(artifactIcerikleri) {
         return { hata: 'Konuşma bulunamadı. Bir Claude sohbeti açık olduğundan emin olun.', mesajlar: [] };
     }
 
-    // Konuşma container'ının çocuklarını sırayla tara
-    for (let i = 0; i < konusmaAlani.children.length; i++) { // her turn'ü işle
-        const turn = konusmaAlani.children[i]; // mevcut turn
-
-        // Ayırıcı div'leri atla (h-px separator)
-        if ((turn.className || '').includes('h-px')) continue; // ayırıcıyı atla
+    // Mesajları belge sırasıyla topla (2026-07 UI: tüm konuşma tek children[0] ağacında — turn döngüsü çalışmaz)
+    // querySelectorAll document-order garantilidir; eski turn-bazlı DOM'da da aynı sırayı verir
+    const mesajElemanlari = konusmaAlani.querySelectorAll('[data-testid="user-message"], .font-claude-response'); // kullanıcı + Claude akışı
+    for (const eleman of mesajElemanlari) { // her mesaj elemanını işle
+        // İç içe eşleşme koruması — bir mesajın içindeki ikinci eşleşmeyi atla
+        if (eleman.parentElement?.closest('[data-testid="user-message"], .font-claude-response')) continue; // nested guard
 
         // Kullanıcı mesajı mı?
-        const kullaniciEl = turn.querySelector('[data-testid="user-message"]'); // kullanıcı mesajı ara
-        if (kullaniciEl) { // kullanıcı mesajı bulunduysa
-            const htmlIcerik = await resimliHtmlCikar(kullaniciEl); // resimleri base64'e çevirip HTML çıkar
-            const ekstraResimler = await turnResimleriniTopla(turn, kullaniciEl); // turn'deki ekstra resimleri topla
+        if (eleman.getAttribute('data-testid') === 'user-message') { // kullanıcı mesajı
+            const htmlIcerik = await resimliHtmlCikar(eleman); // resimleri base64'e çevirip HTML çıkar
+            const ekstraResimler = await turnResimleriniTopla(eleman.parentElement || eleman, eleman); // mesaj çevresindeki ekstra resimleri topla
             mesajlar.push({
                 rol: 'kullanici', // mesaj rolü
                 html: htmlIcerik, // base64 resimli HTML içerik
-                metin: temizMetinCikar(kullaniciEl), // UI sızıntısız düz metin
+                metin: temizMetinCikar(eleman), // UI sızıntısız düz metin
                 resimler: ekstraResimler // kullanıcı eki resimleri
             });
-            continue; // sonraki turn'e geç
+            continue; // sonraki elemana geç
         }
 
-        // Claude yanıtı mı?
-        const claudeEl = turn.querySelector('[class*="font-claude-response"]'); // Claude yanıtı ara
-        if (claudeEl) { // Claude yanıtı bulunduysa
-            // Tüm standard-markdown bloklarını al (artifact + metin birden fazla olabilir)
-            const markdownlar = claudeEl.querySelectorAll('.standard-markdown'); // tüm markdown blokları
-            let birlesikHtml = ''; // tüm blokların HTML'i
-            let birlesikMetin = ''; // tüm blokların metni
+        // Claude yanıtı
+        const claudeEl = eleman; // yanıt kök elementi
+        // Tüm standard-markdown bloklarını al (artifact + metin birden fazla olabilir)
+        const markdownlar = claudeEl.querySelectorAll('.standard-markdown'); // tüm markdown blokları
+        let birlesikHtml = ''; // tüm blokların HTML'i
+        let birlesikMetin = ''; // tüm blokların metni
 
-            if (markdownlar.length > 0) { // en az bir markdown bulunduysa
-                for (const markdownEl of markdownlar) { // her bloğu birleştir (async — resim dönüşümü için)
-                    birlesikHtml += await resimliHtmlCikar(markdownEl); // resimli HTML ekle
-                    birlesikMetin += (birlesikMetin ? '\n\n' : '') + temizMetinCikar(markdownEl); // UI sızıntısız metin ekle
-                }
-            } else { // markdown bulunamadıysa tüm Claude yanıtını al
-                birlesikHtml = await resimliHtmlCikar(claudeEl); // resimli HTML içerik
-                birlesikMetin = temizMetinCikar(claudeEl); // UI sızıntısız düz metin
+        if (markdownlar.length > 0) { // en az bir markdown bulunduysa
+            for (const markdownEl of markdownlar) { // her bloğu birleştir (async — resim dönüşümü için)
+                birlesikHtml += await resimliHtmlCikar(markdownEl); // resimli HTML ekle
+                birlesikMetin += (birlesikMetin ? '\n\n' : '') + temizMetinCikar(markdownEl); // UI sızıntısız metin ekle
             }
-
-            // Bu turn'deki artifact kartlarını bul ve içeriklerini mesaja ekle
-            const turnArtifactlari = claudeEl.querySelectorAll('.artifact-block-cell'); // turn'deki artifactlar
-            const mesajArtifactlari = []; // bu mesaja ait artifact listesi
-            turnArtifactlari.forEach(() => { // her artifact kartı için
-                if (artifactSayaci < artifactListesi.length) { // içerik listesinde karşılığı varsa
-                    mesajArtifactlari.push(artifactListesi[artifactSayaci]); // artifact içeriğini ekle
-                }
-                artifactSayaci++; // sayacı ilerlet
-            });
-
-            mesajlar.push({
-                rol: 'claude', // mesaj rolü
-                html: birlesikHtml, // birleştirilmiş HTML içerik
-                metin: birlesikMetin, // birleştirilmiş düz metin
-                artifactlar: mesajArtifactlari.length > 0 ? mesajArtifactlari : undefined // artifact içerikleri
-            });
+        } else { // markdown bulunamadıysa tüm Claude yanıtını al
+            birlesikHtml = await resimliHtmlCikar(claudeEl); // resimli HTML içerik
+            birlesikMetin = temizMetinCikar(claudeEl); // UI sızıntısız düz metin
         }
+
+        // Bu yanıttaki artifact kartlarını bul ve içeriklerini mesaja ekle
+        const turnArtifactlari = claudeEl.querySelectorAll('.artifact-block-cell'); // yanıttaki artifactlar
+        const mesajArtifactlari = []; // bu mesaja ait artifact listesi
+        turnArtifactlari.forEach(() => { // her artifact kartı için
+            if (artifactSayaci < artifactListesi.length) { // içerik listesinde karşılığı varsa
+                mesajArtifactlari.push(artifactListesi[artifactSayaci]); // artifact içeriğini ekle
+            }
+            artifactSayaci++; // sayacı ilerlet
+        });
+
+        mesajlar.push({
+            rol: 'claude', // mesaj rolü
+            html: birlesikHtml, // birleştirilmiş HTML içerik
+            metin: birlesikMetin, // birleştirilmiş düz metin
+            artifactlar: mesajArtifactlari.length > 0 ? mesajArtifactlari : undefined // artifact içerikleri
+        });
     }
 
-    // Konuşma başlığını al — önce sidebar aktif linkten, sonra document.title
-    const aktifSidebar = document.querySelector('a[data-testid="recent-conversation"][aria-current="page"], a[href*="/chat/"][aria-current="page"], nav a.bg-bg-300, nav a[aria-current="true"]'); // aktif konuşma linki
+    // Konuşma başlığını al — 2026-07 UI: chat-title-split; eski UI: sidebar aktif link; son çare: document.title
+    const baslikSplitEl = document.querySelector('[data-testid="chat-title-split"]'); // header'daki başlık elementi
+    const splitBaslik = baslikSplitEl ? basligiTemizle(baslikSplitEl.textContent?.trim() || '', 'claude') : ''; // header başlığı
+    const aktifSidebar = document.querySelector('a[data-testid="recent-conversation"][aria-current="page"], a[href*="/chat/"][aria-current="page"], nav a.bg-bg-300, nav a[aria-current="true"]'); // aktif konuşma linki (eski UI)
     const sidebarBaslik = aktifSidebar ? basligiTemizle(aktifSidebar.textContent?.trim() || '', 'claude') : ''; // sidebar başlığı
     const docBaslik = basligiTemizle(document.title || '', 'claude'); // doc başlığı
-    const sayfaBasligi = sidebarBaslik || docBaslik || 'Claude Konuşması'; // ilk dolu olanı kullan
+    const sayfaBasligi = splitBaslik || sidebarBaslik || docBaslik || 'Claude Konuşması'; // ilk dolu olanı kullan
 
     return {
         baslik: sayfaBasligi, // konuşma başlığı

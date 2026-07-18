@@ -183,6 +183,13 @@ function uyariBalonuGoster(mesaj, tip) {
 function grokMesajRolu(el) {
     if (!el || !el.getAttribute) return null; // null kontrol
 
+    // 0. data-testid (2026-07 Grok DOM'u: user-message / assistant-message balonları)
+    const testId = (el.getAttribute('data-testid') || '').toLowerCase(); // testid değeri
+    if (testId) { // varsa
+        if (/(^|-)(user|human)(-|$)/.test(testId)) return 'user'; // user-message vb.
+        if (/(^|-)(assistant|grok|ai|bot|model)(-|$)/.test(testId)) return 'assistant'; // assistant-message vb.
+    }
+
     // 1. data-message-author-role / data-role / data-author / data-sender attribute
     const dataRol = el.getAttribute('data-message-author-role') || // OpenAI tarzı
         el.getAttribute('data-role') || // Grok varyantı
