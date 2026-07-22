@@ -4,6 +4,7 @@
 // Buton zaten enjekte edildi mi kontrolü
 let butonEnjekteEdildi = false; // tekrar enjekte etmeyi önle
 let yazdirmaIslemiSuruyor = false; // çift tıklama reentrance koruması — paralel çıkarma akışını önler
+let headerDenemeSayisi = 0; // header arama deneme sayacı — 5 denemeden sonra floating fallback
 
 // Sayfa yüklendiğinde ve navigasyon değişikliklerinde butonu enjekte et
 function baslat() {
@@ -27,10 +28,16 @@ function butonuEnjekteEt() {
 
     // Sayfa header'ını bul
     const header = document.querySelector('header'); // üst çubuk
-    if (!header) { // header henüz yüklenmediyse
+    if (!header) { // header henüz yüklenmediyse (2026-07 wm frontend'inde header olmayabilir)
+        headerDenemeSayisi++; // deneme sayacını artır
+        if (headerDenemeSayisi >= 5) { // 5 deneme başarısız — header'sız yeni UI
+            floatingButonEkle(); // sağ üst köşeye sabit floating buton ekle
+            return;
+        }
         setTimeout(butonuEnjekteEt, 1000); // 1 saniye sonra tekrar dene
         return;
     }
+    headerDenemeSayisi = 0; // header bulundu — sayacı sıfırla
 
     // Eski butonu sil (eklenti yeniden yüklenince ölü handler kalır)
     const eskiButon = document.querySelector('#chatgpt-printer-buton'); // eski buton
@@ -118,6 +125,77 @@ function butonuEnjekteEt() {
     butonEnjekteEdildi = true; // enjekte edildi olarak işaretle
 }
 
+// Header bulunamadığında sağ üst köşeye sabit floating yazdır butonu ekler (Grok kalıbı)
+// Body'e eklenir, React reconciliation tarafından silinmez
+function floatingButonEkle() {
+    if (document.querySelector('#chatgpt-printer-buton')) return; // zaten varsa çık
+
+    const yazdirButonu = document.createElement('button'); // buton elementi
+    yazdirButonu.id = 'chatgpt-printer-buton'; // benzersiz id (observer aynı id'yi izler)
+    yazdirButonu.title = 'Konuşmayı Yazdır (AI Chat Printer)'; // tooltip
+    yazdirButonu.setAttribute('aria-label', 'Konuşmayı Yazdır'); // erişilebilirlik
+    yazdirButonu.style.cssText = [ // floating buton stili — sağ üst köşede sabit
+        'position:fixed', // viewport'a kilitli
+        'top:14px', // header seviyesinde
+        'right:64px', // sağ üstteki profil/menü alanının solu
+        'width:36px',
+        'height:36px',
+        'border-radius:9999px',
+        'border:1px solid rgba(0,0,0,0.08)', // hafif kenarlık (görünürlük için)
+        'background:#ffffff', // beyaz arka plan
+        'cursor:pointer',
+        'display:flex',
+        'align-items:center',
+        'justify-content:center',
+        'transition:all 0.2s',
+        'padding:0',
+        'z-index:9999', // sayfa elementlerinin üstünde
+        'box-shadow:0 1px 3px rgba(0,0,0,0.08)' // hafif gölge
+    ].join(';'); // stil özellikleri
+
+    // Yazıcı SVG ikonu
+    const svgNS = 'http://www.w3.org/2000/svg'; // SVG namespace
+    const svg = document.createElementNS(svgNS, 'svg'); // SVG oluştur
+    svg.setAttribute('width', '18'); // genişlik
+    svg.setAttribute('height', '18'); // yükseklik
+    svg.setAttribute('viewBox', '0 0 24 24'); // görünüm alanı
+    svg.setAttribute('fill', 'none'); // dolgu yok
+    svg.setAttribute('stroke', 'currentColor'); // çizgi rengi mevcut renk
+    svg.setAttribute('stroke-width', '2'); // çizgi kalınlığı
+    svg.setAttribute('stroke-linecap', 'round'); // çizgi ucu yuvarlak
+    svg.setAttribute('stroke-linejoin', 'round'); // çizgi birleşimi yuvarlak
+    svg.style.color = '#8e8ea0'; // ChatGPT'nin ikon rengi (gri)
+
+    const yol1 = document.createElementNS(svgNS, 'path'); // üst kağıt
+    yol1.setAttribute('d', 'M6 9V2h12v7'); // kağıt giriş yolu
+    const yol2 = document.createElementNS(svgNS, 'path'); // yazıcı gövde
+    yol2.setAttribute('d', 'M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2'); // gövde yolu
+    const yol3 = document.createElementNS(svgNS, 'rect'); // çıkan kağıt
+    yol3.setAttribute('x', '6'); // sol konum
+    yol3.setAttribute('y', '14'); // üst konum
+    yol3.setAttribute('width', '12'); // genişlik
+    yol3.setAttribute('height', '8'); // yükseklik
+
+    svg.appendChild(yol1); // yolları SVG'ye ekle
+    svg.appendChild(yol2);
+    svg.appendChild(yol3);
+    yazdirButonu.appendChild(svg); // SVG'yi butona ekle
+
+    // Hover efekti
+    yazdirButonu.addEventListener('mouseenter', () => { // fare girince
+        yazdirButonu.style.background = '#f5f5f5'; // açık gri arka plan
+        svg.style.color = '#10a37f'; // ChatGPT yeşil rengi
+    });
+    yazdirButonu.addEventListener('mouseleave', () => { // fare çıkınca
+        yazdirButonu.style.background = '#ffffff'; // beyaz geri dön
+        svg.style.color = '#8e8ea0'; // gri renk geri dön
+    });
+
+    yazdirButonu.addEventListener('click', yazdirmaBaslat); // yazdırma işlemini başlat
+    document.body.appendChild(yazdirButonu); // body seviyesi floating buton
+    butonEnjekteEdildi = true; // enjekte edildi olarak işaretle
+}
+
 // Yazdırma işlemini başlatır
 async function yazdirmaBaslat() {
     // Streaming kontrol — ChatGPT yanıt yazıyorsa uyar
@@ -136,7 +214,7 @@ async function yazdirmaBaslat() {
     resimIslemOturumuBaslat(RESIM_TOPLAM_SURE_LIMIT); // resim oturumu
 
     try { // oturum garanti kapatma
-        const veri = await konusmayiCikar(); // konuşma verisini çıkar (async — resim dönüşümü için)
+        const veri = await konusmayiCikar(uyariBalonuGoster); // konuşma verisini çıkar (uzun konuşmada ilerleme bildirimi)
         await yazdirmayaBasla(veri, uyariBalonuGoster); // ortak başlatma akışı
     } catch (cikarmaHata) { // çıkarma sırasında beklenmeyen hata
         uyariBalonuGoster('Konuşma çıkarılamadı: ' + cikarmaHata.message, 'hata'); // kullanıcıya bildir
@@ -189,51 +267,123 @@ function uyariBalonuGoster(mesaj, tip) {
     }, 3000);
 }
 
-// ChatGPT sayfasından konuşma verilerini çıkarır (async — resim base64 dönüşümü için)
-async function konusmayiCikar() {
-    const mesajlar = []; // tüm mesajları tutacak dizi
+// Hem eski hem yeni (2026-07 wm) ChatGPT DOM'undaki turn'leri yakalayan ortak selektör
+const CHATGPT_TURN_SELEKTORU = '[data-testid^="conversation-turn"], li[data-message-role]'; // eski + yeni DOM, document-order
 
-    // Tüm conversation turn'lerini sırayla bul
-    const tumTurnlar = document.querySelectorAll('[data-testid^="conversation-turn"]'); // sıralı turn'ler
-    if (tumTurnlar.length === 0) { // turn bulunamadıysa
+// Turn elementinin rolünü döndürür — yeni DOM'da li attribute, eski DOM'da descendant attribute
+function chatgptTurnRolu(turn) {
+    const yeniRol = turn.getAttribute('data-message-role'); // yeni wm DOM — rol li'nin kendisinde
+    if (yeniRol === 'user' || yeniRol === 'assistant') return yeniRol; // geçerli rol
+    const eskiEl = turn.querySelector('[data-message-author-role]'); // eski DOM — rol descendant'ta
+    const eskiRol = eskiEl ? eskiEl.getAttribute('data-message-author-role') : null; // eski rol değeri
+    if (eskiRol === 'user' || eskiRol === 'assistant') return eskiRol; // geçerli rol
+    return null; // rol tespit edilemedi
+}
+
+// Fallback: turn'ün sr-only attribution ("Şunu dedin:"/"ChatGPT:") ve aksiyon barı dışındaki gövde div'i
+function chatgptTurnGovdesi(turn) {
+    const govde = Array.from(turn.children).find((cocuk) => // ilk uygun gövde div'i
+        cocuk.tagName === 'DIV' && !cocuk.hasAttribute('data-message-actions') && !cocuk.hasAttribute('data-message-supplement')
+    );
+    return govde || turn; // gövde yoksa turn'ün kendisi
+}
+
+// Turn içindeki asıl içerik elementini döndürür — attribution/buton sızıntısı olmadan
+function chatgptIcerikElemani(turn, rol) {
+    if (rol === 'user') { // kullanıcı mesajı
+        return turn.querySelector('[data-user-message-bubble]') || // yeni wm DOM balonu
+            turn.querySelector('.user-message-bubble-color') || // eski DOM balonu
+            turn.querySelector('[data-message-author-role="user"]') || // eski DOM mesaj elementi
+            chatgptTurnGovdesi(turn); // fallback gövde
+    }
+    return turn.querySelector('[data-assistant-markdown]') || // yeni wm DOM markdown içeriği
+        turn.querySelector('.markdown') || // eski DOM markdown
+        turn.querySelector('[data-message-author-role="assistant"]') || // eski DOM mesaj elementi
+        chatgptTurnGovdesi(turn); // fallback gövde
+}
+
+// Turn için benzersiz anahtar — sanallaştırma süpürmesinde mükerrer önleme
+function chatgptTurnAnahtari(turn) {
+    if (turn.id) return 'id:' + turn.id; // yeni DOM: li id'si mesaj UUID'si
+    const testid = turn.getAttribute('data-testid'); // eski DOM: conversation-turn-N
+    if (testid) return 'testid:' + testid; // testid anahtarı
+    const metin = (turn.textContent || '').trim(); // son çare: içerik parmak izi
+    return 'metin:' + metin.length + ':' + metin.substring(0, 80) + ':' + metin.substring(metin.length - 40); // uzunluk + baş + son
+}
+
+// Turn listesinin kaydırılabilir ancestor'ını bulur (sanallaştırma süpürmesi için)
+function chatgptKaydiriciBul(turn) {
+    let aday = turn ? turn.parentElement : null; // turn'den yukarı çık
+    while (aday && aday !== document.body) { // body'e kadar
+        const stil = window.getComputedStyle(aday); // hesaplanmış stil
+        if (/(auto|scroll|overlay)/.test(stil.overflowY) && aday.scrollHeight > aday.clientHeight + 10) return aday; // kaydırılabilir alan
+        aday = aday.parentElement; // bir seviye yukarı
+    }
+    const kok = document.scrollingElement; // sayfa kökü
+    return (kok && kok.scrollHeight > kok.clientHeight + 10) ? kok : null; // kök kaydırılabilirse o, değilse null
+}
+
+// ChatGPT sayfasından konuşma verilerini çıkarır (async — resim base64 dönüşümü için)
+// Yeni UI mesaj listesini sanallaştırabildiği için scroll-süpürme ile TÜM mesajlar toplanır
+async function konusmayiCikar(ilerlemeBildir) {
+    const ilkTurnler = document.querySelectorAll(CHATGPT_TURN_SELEKTORU); // ilk tarama
+    if (ilkTurnler.length === 0) { // hiç turn bulunamadıysa
         return { hata: 'Konuşma bulunamadı. Bir ChatGPT sohbeti açık olduğundan emin olun.', mesajlar: [] };
     }
 
-    for (const turn of tumTurnlar) { // her turn'ü sırayla işle (async resim dönüşümü için)
-        // Turn içindeki mesaj rolünü belirle
-        const mesajEl = turn.querySelector('[data-message-author-role]'); // mesaj elementi
-        if (!mesajEl) continue; // mesaj yoksa atla
+    const mesajMap = new Map(); // anahtar → mesaj (ekleme sırası üstten alta korunur)
 
-        const rol = mesajEl.getAttribute('data-message-author-role'); // user veya assistant
+    // O an DOM'da bulunan turn'leri işleyip map'e ekler (görülmüşler atlanır)
+    async function gorunenleriIsle() {
+        for (const turn of document.querySelectorAll(CHATGPT_TURN_SELEKTORU)) { // güncel turn seti
+            const anahtar = chatgptTurnAnahtari(turn); // benzersiz anahtar
+            if (mesajMap.has(anahtar)) continue; // zaten işlendi
+            const rol = chatgptTurnRolu(turn); // rol tespiti
+            if (!rol) continue; // rol yoksa atla (boş/sistem bloğu)
 
-        if (rol === 'user') { // kullanıcı mesajı
-            const balonEl = mesajEl.querySelector('.user-message-bubble-color'); // kullanıcı balonu
-            const kaynakEl = balonEl || mesajEl; // balon yoksa mesaj elementinin kendisi
-
+            const kaynakEl = chatgptIcerikElemani(turn, rol); // asıl içerik elementi
             const htmlIcerik = await resimliHtmlCikar(kaynakEl); // resimleri base64'e çevirip HTML çıkar
-            const ekstraResimler = await turnResimleriniTopla(turn, kaynakEl); // kaynak dışındaki resimler (yüklenen dosyalar)
-
-            mesajlar.push({
-                rol: 'kullanici', // mesaj rolü
-                html: htmlIcerik, // base64 resimli HTML içerik
-                metin: temizMetinCikar(kaynakEl), // UI sızıntısız düz metin
-                resimler: ekstraResimler // kullanıcı eki resimleri
-            });
-        } else if (rol === 'assistant') { // ChatGPT yanıtı
-            const markdownEl = mesajEl.querySelector('.markdown'); // markdown içerik
-            const kaynakEl = markdownEl || mesajEl; // markdown yoksa mesaj elementinin kendisi
-
-            const htmlIcerik = await resimliHtmlCikar(kaynakEl); // resimleri base64'e çevirip HTML çıkar (DALL-E)
             const ekstraResimler = await turnResimleriniTopla(turn, kaynakEl); // kaynak dışındaki resimler
+            const metinIcerik = temizMetinCikar(kaynakEl); // UI sızıntısız düz metin
 
-            mesajlar.push({
-                rol: 'chatgpt', // mesaj rolü
+            if (!htmlIcerik && !metinIcerik && ekstraResimler.length === 0) continue; // tamamen boş turn atla
+
+            mesajMap.set(anahtar, {
+                rol: rol === 'user' ? 'kullanici' : 'chatgpt', // proje formatı
                 html: htmlIcerik, // base64 resimli HTML içerik
-                metin: temizMetinCikar(kaynakEl), // UI sızıntısız düz metin (kod kopyala butonu metni dahil edilmez)
-                resimler: ekstraResimler // yanıt içindeki ekstra resimler
+                metin: metinIcerik, // düz metin
+                resimler: ekstraResimler // ekstra resimler
             });
         }
     }
+
+    // Sanallaştırma süpürmesi — uzun konuşmada görünmeyen mesajlar DOM'dan düşer; adım adım kaydırarak topla
+    const kaydirici = chatgptKaydiriciBul(ilkTurnler[0]); // konuşma scroll alanı
+    const supurmeGerekli = kaydirici && kaydirici.scrollHeight > kaydirici.clientHeight * 1.5; // scroll edilecek kadar uzun mu
+    if (supurmeGerekli) { // uzun konuşma — süpürme yap
+        const orijinalScroll = kaydirici.scrollTop; // kullanıcının mevcut konumu
+        try {
+            kaydirici.scrollTop = 0; // en üste git
+            await new Promise((coz) => setTimeout(coz, 450)); // üst mesajların render'ını bekle
+            let adim = 0; // adım sayacı
+            const maksAdim = 120; // güvenlik üst sınırı (çok uzun konuşma)
+            while (adim < maksAdim) { // aşağı doğru süpür
+                await gorunenleriIsle(); // bu dilimdeki turn'leri işle
+                if (kaydirici.scrollTop + kaydirici.clientHeight >= kaydirici.scrollHeight - 5) break; // dibe ulaşıldı
+                kaydirici.scrollTop += Math.max(200, Math.floor(kaydirici.clientHeight * 0.75)); // bir dilim aşağı
+                await new Promise((coz) => setTimeout(coz, 350)); // lazy render bekleme
+                adim++; // sayaç
+                if (ilerlemeBildir && adim % 8 === 0) ilerlemeBildir('Uzun konuşma taranıyor... (' + mesajMap.size + ' mesaj)', 'basari'); // ilerleme bildirimi
+            }
+            await gorunenleriIsle(); // son dilim
+        } finally {
+            kaydirici.scrollTop = orijinalScroll; // kullanıcının konumunu geri yükle
+        }
+    } else { // kısa konuşma — tüm turn'ler zaten DOM'da
+        await gorunenleriIsle(); // tek geçiş
+    }
+
+    const mesajlar = Array.from(mesajMap.values()); // sıralı mesaj dizisi
 
     // Konuşma başlığını al — önce sidebar aktif linkten, sonra document.title
     const aktifSidebar = document.querySelector('nav a[href^="/c/"][data-active="true"], nav a[href^="/c/"].bg-token-sidebar-surface-secondary, nav a[href^="/c/"][aria-current="page"]'); // aktif konuşma

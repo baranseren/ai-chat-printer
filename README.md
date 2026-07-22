@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>v1.8.1</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
+  <strong>v1.8.2</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
 </p>
 
 ---
@@ -209,6 +209,21 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ---
 
 ## Degisiklik Gecmisi / Changelog
+
+### v1.8.2 (22.07.2026) — ChatGPT 2026-07 UI kırılması giderildi
+
+- **ChatGPT konuşmanın tamamı yeniden yazdırılıyor** — ChatGPT'nin yeni "wm" arayüzü eski selektörleri (`conversation-turn`, `data-message-author-role`, `.markdown`) öldürmüştü. Çift DOM destekli çıkarıcı: yeni `li[data-message-role]` + `[data-user-message-bubble]` / `[data-assistant-markdown]` selektörleri, eski UI fallback'leriyle birlikte. / ChatGPT's new "wm" frontend broke extraction; dual-DOM extractor now supports both UIs.
+- **Sanallaştırma scroll-süpürmesi** — uzun konuşmalarda görünmeyen mesajlar DOM'dan düşse bile tüm mesajlar toplanır (en üste kaydır → adım adım in → UUID anahtarlı mükerrer önleme → kaydırma konumu geri yüklenir). / Scroll-sweep collects all messages even under list virtualization.
+- **Floating buton fallback** — header bulunamayan yeni arayüzde yazdır butonu sağ üst köşeye sabit eklenir. / Floating print button when no header exists.
+- **Yeni streaming göstergesi** — `data-assistant-content-started` + `data-message-complete` kombinasyonu; sr-only "Şunu dedin:/ChatGPT:" etiketleri çıktıya sızmaz. / New streaming detection; sr-only attribution labels never leak into output.
+
+### v1.8.1 (19.07.2026) — Claude 2026-07 UI kırılması giderildi
+
+- **claude.ai yeni arayüzü desteklendi** — chat-header, document-order mesaj akışı, View/Go back artifact akışı, chat-title-split başlık; hepsi eski UI fallback'li. Grok rol tespitine `data-testid` katmanı eklendi. / Claude 2026-07 UI fixes with legacy fallbacks + Grok data-testid role detection.
+
+### v1.8.0 — Canlı önizleme ayarları + mesaj seçimi + HTML/JSON export
+
+- **Yazdırma sayfası canlı ayar çubuğu** (yazı boyutu / kod blokları / mesaj seçim modu), **mesaj seçimi** (checkbox ile mesajı çıktıdan hariç tutma + Tümünü Seç/Kaldır), **HTML ve JSON dışa aktarma**. Kod bloğu gizleme `body.kod-gizli` class'ına taşındı (DOM silinmez). / Live settings bar, per-message selection, HTML/JSON export.
 
 ### v1.7.8 (10.06.2026) — Cift tiklama reentrance korumasi
 

@@ -72,7 +72,8 @@ function streamingMiKontrol(kaynak) {
     }
     if (kaynak === 'chatgpt') { // ChatGPT streaming göstergeleri
         const stopButon = document.querySelector('button[data-testid="stop-button"], button[aria-label*="Durdur" i], button[aria-label*="Stop" i]'); // durdur butonu
-        const yazanEl = document.querySelector('.result-streaming, [data-message-status="in_progress"]'); // yazan göstergesi
+        // Yeni wm DOM: content-started var + message-complete henüz yok = yazıyor (reload'da ikisi de yok — false positive üretmez)
+        const yazanEl = document.querySelector('.result-streaming, [data-message-status="in_progress"], li[data-message-role="assistant"][data-assistant-content-started]:not([data-message-complete])'); // yazan göstergesi (eski + yeni DOM)
         return !!(yazanEl || (stopButon && stopButon.offsetParent !== null)); // herhangi biri varsa streaming
     }
     if (kaynak === 'grok') { // Grok streaming göstergeleri
