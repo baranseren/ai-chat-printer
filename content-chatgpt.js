@@ -43,12 +43,10 @@ function butonuEnjekteEt() {
     const eskiButon = document.querySelector('#chatgpt-printer-buton'); // eski buton
     if (eskiButon) eskiButon.remove(); // sil ve yenisini oluştur
 
-    // Header'daki sağ butonlar alanını bul — önce Paylaş butonunun parent'ı, yoksa son child
-    const paylasButonuErken = header.querySelector('button[aria-label="Paylaş"], button[aria-label="Share"]'); // paylaş butonu
-    let sagKisim = paylasButonuErken ? paylasButonuErken.parentElement : null; // paylaş butonunun container'ı
-    if (!sagKisim) sagKisim = header.children[header.children.length - 1]; // son child (sağ kısım)
-    if (!sagKisim) { // alan bulunamadıysa
-        setTimeout(butonuEnjekteEt, 1000); // tekrar dene
+    // Paylaş butonunu bul — yeni UI'da aria-label yok, buton metniyle de aranır (v1.8.3 hizalama düzeltmesi)
+    const paylasButonu = paylasButonunuBul(header); // aria-label + metin araması
+    if (!paylasButonu || !paylasButonu.parentElement) { // Paylaş yoksa header'a gömme — dikey container'a girip üst satırda kalıyor
+        floatingButonEkle(); // sabit konumlu floating buton garantili hizada durur
         return;
     }
 
@@ -69,7 +67,9 @@ function butonuEnjekteEt() {
         'justify-content:center',
         'transition:background 0.2s',
         'padding:0',
-        'position:relative'
+        'position:relative',
+        'align-self:center', // flex parent'ta dikey ortalama (üst satıra yapışmayı önler)
+        'flex-shrink:0' // dar header'da butonun ezilmesini önle
     ].join(';'); // stil özellikleri
 
     // Yazıcı SVG ikonu
@@ -114,15 +114,20 @@ function butonuEnjekteEt() {
     // Tıklama olayı
     yazdirButonu.addEventListener('click', yazdirmaBaslat); // yazdırma işlemini başlat
 
-    // Paylaş butonunun soluna ekle (TR + EN)
-    const paylasButonu = header.querySelector('button[aria-label="Paylaş"], button[aria-label="Share"]'); // Paylaş butonunu bul
-    if (paylasButonu && paylasButonu.parentElement) { // bulunduysa
-        paylasButonu.parentElement.insertBefore(yazdirButonu, paylasButonu); // Paylaş'tan önce ekle
-    } else { // Paylaş bulunamazsa sağ kısma ekle
-        sagKisim.insertBefore(yazdirButonu, sagKisim.firstChild); // en başa ekle
-    }
+    // Paylaş butonunun soluna, AYNI parent içine ekle — aynı satırda hizalanma garantisi
+    paylasButonu.parentElement.insertBefore(yazdirButonu, paylasButonu); // Paylaş'tan önce ekle
 
     butonEnjekteEdildi = true; // enjekte edildi olarak işaretle
+}
+
+// Header içindeki Paylaş butonunu bulur — önce aria-label (eski UI), sonra buton metni (yeni UI aria-label taşımıyor)
+function paylasButonunuBul(header) {
+    const ariaIle = header.querySelector('button[aria-label="Paylaş"], button[aria-label="Share"]'); // eski UI aria-label
+    if (ariaIle) return ariaIle; // bulundu
+    return Array.from(header.querySelectorAll('button')).find((buton) => { // tüm header butonlarını tara
+        const metin = (buton.textContent || '').trim(); // buton görünür metni
+        return metin === 'Paylaş' || metin === 'Share'; // TR + EN eşleşme
+    }) || null; // bulunamadıysa null
 }
 
 // Header bulunamadığında sağ üst köşeye sabit floating yazdır butonu ekler (Grok kalıbı)

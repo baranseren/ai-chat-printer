@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>v1.8.2</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
+  <strong>v1.8.3</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
 </p>
 
 ---
@@ -209,6 +209,10 @@ Since this extension is not published on the Chrome Web Store, you need to insta
 ---
 
 ## Degisiklik Gecmisi / Changelog
+
+### v1.8.3 (22.07.2026) — ChatGPT yazdır butonu hizalama düzeltmesi
+
+- **Yazdır butonu artık Paylaş ile aynı satırda** — yeni UI'da Paylaş butonu `aria-label` taşımadığı için buton dikey container'ın üstüne giriyordu. Paylaş artık buton metniyle de aranır ve butonu aynı parent içine, Paylaş'ın soluna ekler; Paylaş hiç bulunamazsa header'a gömme yerine sabit konumlu floating buton kullanılır. `align-self:center` + `flex-shrink:0` ile dikey hizalama garantilenir. / Print button now sits inline next to Share; falls back to floating button when Share is absent.
 
 ### v1.8.2 (22.07.2026) — ChatGPT 2026-07 UI kırılması giderildi
 

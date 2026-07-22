@@ -1,4 +1,4 @@
-# AI Chat Printer — Teknik Dokümantasyon (v1.8.2)
+# AI Chat Printer — Teknik Dokümantasyon (v1.8.3)
 
 > Bu belge, projeyi **sıfırdan birebir yeniden inşa edebilmek** için hazırlanmıştır. Düşük yetenekli bir LLM dahi bu dokümandaki adımları, fonksiyon imzalarını, selektör tablolarını, algoritma adımlarını ve birebir kod kurallarını takip ederek **fonksiyonel olarak özdeş bir eklenti** üretebilir. Hiçbir karar "açık" bırakılmamıştır — buton piksel boyutlarından sanitizer whitelist'ine, Markdown fence algoritmasından mesaj kanalı semantiğine, toast renklerinden storage anahtarlarına kadar her şey burada tanımlıdır.
 >
@@ -209,7 +209,7 @@ Desktop.ini
   "manifest_version": 3,
   "name": "__MSG_extName__",
   "short_name": "__MSG_extName__",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "description": "__MSG_extDescription__",
   "minimum_chrome_version": "114",
   "default_locale": "tr",
@@ -530,7 +530,7 @@ artifactCikarmaAktif = false
 
 ## 12. ChatGPT Content Script (v1.8.2 — 2026-07 "wm" UI + eski UI çift destek)
 
-- Buton: `header` içinde `button[aria-label="Paylaş"], button[aria-label="Share"]`'in parent'ına `insertBefore`; fallback `header.children[son]` başına. 36×36, radius 10px, renk `#8e8ea0`, hover `#10a37f`. **Header 5 denemede bulunamazsa** (yeni UI header'sız olabilir) `floatingButonEkle()` — `document.body`'ye `position:fixed; top:14px; right:64px` yuvarlak beyaz buton (Grok kalıbı, aynı `#chatgpt-printer-buton` id'si — observer re-inject bozulmaz)
+- Buton (v1.8.3): `paylasButonunuBul(header)` — önce `button[aria-label="Paylaş"/"Share"]` (eski UI), yoksa header butonlarında `textContent.trim() === 'Paylaş'/'Share'` (yeni UI aria-label taşımıyor). Bulunursa Paylaş'ın **aynı parent'ına** `insertBefore` (aynı satır hizası garantisi); **bulunamazsa header'a gömülMEZ** (dikey container'da üst satıra yapışıyordu — v1.8.2'de yaşanan hizalama bug'ı) → `floatingButonEkle()`. 36×36, radius 10px, renk `#8e8ea0`, hover `#10a37f`, `align-self:center` + `flex-shrink:0`. **Header 5 denemede hiç bulunamazsa** da floating: `document.body`'ye `position:fixed; top:14px; right:64px` yuvarlak beyaz buton (Grok kalıbı, aynı `#chatgpt-printer-buton` id'si — observer re-inject bozulmaz)
 - **Ortak turn selektörü:** `CHATGPT_TURN_SELEKTORU = '[data-testid^="conversation-turn"], li[data-message-role]'` — eski + yeni DOM document-order, selektörler kesişmez
 - **Rol tespiti `chatgptTurnRolu(turn)`:** önce li'nin kendisinde `data-message-role` (yeni wm DOM), yoksa descendant `[data-message-author-role]` (eski DOM); ikisi de yoksa null → turn atlanır
 - **İçerik elementi `chatgptIcerikElemani(turn, rol)`:** user → `[data-user-message-bubble]` → `.user-message-bubble-color` → `[data-message-author-role="user"]` → `chatgptTurnGovdesi`; assistant → `[data-assistant-markdown]` → `.markdown` → `[data-message-author-role="assistant"]` → `chatgptTurnGovdesi`. Gövde fallback'i `data-message-actions`/`data-message-supplement` taşımayan ilk DIV çocuğu — sr-only `h4[data-message-attribution]` ("Şunu dedin:"/"ChatGPT:") sızmaz
@@ -761,7 +761,7 @@ DOM sıralı işlendiği ve await içerdiği her yerde `for...of` — `forEach(a
 
 ## 25. Versiyonlama
 
-**İkili eş-zamanlı bump kuralı (ASLA ayrı commit'e kalmaz):** `manifest.json version` + `README.md` rozet ve changelog. **popup sürüm satırı artık hardcoded DEĞİL** — `popup.js` `#surumBilgisi`'ni `'AI Chat Printer v' + chrome.runtime.getManifest().version` ile dinamik yazar (v1.8.0'da hardcoded sürüm güncel kalmadığı için değiştirildi), dolayısıyla manuel senkron gerektirmez. Kontrol: `grep -n "1\.8\.2" manifest.json README.md` ikisinde de eşleşmeli.
+**İkili eş-zamanlı bump kuralı (ASLA ayrı commit'e kalmaz):** `manifest.json version` + `README.md` rozet ve changelog. **popup sürüm satırı artık hardcoded DEĞİL** — `popup.js` `#surumBilgisi`'ni `'AI Chat Printer v' + chrome.runtime.getManifest().version` ile dinamik yazar (v1.8.0'da hardcoded sürüm güncel kalmadığı için değiştirildi), dolayısıyla manuel senkron gerektirmez. Kontrol: `grep -n "1\.8\.3" manifest.json README.md` ikisinde de eşleşmeli.
 
 | Sürüm | Özet |
 |-------|------|
@@ -774,6 +774,7 @@ DOM sıralı işlendiği ve await içerdiği her yerde `for...of` — `forEach(a
 | 1.8.0 | Yazdırma sayfası canlı ayar çubuğu (yazı boyutu/kod blokları/mesaj seçim modu), mesaj seçimi (`seciliKonusmaVerisi`), HTML + JSON dışa aktarma, `pre.remove()` → `body.kod-gizli` class'ı, dinamik popup sürüm satırı |
 | 1.8.1 | claude.ai 2026-07 UI kırılması giderildi (chat-header, document-order mesaj akışı, View/Go back artifact akışı, chat-title-split başlık) + Grok `data-testid` rol tespiti — hepsi eski UI fallback'li |
 | 1.8.2 | ChatGPT 2026-07 "wm" UI kırılması giderildi: çift DOM turn selektörü (`li[data-message-role]` + eski `conversation-turn`), `[data-user-message-bubble]`/`[data-assistant-markdown]` içerik zinciri, sr-only attribution sızıntı koruması, sanallaştırma scroll-süpürmesi (UUID dedup'lu Map), floating buton fallback, yeni streaming göstergesi |
+| 1.8.3 | ChatGPT yazdır butonu hizalama düzeltmesi: `paylasButonunuBul` (aria-label + buton metni araması), Paylaş yanına aynı-parent insert, Paylaş yoksa header yerine floating buton, `align-self:center`+`flex-shrink:0` |
 
 ## 26. Kurulum ve Test Workflow
 
@@ -998,7 +999,7 @@ Kapat: storage temizle → tabs.getCurrent→remove → (fallback window.close)
 | ortak-yardimcilar.js | 424 | sabitler (6-17) · ayarlar (20-46) · debounce (49) · streamingMiKontrol (60) · basligiTemizle (87) · veriBoyutu/quota (124-146) · yazdirmayaBasla (148) · mdFenceUret (207) · htmlToMarkdown (214-350) · mesajMarkdownIcerigi (352) · konusmayiMarkdowneDonustur (362) · uiTemizKlon (400) · temizMetinCikar (407) · dosyayaIndir (413) |
 | content.js | 518 | state (5-6) · baslat (9) · butonuEnjekteEt (28) · yazdirmaBaslat (127) · uyariBalonuGoster (163) · konusmayiCikar (208) · eskiIndirmeButonlariniTemizle (297) · indirme blok (302-480) · geminiPrefixTemizle (484) · listener (490) |
 | content-claude.js | 446 | state (5-8) · baslat (11) · butonuEnjekteEt (28) · yazdirmaBaslat (131) · artifactIcerikleriniCikar (174) · uyariBalonuGoster (281) · konusmayiCikar (323) · listener (408) |
-| content-chatgpt.js | 436 | state · baslat (10) · butonuEnjekteEt (26) · floatingButonEkle (130, v1.8.2) · yazdirmaBaslat (200) · uyariBalonuGoster (229) · CHATGPT_TURN_SELEKTORU (271) · chatgptTurnRolu (274) · chatgptTurnGovdesi (284) · chatgptIcerikElemani (292) · chatgptTurnAnahtari (306) · chatgptKaydiriciBul (315) · konusmayiCikar (328, v1.8.2 scroll-süpürme) · listener (405) |
+| content-chatgpt.js | 441 | state · baslat (10) · butonuEnjekteEt (26) · paylasButonunuBul (124, v1.8.3) · floatingButonEkle (135, v1.8.2) · yazdirmaBaslat (205) · uyariBalonuGoster (234) · CHATGPT_TURN_SELEKTORU (276) · chatgptTurnRolu (279) · chatgptTurnGovdesi (289) · chatgptIcerikElemani (297) · chatgptTurnAnahtari (311) · chatgptKaydiriciBul (320) · konusmayiCikar (333, v1.8.2 scroll-süpürme) · listener (410) |
 | content-grok.js | 441 | state · baslat (9) · butonuEnjekteEt (29) · yazdirmaBaslat (111) · uyariBalonuGoster (140) · grokMesajRolu (183, v1.8.1 data-testid katmanı) · enZenginIcerikDescendant (225) · konusmayiCikar (243) · listener (410) |
 | yazdir.js | 589 | yardımcılar (elementiBosalt 7 · toastGoster 14 · yuklemeyiGizle 32 · yuklemeMetniniGuncelle 41) · DOMContentLoaded ana akış+buton bağlama (47-399) · seciliKonusmaVerisi (403) · secimBilgisiniGuncelle (414) · sayfayiKapat (430) · panoyaKopyala (447) · prefixTemizleDOM (470) · konusmayiDuzMetneDonustur (485) · htmlTemizle (517) |
 | popup.js | 186 | DOMContentLoaded (5-156) · durumGoster (159) · butonuSifirla (166) · butonMetniGuncelle (173) |
@@ -1099,6 +1100,6 @@ durumGoster(tip, mesaj): void · butonuSifirla(): void · butonMetniGuncelle(but
 
 ---
 
-**Dokümantasyon sonu — v1.8.2 (22.07.2026)**
+**Dokümantasyon sonu — v1.8.3 (22.07.2026)**
 
 > Bu dokümanın amacı, projeyi başka bir geliştirici (insan veya LLM) tarafından **birebir yeniden üretilebilir** kılmaktır. Tüm selektörler, eşikler, piksel ölçüleri, renk kodları, MIME tipleri, storage anahtarları, mesaj şablonları, algoritma adımları ve davranış kuralları açıkça yazılmıştır. Belge eksiksiz takip edilirse sonuç, v1.8.2 ile fonksiyonel olarak özdeş bir eklentidir. Bölüm 19/21/22 ve EK G'deki kurallar, v1.7.x denetim serisinde **gerçek bug olarak yaşanmış** davranışlardan damıtılmıştır — atlanmaları aynı bug'ları yeniden üretir. v1.8.0 katmanı (canlı ayar çubuğu, mesaj seçimi, HTML/JSON export, `body.kod-gizli`) Bölüm 16/18'de, v1.8.1 katmanı (claude.ai 2026-07 UI + Grok data-testid) Bölüm 11 ve EK C'de, v1.8.2 katmanı (ChatGPT 2026-07 "wm" UI + sanallaştırma scroll-süpürmesi + floating buton fallback) Bölüm 12 ve EK C'de anlatılır — her yeni selektör eski UI fallback'iyle birlikte verilmiştir.
