@@ -38,3 +38,9 @@ Test, dokümantasyon, mağaza görseli, Python üretici, geliştirme kuralı ve 
 - Kaynak ağaç: `python -u .\tests\acceptance_tests.py` → **14/14 başarılı**.
 - Açılmış ZIP: `AI_CHAT_PRINTER_PROJECT_ROOT=<açılmış paket> python -u .\tests\acceptance_tests.py --runtime-only` → **2/2 başarılı**.
 - Paket kabulü Playwright Chromium'un yalıtılmış geçici profilinde gerçek MV3 service worker, `storage.sync`, 6 saat TTL, Gemini/Claude/ChatGPT/Grok content script enjeksiyonu, `storage.local` oturum taşıması ve `chrome-extension://.../yazdir.html` önizleme zincirini doğrudan ZIP dosyalarından çalıştırdı. Kurulu Google Chrome aynı paketin render/popup katmanında ayrıca kullanıldı; Chrome 137+ resmî build'lerde `--load-extension` bayrağı kaldırıldığı için komut satırı yükleme katmanında Chromium kanonik test yüzeyidir.
+
+## Yayın Durumu
+
+- GitHub sürümü: `https://github.com/baranseren/ai-chat-printer/releases/tag/v2.0.0`
+- Git etiketi: `v2.0.0` → `b44f1debdf124c877fef1d548a2f39139c62eebb`
+- Chrome Web Store gönderim/inceleme kaydı: `CHROME_WEB_STORE_DURUMU_v2.0.0.md`

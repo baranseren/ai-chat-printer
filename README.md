@@ -2,7 +2,7 @@
 
 Gemini, Claude, ChatGPT ve Grok konuşmalarını temiz bir belgeye dönüştüren, yazdıran ve Markdown, metin, HTML veya JSON olarak dışa aktaran Manifest V3 Chrome eklentisi.
 
-![Sürüm](https://img.shields.io/badge/sürüm-2.0.0-c54a3d)
+![Sürüm](https://img.shields.io/badge/sürüm-2.0.1-c54a3d)
 ![Manifest](https://img.shields.io/badge/manifest-V3-172630)
 ![Chrome](https://img.shields.io/badge/Chrome-114%2B-2d6691)
 ![Lisans](https://img.shields.io/badge/lisans-MIT-2f7d5d)
@@ -17,6 +17,7 @@ Gemini, Claude, ChatGPT ve Grok konuşmalarını temiz bir belgeye dönüştüre
 - Seçili konuşmayı `.md`, `.txt`, bağımsız `.html` veya yapılandırılmış `.json` dosyası olarak indirir.
 - Gemini yanıtlarının altında tek soru-cevap için hızlı `↓ MD` ve `↓ TXT` düğmeleri sunar.
 - Claude artifact içeriklerini açar, yüklenmesini kararlılık ölçümüyle bekler, çıkarır ve paneli doğrulanmış biçimde kapatır.
+- ChatGPT Çalışma dosyalarını ve eski Canvas belgelerini açar; kaynak/Canvas içeriğini çıkarır, paneli kapatır ve kullanıcının önceden açık panel-sekme durumunu geri yükler.
 - Konuşma görsellerini yerel olarak işler; raster veri URI’lerini ve güvenli HTTPS kaynaklarını destekler.
 - ChatGPT’nin eski ve 2026 “wm” DOM yapılarını birlikte destekler; uzun ve sanallaştırılmış konuşmaları son mesaja kadar kaydırarak toplar.
 - Grok’un güncel `data-testid` yapısını önceleyen, eski arayüzleri de koruyan çok katmanlı rol ve içerik tespiti kullanır.
@@ -75,7 +76,7 @@ AI Chat Printer is a dependency-free Manifest V3 Chrome extension that turns Gem
 - Print or save conversations as PDF.
 - Copy Markdown or plain text.
 - Download selected messages as Markdown, text, standalone HTML, or JSON.
-- Extract Gemini images, Claude artifacts, current and legacy ChatGPT message trees, and current or fallback Grok layouts.
+- Extract Gemini images, Claude artifacts, ChatGPT Work/Canvas artifacts, current and legacy ChatGPT message trees, and current or fallback Grok layouts.
 - Configure paper size, orientation, margins, font size, code blocks, footer, printed link addresses, and automatic printing.
 - Select individual messages, all messages, user messages only, or AI messages only.
 - Keep concurrent print sessions isolated with UUID-scoped local storage and tab-scoped refresh recovery.
@@ -95,7 +96,7 @@ AI Chat Printer is a dependency-free Manifest V3 Chrome extension that turns Gem
 |---|---|---|---|
 | Google Gemini | `gemini.google.com` | `content.js` | Custom element yapısı, resim dönüştürme, hızlı MD/TXT |
 | Claude | `claude.ai` | `content-claude.js` | Document-order mesaj akışı, artifact viewer yaşam döngüsü |
-| ChatGPT | `chatgpt.com` | `content-chatgpt.js` | Eski + `wm` DOM, sanallaştırma scroll-süpürmesi |
+| ChatGPT | `chatgpt.com` | `content-chatgpt.js` | Eski + `wm` DOM, sanallaştırma süpürmesi, Çalışma/Canvas artefaktları |
 | Grok | `grok.com` | `content-grok.js` | Kesin `data-testid` önceliği, geriye uyumlu fallback zinciri |
 
 Hostname doğrulaması kesindir. `example.invalid/?next=https://chatgpt.com` gibi URL içinde hedef site adı taşıyan başka alan adları destekli kabul edilmez.
@@ -134,7 +135,7 @@ GeminiPrinter/
 ├── ortak-yardimcilar.js       # Ayarlar, quota, oturum, Markdown ve dosya yardımcıları
 ├── content.js                 # Gemini çıkarıcısı
 ├── content-claude.js          # Claude + artifact çıkarıcısı
-├── content-chatgpt.js         # ChatGPT çift DOM + sanallaştırma çıkarıcısı
+├── content-chatgpt.js         # ChatGPT çift DOM + sanallaştırma + Çalışma/Canvas çıkarıcısı
 ├── content-grok.js            # Grok çok katmanlı çıkarıcısı
 ├── popup.html
 ├── popup.css                  # Baskı Stüdyosu popup tasarımı
@@ -150,6 +151,9 @@ GeminiPrinter/
 ├── CHROME_WEB_STORE_v2.0.0.md # TR/EN mağaza metni, izin ve veri kullanım beyanları
 ├── RELEASE_NOTES_v2.0.0.md    # Yayın notları ve yükseltme sözleşmesi
 ├── DISTRIBUTION_v2.0.0.md     # ZIP içeriği, SHA-256 ve paket kabul kanıtı
+├── CHROME_WEB_STORE_DURUMU_v2.0.0.md # Mağaza gönderim ve inceleme durum kaydı
+├── RELEASE_NOTES_v2.0.1.md    # ChatGPT Çalışma/Canvas sürüm notları
+├── DISTRIBUTION_v2.0.1.md     # v2.0.1 ZIP künyesi ve paket kabul kanıtı
 ├── GIZLILIK.md
 ├── TEKNIK_DOKUMANTASYON.md
 ├── CLAUDE.md
@@ -168,7 +172,7 @@ python .\tests\acceptance_tests.py
 Dağıtım ZIP’i açıldıktan sonra yalnız gerçek MV3 service worker ve dört site zincirini aynı test dosyasıyla yeniden doğrulamak için:
 
 ```powershell
-$env:AI_CHAT_PRINTER_PROJECT_ROOT = "C:\gecici\AI-Chat-Printer-v2.0.0"
+$env:AI_CHAT_PRINTER_PROJECT_ROOT = "C:\gecici\AI-Chat-Printer-v2.0.1"
 python .\tests\acceptance_tests.py --runtime-only
 ```
 
@@ -181,9 +185,18 @@ Paket şu katmanları doğrular:
 - Gerçek Chromium üzerinde sanitizer, XSS, ayar, seçim, seçili-resim decode bariyeri, dışa aktarım, F5, bozuk oturum ve paralel oturum yalıtımı testleri.
 - Popup erişilebilirliği ve kötü niyetli hostname benzerliği testi.
 - Paketlenmemiş eklentinin gerçek MV3 service worker ile yüklenmesi.
-- Dört siteye özgü fixture üzerinde gerçek content script → `storage.local` → service worker → önizleme uçtan uca zinciri; ayrıca Gemini hızlı Markdown, Claude artifact ve ChatGPT uzun-konuşma süpürmesi.
+- Dört siteye özgü fixture üzerinde gerçek content script → `storage.local` → service worker → önizleme uçtan uca zinciri; ayrıca Gemini hızlı Markdown, Claude artifact, ChatGPT uzun-konuşma süpürmesi ve güncel Çalışma + eski Canvas artefakt yaşam döngüsü.
 
 ## Sürüm Geçmişi
+
+### v2.0.1 — 15.08.2026
+
+- ChatGPT'nin güncel Çalışma dosya atıfları `data-file-citation-*` işaretleriyle, eski Canvas düğmeleri ise `data-testid` geri dönüşleriyle desteklenir.
+- Güncel `screen-threadFlyOut` panelinde Kod sekmesi seçilir; CodeMirror `.cm-content > code` kaynağı iki kararlı ölçümden sonra alınır.
+- Eski Canvas/artefakt panellerinde `canvas-content`, ProseMirror, contenteditable, textarea ve kod bloğu geri dönüşleri kullanılır.
+- Her artefakt hatası kendi kaydında yalıtılır; diğer mesaj ve dosyalar çıkarılmaya devam eder.
+- Eklentinin açtığı panel doğrulanarak kapatılır; önceden açık panelin dosya ve sekme durumu geri yüklenir.
+- Gerçek MV3 kabulüne güncel Çalışma dosyası ile eski Canvas aç-kaynak oku-kapat senaryoları eklendi.
 
 ### v2.0.0 — 15.08.2026
 

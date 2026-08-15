@@ -217,7 +217,7 @@ async function yazdirmaBaslat() {
     }
     yazdirmaIslemiSuruyor = true; // akış kilidi
 
-    uyariBalonuGoster('Konuşma çıkarılıyor, resimler işleniyor...', 'basari'); // işlem başladı bildirimi
+    uyariBalonuGoster('Konuşma çıkarılıyor, resimler ve artefaktlar işleniyor...', 'basari'); // işlem başladı bildirimi
     resimIslemOturumuBaslat(RESIM_TOPLAM_SURE_LIMIT); // resim oturumu
 
     try { // oturum garanti kapatma
@@ -309,6 +309,238 @@ function chatgptIcerikElemani(turn, rol) {
         chatgptTurnGovdesi(turn); // fallback gövde
 }
 
+// ChatGPT Çalışma/Canvas içindeki dosya ve artefakt düğmelerini benzersiz kayıtlar hâlinde toplar
+function chatgptArtifactAdaylariniBul(turn) {
+    const adaySelektoru = [ // güncel Çalışma dosyaları + eski Canvas/artefakt geri dönüşleri
+        'button[data-file-citation-primary-file-id]',
+        'button[data-file-citation-group-identity]',
+        'button[data-testid*="canvas"]',
+        'button[data-testid*="artifact"]'
+    ].join(','); // tek sorguda tüm kararlı işaretler
+    const adayButonlar = Array.from(turn.querySelectorAll(adaySelektoru)); // veri işaretli düğmeler
+    const dosyaUzantiliButonlar = Array.from(turn.querySelectorAll('button[aria-label]')).filter((buton) => { // açık dosya kartı geri dönüşü
+        const etiket = (buton.getAttribute('aria-label') || '').trim(); // erişilebilir ad
+        return /\.(?:html?|css|jsx?|tsx?|json|md|txt|py|java|c|cpp|cs|go|rs|sql|xml|ya?ml|csv|svg)$/i.test(etiket); // metin tabanlı dosya türleri
+    });
+    const benzersizButonlar = Array.from(new Set(adayButonlar.concat(dosyaUzantiliButonlar))); // aynı düğümü tekilleştir
+    const gorulenDosyaKimlikleri = new Set(); // aynı dosyanın atıf + kart düğmesini birleştir
+    const gorulenBasliklar = new Set(); // kimliksiz eski Canvas düğmelerini tekilleştir
+    const artifactlar = []; // çıkarılacak artefakt tanımları
+
+    for (const buton of benzersizButonlar) { // DOM sırasını koru
+        const dosyaKimligi = (buton.getAttribute('data-file-citation-primary-file-id') || '').trim(); // güncel dosya kimliği
+        const grupKimligi = (buton.getAttribute('data-file-citation-group-identity') || '').trim(); // güncel dosya grubu işareti
+        const testKimligi = (buton.getAttribute('data-testid') || '').trim(); // eski Canvas/artefakt işareti
+        const veriBasligi = (buton.getAttribute('data-canvas-title') || buton.getAttribute('data-artifact-title') || '').trim(); // eski UI başlık alanları
+        const ariaBasligi = (buton.getAttribute('aria-label') || '').trim(); // güncel dosya adı
+        const metinBasligi = (buton.textContent || '').trim(); // son çare görünür metin
+        const dosyaEtiketiMi = /\.(?:html?|css|jsx?|tsx?|json|md|txt|py|java|c|cpp|cs|go|rs|sql|xml|ya?ml|csv|svg)$/i.test(ariaBasligi); // açık dosya kartı
+        const eskiAdayMi = /(canvas|artifact)/i.test(testKimligi) && Boolean(veriBasligi || /(canvas|artifact)/i.test(ariaBasligi + ' ' + metinBasligi)); // genel araç düğmelerini dışla
+        if (!dosyaKimligi && !grupKimligi && !dosyaEtiketiMi && !eskiAdayMi) continue; // artefakt açma düğmesi değil
+        let baslik = veriBasligi || ariaBasligi || metinBasligi || 'ChatGPT Canvas'; // ilk dolu başlık
+        if (/^(view|open|aç|görüntüle).*(artifact|canvas)|^(artifact|canvas).*(aç|görüntüle)$/i.test(baslik)) baslik = 'ChatGPT Canvas'; // eylem etiketini başlık sayma
+        if (dosyaKimligi && gorulenDosyaKimlikleri.has(dosyaKimligi)) continue; // aynı dosya kimliği işlendi
+        if (!dosyaKimligi && gorulenBasliklar.has(baslik.toLocaleLowerCase('tr-TR'))) continue; // aynı kimliksiz başlık işlendi
+        if (dosyaKimligi) gorulenDosyaKimlikleri.add(dosyaKimligi); // dosya kimliğini kaydet
+        gorulenBasliklar.add(baslik.toLocaleLowerCase('tr-TR')); // atıf + kart ikilisini başlıkla birleştir
+        artifactlar.push({ buton, dosyaKimligi, baslik, tur: chatgptArtifactTurunuBul(baslik) }); // çıkarma kaydı
+    }
+    return artifactlar; // benzersiz artefakt listesi
+}
+
+// Dosya uzantısından önizlemede gösterilecek artefakt türünü belirler
+function chatgptArtifactTurunuBul(baslik) {
+    const uzantiEslesmesi = baslik.toLocaleLowerCase('tr-TR').match(/\.([^.\s]+)$/); // son uzantı
+    const uzanti = uzantiEslesmesi ? uzantiEslesmesi[1] : ''; // uzantı yoksa boş
+    const turler = { // yaygın Çalışma/Canvas türleri
+        htm: 'HTML', html: 'HTML', css: 'CSS', js: 'JavaScript', mjs: 'JavaScript', cjs: 'JavaScript',
+        jsx: 'React JSX', ts: 'TypeScript', tsx: 'React TSX', json: 'JSON', md: 'Markdown', txt: 'Metin',
+        py: 'Python', java: 'Java', c: 'C', cpp: 'C++', cs: 'C#', go: 'Go', rs: 'Rust', sql: 'SQL',
+        xml: 'XML', yaml: 'YAML', yml: 'YAML', csv: 'CSV', svg: 'SVG'
+    }; // uzantı → görünür tür
+    return turler[uzanti] || 'ChatGPT Canvas'; // bilinmeyen türde genel ad
+}
+
+// Açık ChatGPT artefakt panelini başlığa göre bulur
+function chatgptArtifactPaneliniBul(baslik) {
+    const panelSelektoru = [ // güncel Çalışma paneli + eski Canvas/artefakt panelleri
+        'section[data-testid="screen-threadFlyOut"]',
+        'section[data-testid="canvas-panel"]',
+        'aside[data-testid="canvas-panel"]',
+        '[role="dialog"][data-testid*="canvas"]',
+        '[role="dialog"][data-testid*="artifact"]',
+        'section[data-testid*="canvas"][aria-label]',
+        'aside[data-testid*="canvas"][aria-label]'
+    ].join(','); // tek panel sorgusu
+    const paneller = Array.from(document.querySelectorAll(panelSelektoru)).filter((panel) => !panel.hidden && panel.getAttribute('aria-hidden') !== 'true'); // açık paneller
+    if (baslik) { // belirli dosya isteniyorsa
+        const tamEslesen = paneller.find((panel) => (panel.getAttribute('aria-label') || '').trim() === baslik); // güncel panel başlığı
+        if (tamEslesen) return tamEslesen; // doğru dosya paneli
+    }
+    return paneller.length > 0 ? paneller[paneller.length - 1] : null; // en son açılan panel
+}
+
+// Artefakt panelinin kullanıcıya görünen başlığını döndürür
+function chatgptArtifactPanelBasliginiBul(panel) {
+    if (!panel) return ''; // panel yok
+    const ariaBasligi = (panel.getAttribute('aria-label') || '').trim(); // güncel Çalışma paneli
+    if (ariaBasligi) return ariaBasligi; // en güvenilir başlık
+    const baslikElemani = panel.querySelector('[data-testid="artifact-title"], [data-testid="canvas-title"], header h2, h2'); // eski UI başlığı
+    return baslikElemani ? (baslikElemani.textContent || '').trim() : ''; // görünür başlık veya boş
+}
+
+// Panelde seçili Kod/Önizleme sekmesinin adını döndürür
+function chatgptArtifactAktifSekmesiniBul(panel) {
+    if (!panel) return ''; // panel yok
+    const aktifButon = panel.querySelector('button[aria-pressed="true"], [role="tab"][aria-selected="true"]'); // seçili sekme
+    return aktifButon ? (aktifButon.textContent || aktifButon.getAttribute('aria-label') || '').trim() : ''; // sekme adı
+}
+
+// Belirtilen panel sekmesini görünür metniyle seçer
+function chatgptArtifactSekmesiniSec(panel, sekmeAdlari) {
+    if (!panel || !sekmeAdlari || sekmeAdlari.length === 0) return false; // seçim yapılamaz
+    const sekmeButonu = Array.from(panel.querySelectorAll('button, [role="tab"]')).find((buton) => { // panel sekmelerini tara
+        const ad = (buton.textContent || buton.getAttribute('aria-label') || '').trim(); // görünür/erişilebilir ad
+        return sekmeAdlari.some((sekmeAdi) => ad.toLocaleLowerCase('tr-TR') === sekmeAdi.toLocaleLowerCase('tr-TR')); // TR + EN tam eşleşme
+    });
+    if (!sekmeButonu) return false; // bu panelde sekme yok
+    if (sekmeButonu.getAttribute('aria-pressed') !== 'true' && sekmeButonu.getAttribute('aria-selected') !== 'true') sekmeButonu.click(); // seçili değilse tıkla
+    return true; // sekme bulundu
+}
+
+// Koşul sağlanana veya süre dolana kadar kısa aralıklarla bekler
+async function chatgptKosuluBekle(kontrol, azamiSure, aralik) {
+    const bitisZamani = Date.now() + azamiSure; // kesin bitiş zamanı
+    while (Date.now() < bitisZamani) { // süre dolana kadar
+        const sonuc = kontrol(); // güncel DOM'u sorgula
+        if (sonuc) return sonuc; // koşul sağlandı
+        await new Promise((coz) => setTimeout(coz, aralik)); // React render aralığı
+    }
+    return null; // süre doldu
+}
+
+// Paneldeki kaynak veya belge içeriğini en güvenilir DOM yüzeyinden okur
+function chatgptArtifactIceriginiOku(panel) {
+    if (!panel) return ''; // panel yok
+    const icerikSelektorleri = [ // güncel CodeMirror kaynağı + eski Canvas editörleri
+        '[id^="artifact-"][id*="-source:"] .cm-content > code',
+        '.cm-content > code',
+        '[data-testid="artifact-source"]',
+        '[data-testid*="artifact-source"]',
+        '[data-testid="canvas-content"]',
+        '[data-testid*="canvas-content"]',
+        '.ProseMirror',
+        '[contenteditable="true"]',
+        'textarea',
+        'pre > code',
+        'pre'
+    ]; // öncelik sıralı içerik selektörleri
+    for (const selektor of icerikSelektorleri) { // CSS virgül listesinin DOM-sırası tuzağına düşmeden gerçek önceliği uygula
+        const icerikElemani = panel.querySelector(selektor); // bu katmandaki ilk aday
+        if (!icerikElemani) continue; // sıradaki geri dönüşe geç
+        const deger = icerikElemani.tagName === 'TEXTAREA' ? icerikElemani.value : icerikElemani.textContent; // textarea değeri veya metin
+        if ((deger || '').trim()) return deger.trim(); // boş değilse döndür
+    }
+    const onizleme = panel.querySelector('iframe'); // aynı-origin eski Canvas önizlemesi
+    if (onizleme) { // iframe varsa
+        try { // cross-origin güvenlik hatasını yalıt
+            const onizlemeMetni = onizleme.contentDocument && onizleme.contentDocument.body ? onizleme.contentDocument.body.innerText : ''; // erişilebilen metin
+            if ((onizlemeMetni || '').trim()) return onizlemeMetni.trim(); // aynı-origin içerik
+        } catch { // güncel web-sandbox çapraz origin olduğu için beklenen geri dönüş
+            return ''; // kaynak sekmesi yüklenene kadar boş kal
+        }
+    }
+    return ''; // içerik henüz yok
+}
+
+// Artefakt içeriği değişmeden iki ölçüm boyunca sabitlenene kadar bekler
+async function chatgptArtifactIcerigininKararlilasmasiniBekle(panel) {
+    let oncekiIcerik = ''; // önceki ölçüm
+    let esitOlcumSayisi = 0; // ardışık eşit ölçüm
+    const bitisZamani = Date.now() + 6000; // en fazla 6 saniye
+    while (Date.now() < bitisZamani) { // içerik yüklenirken
+        const mevcutIcerik = chatgptArtifactIceriginiOku(panel); // güncel kaynak
+        if (mevcutIcerik && mevcutIcerik === oncekiIcerik) esitOlcumSayisi++; // içerik kararlı
+        else esitOlcumSayisi = 0; // değişti veya boş
+        if (mevcutIcerik && esitOlcumSayisi >= 1) return mevcutIcerik; // iki ardışık aynı ölçüm
+        oncekiIcerik = mevcutIcerik; // sonraki ölçüm için sakla
+        await new Promise((coz) => setTimeout(coz, 250)); // render ölçüm aralığı
+    }
+    return oncekiIcerik || null; // süre sonunda eldeki içeriği koru
+}
+
+// Açık artefakt panelini güvenli kapatma düğmesiyle kapatır
+async function chatgptArtifactPaneliniKapat(panel) {
+    if (!panel || !document.documentElement.contains(panel)) return true; // panel zaten kapalı
+    const kapatButonu = panel.querySelector('button[data-testid="close-button"], button[data-testid*="close"], button[aria-label="Kapat"], button[aria-label="Close"]'); // güncel + eski kapatma
+    if (!kapatButonu) return false; // React dışından DOM silme yapma
+    kapatButonu.click(); // doğal panel kapatma akışı
+    const kapandi = await chatgptKosuluBekle(() => !document.documentElement.contains(panel) || panel.hidden || panel.getAttribute('aria-hidden') === 'true', 1800, 100); // kapanmayı doğrula
+    return Boolean(kapandi); // kapanma sonucu
+}
+
+// Dosya kimliği veya başlığıyla güncel artefakt açma düğmesini yeniden bulur
+function chatgptArtifactButonunuBul(artifact) {
+    if (artifact.buton && document.documentElement.contains(artifact.buton)) return artifact.buton; // ilk DOM referansı hâlâ geçerli
+    const butonlar = Array.from(document.querySelectorAll('button')); // sanallaştırma sonrası güncel düğmeler
+    if (artifact.dosyaKimligi) { // güncel Çalışma dosyası
+        const kimlikliButon = butonlar.find((buton) => buton.getAttribute('data-file-citation-primary-file-id') === artifact.dosyaKimligi); // dosya kimliği eşleşmesi
+        if (kimlikliButon) return kimlikliButon; // bulundu
+    }
+    return butonlar.find((buton) => (buton.getAttribute('aria-label') || '').trim() === artifact.baslik) || null; // başlık geri dönüşü
+}
+
+// Bir ChatGPT asistan turn'ündeki Çalışma/Canvas artefaktlarını açıp kaynaklarını çıkarır
+async function chatgptArtifactlariniCikar(turn, ilerlemeBildir) {
+    const adaylar = chatgptArtifactAdaylariniBul(turn); // bu yanıta bağlı dosyalar
+    if (adaylar.length === 0) return []; // artefakt yok
+    const baslangicPaneli = chatgptArtifactPaneliniBul(); // kullanıcının önceden açık paneli
+    const baslangicBasligi = chatgptArtifactPanelBasliginiBul(baslangicPaneli); // geri yüklenecek dosya
+    const baslangicSekmesi = chatgptArtifactAktifSekmesiniBul(baslangicPaneli); // geri yüklenecek görünüm
+    const artifactlar = []; // çıkarılmış artefaktlar
+
+    try { // panel durumunu sonunda mutlaka geri yükle
+        for (let sira = 0; sira < adaylar.length; sira++) { // dosyaları sırayla aç
+            const aday = adaylar[sira]; // güncel dosya
+            if (ilerlemeBildir) ilerlemeBildir('ChatGPT artefaktı çıkarılıyor... (' + (sira + 1) + '/' + adaylar.length + ')', 'basari'); // kullanıcı ilerlemesi
+            let panel = chatgptArtifactPaneliniBul(aday.baslik); // dosya zaten açık olabilir
+            try { // tek dosya hatası diğerlerini durdurmasın
+                if (!panel || chatgptArtifactPanelBasliginiBul(panel) !== aday.baslik) { // doğru dosya açık değil
+                    const acmaButonu = chatgptArtifactButonunuBul(aday); // güncel React düğmesi
+                    if (!acmaButonu) throw new Error('Artefakt açma düğmesi bulunamadı.'); // tanımlı hata
+                    acmaButonu.click(); // ChatGPT panelini aç
+                    panel = await chatgptKosuluBekle(() => { // doğru dosya panelini bekle
+                        const bulunanPanel = chatgptArtifactPaneliniBul(aday.baslik); // açık panel
+                        return bulunanPanel && (chatgptArtifactPanelBasliginiBul(bulunanPanel) === aday.baslik || aday.baslik === 'ChatGPT Canvas') ? bulunanPanel : null; // doğru panel
+                    }, 4500, 100); // React + dosya yükleme payı
+                }
+                if (!panel) throw new Error('Artefakt paneli açılamadı.'); // panel yok
+                chatgptArtifactSekmesiniSec(panel, ['Kod', 'Code', 'Kaynak', 'Source']); // çapraz-origin önizleme yerine kaynak görünümü
+                const icerik = await chatgptArtifactIcerigininKararlilasmasiniBekle(panel); // kararlı kaynak
+                artifactlar.push({ baslik: aday.baslik, tur: aday.tur, icerik: icerik || null }); // proje mesaj sözleşmesi
+            } catch (artifactHatasi) { // yalnız bu dosyayı boş içerikle koru
+                console.log('AI Chat Printer: ChatGPT artefakt çıkarma hatası:', artifactHatasi); // tanı izi
+                artifactlar.push({ baslik: aday.baslik, tur: aday.tur, icerik: null }); // başlık ve tür kaybolmasın
+            }
+        }
+    } finally { // kullanıcı arayüzünü başlangıç durumuna getir
+        let acikPanel = chatgptArtifactPaneliniBul(); // çıkarma sonunda açık panel
+        const acikBaslik = chatgptArtifactPanelBasliginiBul(acikPanel); // açık dosya
+        if (!baslangicPaneli) { // kullanıcı başlangıçta panel açmamıştı
+            if (acikPanel) await chatgptArtifactPaneliniKapat(acikPanel); // eklentinin açtığını kapat
+        } else if (acikBaslik !== baslangicBasligi) { // kullanıcı farklı bir dosyada kalmasın
+            if (acikPanel) await chatgptArtifactPaneliniKapat(acikPanel); // son çıkarılanı kapat
+            const eskiButon = Array.from(document.querySelectorAll('button[aria-label]')).find((buton) => (buton.getAttribute('aria-label') || '').trim() === baslangicBasligi); // önceki dosya düğmesi
+            if (eskiButon) { // önceki dosya görünürse
+                eskiButon.click(); // paneli geri aç
+                acikPanel = await chatgptKosuluBekle(() => chatgptArtifactPaneliniBul(baslangicBasligi), 3000, 100); // geri açılmayı bekle
+            }
+        }
+        if (baslangicSekmesi && acikPanel) chatgptArtifactSekmesiniSec(acikPanel, [baslangicSekmesi]); // kullanıcının sekmesini geri yükle
+    }
+    return artifactlar; // bu mesaja bağlı artefaktlar
+}
+
 // Turn için benzersiz anahtar — sanallaştırma süpürmesinde mükerrer önleme
 function chatgptTurnAnahtari(turn) {
     if (turn.id) return 'id:' + turn.id; // yeni DOM: li id'si mesaj UUID'si
@@ -352,15 +584,18 @@ async function konusmayiCikar(ilerlemeBildir) {
             const htmlIcerik = await resimliHtmlCikar(kaynakEl); // resimleri base64'e çevirip HTML çıkar
             const ekstraResimler = await turnResimleriniTopla(turn, kaynakEl); // kaynak dışındaki resimler
             const metinIcerik = temizMetinCikar(kaynakEl); // UI sızıntısız düz metin
+            const artifactlar = rol === 'assistant' ? await chatgptArtifactlariniCikar(turn, ilerlemeBildir) : []; // Çalışma/Canvas dosyalarını aç-kaynak oku-kapat
 
-            if (!htmlIcerik && !metinIcerik && ekstraResimler.length === 0) continue; // tamamen boş turn atla
+            if (!htmlIcerik && !metinIcerik && ekstraResimler.length === 0 && artifactlar.length === 0) continue; // tamamen boş turn atla
 
-            mesajMap.set(anahtar, {
+            const mesajKaydi = {
                 rol: rol === 'user' ? 'kullanici' : 'chatgpt', // proje formatı
                 html: htmlIcerik, // base64 resimli HTML içerik
                 metin: metinIcerik, // düz metin
                 resimler: ekstraResimler // ekstra resimler
-            });
+            }; // ortak mesaj sözleşmesi
+            if (artifactlar.length > 0) mesajKaydi.artifactlar = artifactlar; // alan yalnız gerçek artefakt varsa taşınır
+            mesajMap.set(anahtar, mesajKaydi); // sıralı mesaja ekle
         }
     }
 

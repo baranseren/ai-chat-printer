@@ -81,7 +81,7 @@ def chrome_mock_script(base_url: str, local_seed: dict, sync_seed: dict, active_
         storage: {{ local: makeStorage(localKey, 10485760), sync: makeStorage(syncKey, 102400) }},
         runtime: {{
             getURL: (path) => configuration.baseUrl + '/' + path,
-            getManifest: () => ({{ version: '2.0.0' }}),
+            getManifest: () => ({{ version: '2.0.1' }}),
             sendMessage: async () => ({{ basari: true }}),
             onMessage: {{ addListener: () => undefined }}
         }},
@@ -112,7 +112,7 @@ def run_static_tests() -> list[str]:
 
     manifest = json.loads((PROJECT_ROOT / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["manifest_version"] == 3
-    assert manifest["version"] == "2.0.0"
+    assert manifest["version"] == "2.0.1"
     assert set(manifest["permissions"]) == {"activeTab", "storage", "clipboardWrite"}
     expected_content_scripts = {
         "https://gemini.google.com/*": "content.js",
@@ -127,12 +127,12 @@ def run_static_tests() -> list[str]:
         assert content_script["js"] == ["resim-yardimcilari.js", "ortak-yardimcilar.js", expected_content_scripts[content_script["matches"][0]]]
         assert content_script["run_at"] == "document_idle"
     assert manifest["content_security_policy"]["extension_pages"] == "script-src 'self'; object-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'"
-    results.append("Manifest V3, v2.0.0 ve asgari izin sözleşmesi geçti")
+    results.append("Manifest V3, v2.0.1 ve asgari izin sözleşmesi geçti")
 
     required_files = ["site-yardimcilari.js", "popup.css", "yazdir.css", "GIZLILIK.md", "TEKNIK_DOKUMANTASYON.md"]
     assert all((PROJECT_ROOT / file_name).is_file() for file_name in required_files)
     for versioned_document in ["README.md", "GIZLILIK.md", "TEKNIK_DOKUMANTASYON.md"]:
-        assert "2.0.0" in (PROJECT_ROOT / versioned_document).read_text(encoding="utf-8")
+        assert "2.0.1" in (PROJECT_ROOT / versioned_document).read_text(encoding="utf-8")
     results.append("Yeni ortak sözleşme, arayüz ve dokümantasyon dosyaları mevcut")
 
     searchable_suffixes = {".js", ".css", ".html", ".json", ".md", ".py"}
@@ -419,12 +419,54 @@ document.querySelector('#artifactGeri').addEventListener('click', () => {
 <header><div><button type="button" aria-label="Paylaş">Paylaş</button></div></header>
 <main style="height:160px;overflow-y:auto"><ol data-conversation-transcript>
   <li style="min-height:80px" id="mesaj-kullanici-1" data-message-role="user"><h4 data-message-attribution>Şunu dedin:</h4><div data-user-message-bubble><p data-user-message-copy>ChatGPT canlı kullanıcı mesajı</p></div></li>
-  <li style="min-height:80px" id="mesaj-asistan-1" data-message-role="assistant" data-assistant-content-started data-message-complete><h4 data-message-attribution>ChatGPT:</h4><div data-assistant-markdown><div class="markdown prose"><p>ChatGPT canlı asistan yanıtı.</p><pre><code class="language-js">const sonuc = true;</code></pre></div></div></li>
+  <li style="min-height:80px" id="mesaj-asistan-1" data-message-role="assistant" data-assistant-content-started data-message-complete><h4 data-message-attribution>ChatGPT:</h4><div data-assistant-markdown><div class="markdown prose"><p>ChatGPT canlı asistan yanıtı.</p><pre><code class="language-js">const sonuc = true;</code></pre><p><button type="button" aria-label="chatgpt-calisma-kabulu.html" data-file-citation-primary-file-id="file-canli-kabul" data-file-citation-group-identity="file-canli-kabul">chatgpt-calisma-kabulu.html</button></p></div></div><button type="button" aria-label="chatgpt-calisma-kabulu.html">chatgpt-calisma-kabulu.html HTML Dosyayı aç</button></li>
   <li style="min-height:80px" id="mesaj-kullanici-2" data-message-role="user"><div data-user-message-bubble><p data-user-message-copy>ChatGPT ikinci kullanıcı mesajı</p></div></li>
-  <li style="min-height:80px" id="mesaj-asistan-2" data-message-role="assistant"><div data-assistant-markdown><p>ChatGPT ikinci asistan yanıtı.</p></div></li>
+  <li style="min-height:80px" id="mesaj-asistan-2" data-message-role="assistant"><div data-assistant-markdown><p>ChatGPT ikinci asistan yanıtı.</p></div><button type="button" data-testid="canvas-open-button" data-canvas-title="Eski Canvas belgesi" aria-label="Canvas'ı aç">Canvas'ı aç</button></li>
   <li style="min-height:80px" id="mesaj-kullanici-3" data-message-role="user"><div data-user-message-bubble><p data-user-message-copy>ChatGPT son kullanıcı mesajı</p></div></li>
   <li style="min-height:80px" id="mesaj-asistan-3" data-message-role="assistant"><div data-assistant-markdown><p>ChatGPT son asistan yanıtı.</p></div></li>
-</ol></main></body></html>""",
+</ol></main>
+<script>
+function chatgptKabulPaneliniKapat() {
+  document.querySelector('section[data-testid="screen-threadFlyOut"], section[data-testid="canvas-panel"]')?.remove();
+}
+function chatgptCalismaPaneliniAc() {
+  chatgptKabulPaneliniKapat();
+  window.__chatgptCalismaAcildi = true;
+  const panel = document.createElement('section');
+  panel.dataset.testid = 'screen-threadFlyOut';
+  panel.setAttribute('aria-label', 'chatgpt-calisma-kabulu.html');
+  panel.innerHTML = '<header><button type="button" aria-pressed="false">Kod</button><button type="button" aria-pressed="true">Önizleme</button><button type="button" data-testid="close-button" aria-label="Kapat">Kapat</button></header><div data-preview>Önizleme hazırlanıyor...</div>';
+  document.body.appendChild(panel);
+  panel.querySelector('button').addEventListener('click', () => {
+    panel.querySelector('[data-preview]')?.remove();
+    panel.querySelectorAll('header button').forEach((button) => button.setAttribute('aria-pressed', button.textContent === 'Kod' ? 'true' : 'false'));
+    setTimeout(() => {
+      const kaynak = document.createElement('div');
+      kaynak.id = 'artifact-html-source:chatgpt-calisma-kabulu.html';
+      kaynak.innerHTML = '<pre class="cm-content"><code>&lt;h1&gt;AI Chat Printer Canvas Kabulü&lt;/h1&gt;\\n&lt;p&gt;Canvas içerik çıkarma doğrulaması&lt;/p&gt;</code></pre>';
+      panel.appendChild(kaynak);
+    }, 120);
+  });
+  panel.querySelector('[data-testid="close-button"]').addEventListener('click', () => {
+    window.__chatgptCalismaKapatildi = true;
+    panel.remove();
+  });
+}
+document.querySelectorAll('button[aria-label="chatgpt-calisma-kabulu.html"]').forEach((button) => button.addEventListener('click', chatgptCalismaPaneliniAc));
+document.querySelector('button[data-testid="canvas-open-button"]').addEventListener('click', () => {
+  chatgptKabulPaneliniKapat();
+  window.__chatgptCanvasAcildi = true;
+  const panel = document.createElement('section');
+  panel.dataset.testid = 'canvas-panel';
+  panel.setAttribute('aria-label', 'Eski Canvas belgesi');
+  panel.innerHTML = '<button type="button" data-testid="canvas-close-button" aria-label="Kapat">Kapat</button><article data-testid="canvas-content"><h1>Eski Canvas kabulü</h1><p>Canvas belge içeriği korundu.</p></article>';
+  document.body.appendChild(panel);
+  panel.querySelector('[data-testid="canvas-close-button"]').addEventListener('click', () => {
+    window.__chatgptCanvasKapatildi = true;
+    panel.remove();
+  });
+});
+</script></body></html>""",
         },
         "grok": {
             "url": "https://grok.com/c/canli-kabul",
@@ -478,7 +520,7 @@ document.querySelector('#artifactGeri').addEventListener('click', () => {
                     }"""
                 )
                 assert worker_contract == {
-                    "version": "2.0.0",
+                    "version": "2.0.1",
                     "validSource": "chatgpt",
                     "hostileSource": None,
                     "legacyRemoved": True,
@@ -528,7 +570,14 @@ document.querySelector('#artifactGeri').addEventListener('click', () => {
                     if site_name == "chatgpt":
                         assert preview_page.locator("code.language-js").count() == 1
                         assert fixture["last_assistant"] in preview_page.locator(".mesaj-blogu").nth(5).inner_text()
+                        assert preview_page.locator(".artifact-blogu").count() == 2
+                        artifact_text = preview_page.locator(".artifact-blogu").all_inner_texts()
+                        assert any("Canvas içerik çıkarma doğrulaması" in text for text in artifact_text), artifact_text
+                        assert any("Canvas belge içeriği korundu." in text for text in artifact_text), artifact_text
                         assert source_page.evaluate("() => document.querySelector('main').scrollTop") == original_scroll
+                        assert source_page.evaluate("() => window.__chatgptCalismaAcildi === true && window.__chatgptCalismaKapatildi === true")
+                        assert source_page.evaluate("() => window.__chatgptCanvasAcildi === true && window.__chatgptCanvasKapatildi === true")
+                        assert source_page.locator('section[data-testid="screen-threadFlyOut"], section[data-testid="canvas-panel"]').count() == 0
                     elif site_name == "claude":
                         assert preview_page.locator(".artifact-blogu").count() == 1
                         assert "Claude artifact canlı içeriği" in preview_page.locator(".artifact-blogu").inner_text()

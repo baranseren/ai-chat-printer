@@ -1,16 +1,17 @@
-# AI Chat Printer — Teknik Dokümantasyon (v2.0.0)
+# AI Chat Printer — Teknik Dokümantasyon (v2.0.1)
 
-> Revizyon: 15.08.2026 - 17.00 — v2.0.0 mimari sertleştirme, Baskı Stüdyosu UX, genişletilmiş sayfa ayarları, güvenli dışa aktarım, gerçek MV3 kabul paketi ve gizlilik sözleşmesi işlendi.
+> Revizyon: 15.08.2026 - 23.30 — v2.0.1 ChatGPT Çalışma/Canvas artefakt çıkarımı, panel durum geri yükleme ve gerçek MV3 yaşam döngüsü kabulü işlendi.
 
 > Bu belge, projeyi **sıfırdan birebir yeniden inşa edebilmek** için hazırlanmıştır. Düşük yetenekli bir LLM dahi bu dokümandaki adımları, fonksiyon imzalarını, selektör tablolarını, algoritma adımlarını ve birebir kod kurallarını takip ederek **fonksiyonel olarak özdeş bir eklenti** üretebilir. Hiçbir karar "açık" bırakılmamıştır — buton piksel boyutlarından sanitizer whitelist'ine, Markdown fence algoritmasından mesaj kanalı semantiğine, toast renklerinden storage anahtarlarına kadar her şey burada tanımlıdır.
 >
-> **SÜRÜM NOTU (15.08.2026):** Belge **v2.0.0**'ı anlatır. Sürüm geçmişi özeti:
+> **SÜRÜM NOTU (15.08.2026):** Belge **v2.0.1**'i anlatır. Sürüm geçmişi özeti:
 > - **v1.7.8** (commit `2547bab`, 10.06.2026): v1.7.0 derin denetimi + 8 saatlik öz-denetim turunun ürünü; bulunan 14 gerçek bug'ın düzeltmeleri gövdeye işlendi ("neden böyle" kuralları için bkz. EK G ve EK H).
 > - **v1.8.0** (commit `f79d049` + `33e62fb`): Yazdırma sayfasına üç büyük yetenek eklendi — **canlı ayar çubuğu** (yazı boyutu / kod blokları / mesaj seçim modu; popup'a dönmeden anlık uygulanır), **mesaj seçimi** (checkbox'la her mesajı çıktıdan hariç tutabilme + Tümünü Seç/Kaldır), **HTML ve JSON dışa aktarma** (tek dosya bağımsız HTML + yapılandırılmış JSON). Kod bloğu gizleme `pre.remove()` yerine `body.kod-gizli` CSS class'ına taşındı (DOM silinmez, canlı geri açılır). Tüm dışa aktarımlar mesaj seçimine saygılıdır. Bölüm 16 ve 18 bu sürümü anlatır; popup sürüm satırı `chrome.runtime.getManifest().version` ile dinamikleşti.
 > - **v1.8.1** (19.07.2026): claude.ai 2026-07 UI güncellemesi eklentiyi tamamen kırdı; Bölüm 11 ve EK C canlı DOM analiziyle yeniden yazıldı. Kırılan 5 nokta: (1) `page-header` → `chat-header`, (2) turn-bazlı mesaj döngüsü → document-order `querySelectorAll` akışı (tüm konuşma artık `children[0]` tek ağaç), (3) artifact aç `[role="button"]` → grup içi `button[aria-label^="View"]`, (4) viewer kapat `Close` → `Go back`, (5) başlık sidebar linki → `chat-title-split`. Grok rol tespitine `data-testid` katmanı eklendi. Tüm yeni selektörler eski UI fallback'leriyle birlikte uygulanır.
 > - **v1.8.2** (22.07.2026): ChatGPT 2026-07 "wm" UI güncellemesi çıkarıcıyı kırdı ("konuşmanın tamamı yazdırılmıyor" şikayeti). Canlı DOM analiziyle tespit: `[data-testid^="conversation-turn"]`, `[data-message-author-role]`, `.markdown`, `.user-message-bubble-color` yeni DOM'da 0 eşleşme; yeni yapı `ol[data-conversation-transcript] > li[data-message-role]` (id = mesaj UUID), kullanıcı içerik `[data-user-message-bubble]`, AI içerik `[data-assistant-markdown]`, sr-only `h4[data-message-attribution]` ("Şunu dedin:"/"ChatGPT:") sızıntı riski. `content-chatgpt.js` yeniden yazıldı: (1) çift DOM ortak selektörü `CHATGPT_TURN_SELEKTORU`, (2) rol tespiti li-attribute → descendant-attribute zinciri, (3) içerik elementi zinciri (attribution/actions sızıntısız, fallback `chatgptTurnGovdesi`), (4) **sanallaştırma scroll-süpürmesi** (`chatgptKaydiriciBul` + en üste git → %75 viewport adımlarıyla in → UUID/testid anahtarlı `Map` dedup → scroll konumu geri yüklenir; kısa konuşmada atlanır), (5) header 5 denemede bulunamazsa **floating buton fallback** (`floatingButonEkle`, Grok kalıbı), (6) streaming tespitine `li[data-message-role="assistant"][data-assistant-content-started]:not([data-message-complete])` göstergesi eklendi (`data-message-complete` reload'da hiç eklenmez — tek başına kullanılamaz). CLAUDE.md ChatGPT DOM tablosu çift sütunlu (yeni/eski) yeniden yazıldı.
 > - **v1.9.0** (15.08.2026): Global `konusmaVerisi`/`yazdirAyarlari` anahtarları kaldırıldı. Her yazdırma isteği `crypto.randomUUID()` ile üretilen benzersiz oturum kimliği altında, `aiChatPrinterOturum:<kimlik>` anahtarında saklanır; background ilgili kimliği `yazdir.html?oturum=<kimlik>` adresine taşır. Böylece art arda veya eşzamanlı yazdırmalarda hiçbir sekme başka konuşmanın verisini okuyamaz. Oturum paketi okunur okunmaz silinir; F5 yedeği de oturum kimliğiyle ayrılır. Önceki sürümden açık kalmış doğrudan `yazdir.html` sekmeleri için eski anahtar okuma fallback'i korunur.
 > - **v2.0.0** (15.08.2026): Popup ve önizleme “Baskı Stüdyosu” tasarım sistemiyle baştan kuruldu. Ayar sözleşmesi 8 alana genişledi; A4/A3/Letter, dikey/yatay, üç kenar boşluğu, 11/13/15/17 px, kod, belge imzası, bağlantı adresi ve otomatik yazdırma birlikte doğrulanır. Rol bazlı mesaj seçimi ve boş seçim kilidi eklendi. `site-yardimcilari.js` tam-hostname doğrulamasını merkezileştirdi. Service worker sahipsiz oturumlara 6 saat TTL uyguladı. HTML dışa aktarımı güvenli DOM belgesiyle yeniden yazıldı; sanitizer yalnız `PRE`/`CODE` üzerindeki `language-*` sınıflarını geçirir. Resim kanalı raster allowlist, kimlik bilgisi/referrer izolasyonu, olay/zamanlayıcı temizliği ve yazdırma öncesi seçili-resim hazır olma bariyeri kazandı. ChatGPT süpürmesi gerçek sona kadar ilerler; Claude artifact paneli her sonuçta kapanır; Grok kesin `data-testid` seçicilerini önce kullanır ve özel konuşma metnini loglamaz. `tests/acceptance_tests.py`, statik + gerçek Chromium + gerçek MV3 service worker/content-script zincirini 14 kabul maddesiyle doğrular.
+> - **v2.0.1** (15.08.2026): ChatGPT'nin güncel Çalışma dosyaları canlı DOM'da doğrulandı: metin atfı `data-file-citation-primary-file-id`, sağ panel `section[data-testid="screen-threadFlyOut"]`, kaynak görünümü CodeMirror `.cm-content > code`. Çıkarıcı bu zinciri eski Canvas `data-testid`/ProseMirror/contenteditable geri dönüşleriyle birleştirir; dosyaları tekilleştirir, Kod/Kaynak sekmesini seçer, içeriği iki ölçüm boyunca kararlılaştıktan sonra alır, eklentinin açtığı paneli kapatır ve kullanıcının önceden açık panel/seçili sekme durumunu geri yükler. Gerçek MV3 kabulü güncel Çalışma ve eski Canvas aç-oku-kapat fixture'larıyla genişletildi.
 
 ---
 
@@ -44,6 +45,7 @@
 26. [Kurulum ve Test Workflow](#26-kurulum-ve-test-workflow)
 27. [Sıfırdan İnşa Adım Adım](#27-sıfırdan-inşa-adım-adım)
 28. [v2.0.0 Kanonik Modernizasyon Sözleşmesi](#28-v200-kanonik-modernizasyon-sözleşmesi)
+29. [v2.0.1 ChatGPT Çalışma ve Canvas Artefakt Sözleşmesi](#29-v201-chatgpt-çalışma-ve-canvas-artefakt-sözleşmesi)
 
 ### Ekler
 
@@ -70,7 +72,7 @@
 |------------|----------------|--------------|
 | gemini.google.com | `content.js` | Resim base64 gömme + cevap altı ↓ MD / ↓ TXT indirme butonları |
 | claude.ai | `content-claude.js` | Artifact içeriği çıkarma (tıkla-aç-oku-kapat döngüsü) |
-| chatgpt.com | `content-chatgpt.js` | Eski + “wm” DOM, gerçek sona kadar sanallaştırma scroll-süpürmesi |
+| chatgpt.com | `content-chatgpt.js` | Eski + “wm” DOM, gerçek sona kadar sanallaştırma süpürmesi, Çalışma/Canvas artefaktları |
 | grok.com | `content-grok.js` | Kesin `data-testid` önceliği + geriye uyumlu çok katmanlı fallback |
 
 **Temel davranış zinciri:** Sayfaya enjekte edilen yazıcı butonu → DOM'dan konuşma çıkarılır (mesajlar + resimler + artifact'lar) → benzersiz oturum anahtarıyla `chrome.storage.local`'a yazılır → `yazdir.html?oturum=<kimlik>` yeni sekmede açılır → yalnız o oturumun verisi okunur-okunduğu anda silinir → sanitize edilip render edilir → `window.print()` (PDF dosya adı = konuşma başlığı).
@@ -193,6 +195,9 @@ GeminiPrinter/
 ├── CHROME_WEB_STORE_v2.0.0.md # Mağaza metni, izin, veri ve görsel yükleme sözleşmesi
 ├── RELEASE_NOTES_v2.0.0.md  # Kullanıcıya dönük tam sürüm notu
 ├── DISTRIBUTION_v2.0.0.md   # Web Store ZIP künyesi, SHA-256 ve açılmış paket kabulü
+├── CHROME_WEB_STORE_DURUMU_v2.0.0.md # Gönderim, inceleme ve API sınırı kaydı
+├── RELEASE_NOTES_v2.0.1.md  # ChatGPT Çalışma/Canvas sürüm notu
+├── DISTRIBUTION_v2.0.1.md   # v2.0.1 ZIP künyesi, SHA-256 ve açılmış paket kabulü
 ├── GIZLILIK.md              # Veri işleme, yerel saklama ve izin beyanı
 ├── CLAUDE.md                # Geliştirme kuralları (Claude Code için)
 ├── TEKNIK_DOKUMANTASYON.md  # Bu dosya
@@ -230,7 +235,7 @@ _store_capture/
   "manifest_version": 3,
   "name": "__MSG_extName__",
   "short_name": "__MSG_extName__",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "__MSG_extDescription__",
   "minimum_chrome_version": "114",
   "default_locale": "tr",
@@ -292,7 +297,7 @@ Content script → storage → yazdırma sayfası arasında taşınan tek nesne:
           resimler: [                         // turnResimleriniTopla() — kaynak element DIŞINDA kalan görseller
               { src: 'data:image/jpeg;base64,...', alt: '' }
           ],
-          artifactlar: [                      // YALNIZ Claude — yoksa alan hiç konmaz (undefined)
+          artifactlar: [                      // Claude veya ChatGPT Çalışma/Canvas — yoksa alan hiç konmaz
               { baslik: 'app.py', tur: 'Code · PY', icerik: 'print(1)' }   // icerik null olabilir (çıkarılamadı)
           ]
         }
@@ -301,7 +306,7 @@ Content script → storage → yazdırma sayfası arasında taşınan tek nesne:
 }
 ```
 
-**Üç içerik kanalı kuralı (KRİTİK):** `html`, `metin`, `resimler` aynı içeriğin üç ayrı kanalıdır. Bir filtre/temizlik kuralı eklenirken ÜÇÜNE BİRDEN uygulanmalıdır (v1.7.1–1.7.4 bug serisinin dersi — EK G.1).
+**Dört içerik kanalı kuralı (KRİTİK):** `html`, `metin`, `resimler`, `artifactlar` aynı mesajın ayrı taşıma kanallarıdır. Bir filtre/temizlik kuralı eklenirken ilgili kanalların tamamı birlikte denetlenmelidir; artefaktı olmayan mesajda `artifactlar` alanı taşınmaz (v1.7.1–1.7.4 bug serisinin dersi — EK G.1).
 
 ---
 
@@ -561,7 +566,7 @@ Akış:
 
 ---
 
-## 12. ChatGPT Content Script (v2.0.0 — güncel “wm” UI + eski UI çift destek)
+## 12. ChatGPT Content Script (v2.0.1 — “wm” + eski UI + Çalışma/Canvas)
 
 - Buton: `paylasButonunuBul(header)` önce `button[aria-label="Paylaş"/"Share"]`, sonra görünür buton metnini kullanır. Bulunursa Paylaş'ın aynı parent'ına `insertBefore`; bulunamazsa header yapısına zorla gömülmeden `floatingButonEkle()` çağrılır. Floating düğme `top:72px; right:18px`, 42×42 px, görünür gölge/odak halkası taşır; değişken header eylemleriyle sabit 64/240 px tahmin üzerinden çakışmaz.
 - **Ortak turn selektörü:** `CHATGPT_TURN_SELEKTORU = '[data-testid^="conversation-turn"], li[data-message-role]'` — eski + yeni DOM document-order, selektörler kesişmez
@@ -570,6 +575,14 @@ Akış:
 - **Sanallaştırma scroll-süpürmesi (`konusmayiCikar(ilerlemeBildir)`):** uzun konuşmada görünmeyen turn'ler DOM'dan düşebilir. `chatgptKaydiriciBul` kaydırılabilir ancestor'ı veya belge kökünü bulur; yükseklik 1,5 viewport'u aşarsa konum kaydedilir, en üste gidilir ve %75 viewport adımlarıyla gerçek dibe kadar ilerlenir. Eski sessiz `maks 120 adım` sınırı kaldırılmıştır; çok uzun konuşmanın son kısmı kırpılmaz. Sonsuz döngü koruması, kaydırma yüzeyinin üç ardışık adımda ilerlememesi koşuludur. Her dilim UUID/testid/parmak izi anahtarlı `Map` ile mükerrersiz işlenir; `finally` kullanıcının scroll konumunu geri yükler.
 - Başlık: `nav a[href^="/c/"][data-active="true"]` | `.bg-token-sidebar-surface-secondary` | `[aria-current="page"]` → doc.title → `'ChatGPT Konuşması'`
 - Streaming kontrolü: eski göstergeler + yeni wm DOM `li[data-message-role="assistant"][data-assistant-content-started]:not([data-message-complete])` (**`data-message-complete` yalnız canlı stream tamamlanınca eklenir, reload'da yok** — `:not()` tek başına kullanılamaz, `data-assistant-content-started` ile kombinlenir); toast renkleri: başarı `#10a37f`, hata `#ef4444`
+
+### ChatGPT Çalışma/Canvas artefakt çıkarımı (v2.0.1)
+
+`chatgptArtifactAdaylariniBul(turn)`, güncel dosya atıflarını `button[data-file-citation-primary-file-id]` ve `button[data-file-citation-group-identity]` üzerinden, eski Canvas/artefakt düğmelerini `data-testid*="canvas"|"artifact"` üzerinden toplar. Erişilebilir adı metin tabanlı bir dosya uzantısıyla biten açık dosya kartları ayrıca geri dönüş olarak alınır. Dosya kimliği olan kayıtlar kimlikle, kimliksiz kartlar Türkçe locale ile küçültülmüş başlıkla tekilleştirilir; böylece aynı dosyanın metin atfı ve büyük kartı iki kez yazılmaz.
+
+Her aday için `chatgptArtifactButonunuBul()` sanallaştırma sonrası güncel DOM düğmesini yeniden bulur. `chatgptArtifactPaneliniBul()` güncel `section[data-testid="screen-threadFlyOut"]` panelini başlığa göre doğrular; eski Canvas/artefakt dialog, section ve aside geri dönüşlerini de kabul eder. Panelde `Kod|Code|Kaynak|Source` sekmesi varsa seçilir. İçerik öncelik zinciri: `[id^="artifact-"][id*="-source:"] .cm-content > code` → `.cm-content > code` → artifact/canvas source-content `data-testid` → `.ProseMirror` → contenteditable → textarea → `pre > code` → `pre` → yalnız aynı-origin ise iframe metni. Güncel `web-sandbox.oaiusercontent.com` önizlemesi cross-origin olduğundan kaynak sekmesi kanonik yoldur.
+
+`chatgptArtifactIcerigininKararlilasmasiniBekle()` içeriği 250 ms aralıkla ölçer ve iki ardışık ölçüm birebir eşit olmadan kaydı tamamlamaz; üst sınır 6 saniyedir. Her dosya kendi `try/catch` sınırındadır: başarısız dosya `{baslik,tur,icerik:null}` olarak korunur, diğerleri devam eder. Dış `finally`, başlangıçta panel yoksa eklentinin açtığı paneli `data-testid="close-button"`/eski close geri dönüşüyle kapatır; panel önceden açıksa dosya başlığı ve Kod/Önizleme sekmesini geri yükler. Konuşma scroll konumu dış süpürme `finally` bloğunda ayrıca geri yüklenir.
 
 ## 13. Grok Content Script
 
@@ -783,6 +796,7 @@ DOM sıralı işlendiği ve await içerdiği her yerde `for...of` — `forEach(a
 | 1.8.3 | ChatGPT yazdır butonu hizalama düzeltmesi: `paylasButonunuBul` (aria-label + buton metni araması), Paylaş yanına aynı-parent insert, Paylaş yoksa header yerine floating buton, `align-self:center`+`flex-shrink:0` |
 | 1.9.0 | UUID tabanlı eşzamanlı yazdırma oturumları, oturum kimlikli URL ve sekmeye özel F5 yedeği |
 | 2.0.0 | Baskı Stüdyosu UX, 8 alanlı doğrulanmış sayfa sözleşmesi, rol seçimi, dinamik `@page`, güvenli DOM dışa aktarımı, tam-hostname kontrolü, 6 saat TTL, resim/Claude/ChatGPT/Grok sertleştirmesi, gizlilik beyanı, Web Store güvenli alanlı ikon ve görsel seti, TR/EN mağaza metni, yayın notları ve 14 maddelik otomatik/gerçek MV3 kabul paketi |
+| 2.0.1 | ChatGPT güncel Çalışma dosyası + eski Canvas artefakt çıkarımı; dosya/başlık dedup, panel ve kaynak sekmesi doğrulama, CodeMirror/ProseMirror geri dönüşleri, kararlılık ölçümü, hata yalıtımı ve kullanıcı panel-sekme durumunun geri yüklenmesi |
 
 ## 26. Kurulum ve Kabul Akışı
 
@@ -798,7 +812,7 @@ python .\tests\acceptance_tests.py
 
 Test önce tüm kök JavaScript dosyalarını `node --check`, bütün Python dosyalarını yerleşik `compile()` ile doğrular; manifest/sürüm/izin/script sırası/CSP, zorunlu dosya, UTF-8/mojibake ve resim olay-kimlik bilgisi-referrer sözleşmelerini tarar. Ardından geçici localhost fixture üzerinde gerçek Chrome ile sanitizer, XSS, raster resim, güvenli class, dinamik `@page`, Markdown, footer, seçim, rol seçimi, boş seçim kilidi, yalnız seçili resimlerde `decode()` bariyeri, MD/HTML indirme, canlı ayar, F5, geçersiz oturum UX'i, paralel oturum yalıtımı ve popup hostname/erişilebilirlik kabulü çalışır.
 
-Son katmanda Playwright’ın Chromium binary’si geçici profil ile `--load-extension` üzerinden paketlenmemiş eklentiyi yükler. Service worker’ın v2.0.0 manifestini, ortak hostname sözleşmesini, gerçek `storage.sync` erişimini ve 6 saat TTL temizliğini doğrular. Gemini, Claude, ChatGPT ve Grok HTTPS istekleri yalnız test bağlamında siteye özgü fixture HTML ile route edilir; dört gerçek content script kendi düğmesini enjekte eder ve tıklama `storage.local → background.js → chrome-extension://.../yazdir.html?oturum=...` zincirini çalıştırır. Her sitede kullanıcı+AI mesajı, hostname ve sekme yedeği; Gemini'de cevap-altı Markdown indirme, Claude'da gerçek tıkla-aç-oku-kapat artifact akışı, ChatGPT'de altı mesajlı kaydırma süpürmesi/konum geri yükleme ve `language-js` kod sınıfı doğrulanır. Geçici Chromium profili test sonunda otomatik silinir.
+Son katmanda Playwright’ın Chromium binary’si geçici profil ile `--load-extension` üzerinden paketlenmemiş eklentiyi yükler. Service worker’ın v2.0.1 manifestini, ortak hostname sözleşmesini, gerçek `storage.sync` erişimini ve 6 saat TTL temizliğini doğrular. Gemini, Claude, ChatGPT ve Grok HTTPS istekleri yalnız test bağlamında siteye özgü fixture HTML ile route edilir; dört gerçek content script kendi düğmesini enjekte eder ve tıklama `storage.local → background.js → chrome-extension://.../yazdir.html?oturum=...` zincirini çalıştırır. Her sitede kullanıcı+AI mesajı, hostname ve sekme yedeği; Gemini'de cevap-altı Markdown indirme, Claude'da gerçek tıkla-aç-oku-kapat artifact akışı, ChatGPT'de altı mesajlı kaydırma süpürmesi/konum geri yükleme, `language-js` kod sınıfı, güncel Çalışma CodeMirror kaynağı ve eski Canvas belge içeriği doğrulanır. Geçici Chromium profili test sonunda otomatik silinir.
 
 Kurulu kararlı Google Chrome, tarayıcı render/popup katmanında ayrıca kullanılır. Gerçek eklenti yükleme katmanında Chromium seçilmesinin nedeni ürün kısıtı değil, Chrome 137'den itibaren resmî markalı Chrome build'lerinde `--load-extension` komut satırı bayrağının kaldırılmış olmasıdır. Chromium ve Chrome for Testing bu bayrağı desteklemeye devam eder; Chrome ekibinin kanonik duyurusu: `https://groups.google.com/a/chromium.org/g/chromium-extensions/c/1-g8EFx2BBY`.
 
@@ -807,11 +821,11 @@ Kurulu kararlı Google Chrome, tarayıcı render/popup katmanında ayrıca kulla
 **Açılmış dağıtım paketi kabulü:** Test dosyası çalışma alanında kalırken `AI_CHAT_PRINTER_PROJECT_ROOT` açılmış ZIP köküne yöneltilir ve `--runtime-only` kullanılır. Böylece pakette test/dokümantasyon bulunmasa bile manifest, service worker, content script ve önizleme zinciri doğrudan paket dosyalarından çalışır:
 
 ```powershell
-$env:AI_CHAT_PRINTER_PROJECT_ROOT = "C:\gecici\AI-Chat-Printer-v2.0.0"
+$env:AI_CHAT_PRINTER_PROJECT_ROOT = "C:\gecici\AI-Chat-Printer-v2.0.1"
 python .\tests\acceptance_tests.py --runtime-only
 ```
 
-**Web Store paket sözleşmesi:** ZIP kökünde `manifest.json` bulunur. Paket yalnız manifestin çalışma anında kullandığı HTML, CSS, JavaScript, locale ve PNG ikonlarını taşır; test, dokümantasyon, üretici betik, ekran görüntüsü ve geliştirme kuralı içermez. `dist/SHA256SUMS-v2.0.0.txt` teslim edilen ZIP’in byte seviyesinde doğrulama kaynağıdır.
+**Web Store paket sözleşmesi:** ZIP kökünde `manifest.json` bulunur. Paket yalnız manifestin çalışma anında kullandığı HTML, CSS, JavaScript, locale ve PNG ikonlarını taşır; test, dokümantasyon, üretici betik, ekran görüntüsü ve geliştirme kuralı içermez. `dist/SHA256SUMS-v2.0.1.txt` teslim edilen ZIP’in byte seviyesinde doğrulama kaynağıdır.
 
 ## 27. Sıfırdan İnşa Adım Adım
 
@@ -869,7 +883,7 @@ Bu bölüm, önceki sürüm davranışını eksiltmeden v2.0.0'da eklenen ve bun
 | `ortak-yardimcilar.js` | 477 | 8 ayar, UUID, quota, streaming, Markdown, indirme |
 | `content.js` | 520 | Gemini mesaj/resim ve hızlı MD/TXT |
 | `content-claude.js` | 436 | Claude document-order ve artifact yaşam döngüsü |
-| `content-chatgpt.js` | 450 | çift DOM, tam süpürme, floating fallback |
+| `content-chatgpt.js` | 685 | çift DOM, tam süpürme, Çalışma/Canvas kaynak çıkarımı, panel durum geri yükleme |
 | `content-grok.js` | 452 | kesin rol seçicileri ve geriye uyumlu fallback |
 | `popup.js` | 132 | erişilebilir durum, 8 ayar, çıkarma ve oturum açma |
 | `yazdir.js` | 735 | güvenli render, hata durumu, seçim, dinamik sayfa, baskı ve dört dosya formatı |
@@ -879,6 +893,44 @@ Satır sayısı yalnız v2.0.0 keşif kolaylığı içindir; davranış sözleş
 ### Kabul kapısı
 
 Sürüm tamamlanmış sayılmadan `python .\tests\acceptance_tests.py` sonucu 14/14 başarılı olmalıdır. Buna ek olarak masaüstü ve 640 px dar görünüm vision ile incelenir; kontrol kesilmesi, yatay kaydırma, odak kaybı, üst üste binme veya görünmez eylem kalmamalıdır. v2.0.0 kabulünde statik/tarayıcı testleri ile gerçek MV3 service worker ve dört gerçek content-script zinciri birlikte geçmiştir.
+
+---
+
+## 29. v2.0.1 ChatGPT Çalışma ve Canvas Artefakt Sözleşmesi
+
+Bu sürüm, Claude'a özgü `artifactlar[]` veri modelini değiştirmeden ChatGPT yanıtlarına genişletir. Render, Markdown, düz metin, HTML ve JSON dışa aktarım katmanları zaten aynı `artifactlar[]` sözleşmesini kullandığı için yeni siteye özel ikinci bir çıktı modeli oluşturulmamıştır.
+
+### Canlı DOM kanıtı
+
+15.08.2026 tarihli giriş yapılmış ChatGPT Pro “Çalışma” kabulünde tek HTML dosyası üretildi ve şu kararlı yüzeyler gözlendi:
+
+| Amaç | Canlı işaret |
+|---|---|
+| Yanıt içi dosya atfı | `button[data-file-citation-primary-file-id]` + `data-file-citation-group-identity` |
+| Dosya adı | Düğmenin `aria-label` değeri |
+| Sağ çalışma paneli | `section[data-testid="screen-threadFlyOut"][aria-label="<dosya>"]` |
+| Görünüm sekmeleri | `Kod` / `Önizleme` (`Code` / `Preview` İngilizce geri dönüşü) |
+| Kaynak editörü | `div[id^="artifact-"][id*="-source:"]` içindeki CodeMirror `.cm-content > code` |
+| Çapraz-origin önizleme | `iframe[title="Önizleme"]` → `web-sandbox.oaiusercontent.com` |
+| Kapatma | Panel içi `button[data-testid="close-button"]` |
+
+Iframe kaynağı aynı-origin olmadığı için içerik doğrudan okunmaz. Çıkarıcı Kod/Kaynak sekmesine geçer; editör DOM'u gelene kadar bekler ve tam kaynak metnini CodeMirror yüzeyinden alır. Bu yöntem HTML önizlemesindeki yalnız görünür metni değil, `head`, CSS ve script dâhil dosyanın tamamını korur.
+
+### Yaşam döngüsü
+
+1. Asistan turn'ündeki güncel dosya atıfları, dosya kartları ve eski Canvas düğmeleri toplanır.
+2. Aynı dosyanın atıf/kart ikilisi dosya kimliği ve başlıkla tekilleştirilir.
+3. Kullanıcının açık panel başlığı ve seçili sekmesi kaydedilir.
+4. Dosya düğmesi tıklanır; doğru başlıktaki panel en fazla 4,5 saniye beklenir.
+5. Kod/Kaynak sekmesi seçilir; içerik en fazla 6 saniye boyunca 250 ms aralıkla ölçülür.
+6. İki ardışık ölçüm aynıysa `{baslik,tur,icerik}` kaydı oluşturulur.
+7. Tek dosya hatasında `{icerik:null}` korunur ve sıradaki dosyaya geçilir.
+8. Başlangıçta panel yoksa eklentinin açtığı panel kapatılır; varsa eski dosya ve sekme geri yüklenir.
+9. Uzun-konuşma süpürmesinin dış `finally` bloğu kullanıcının konuşma kaydırma konumunu geri yükler.
+
+### Gerçek MV3 kabul sözleşmesi
+
+ChatGPT fixture'ı hem güncel hem eski yolu aynı gerçek content script içinde çalıştırır. Güncel senaryo dosya atfını tıklar, gecikmeli CodeMirror kaynağını bekler ve paneli kapatır. Eski senaryo `data-testid="canvas-open-button"` üzerinden `canvas-panel` açar, `canvas-content` metnini alır ve paneli kapatır. Önizlemede iki `.artifact-blogu`, her iki içerik, altı mesaj, kod dili sınıfı ve scroll konumu birlikte doğrulanır; kaynak sayfada açık panel kalmadığı ayrıca kabul edilir.
 
 ---
 
@@ -898,6 +950,8 @@ Sürüm tamamlanmış sayılmadan `python .\tests\acceptance_tests.py` sonucu 14
 | Tek resim 5 sn'de yüklenmedi | O resim fetch fallback'ine, o da olmazsa https-URL/atlama |
 | Cross-origin canvas taint | 3 katmanlı fallback (Bölüm 7) |
 | Artifact viewer açılmadı/içerik gelmedi | `icerik:null` → render'da "(Artifact içeriği çıkarılamadı)" |
+| ChatGPT Çalışma önizleme iframe'i cross-origin | Kod/Kaynak sekmesi seçilir; `.cm-content > code` kaynağı okunur, iframe erişimi zorlanmaz |
+| ChatGPT artefakt çıkarılırken kullanıcı paneli açıktı | Başlangıç dosya başlığı ve seçili sekme kaydedilir; dış `finally` ikisini geri yükler |
 | Grok DOM'u tanınamadı | Kesin `data-testid` → anlamsal fallback → alternating rol; hata konuşma metni/log gönderme talebi içermez |
 | Kod bloğu içinde ``` | `mdFenceUret` daha uzun fence seçer |
 | URL'de `()` veya boşluk | `<url>` sargısı |
@@ -941,7 +995,7 @@ Kırılganlık: 🟢 attribute/custom-element (dayanıklı) · 🟡 anlamsal cla
 | Artifact viewer/içerik | `#wiggle-file-content` → `.code-block__code` \| `pre` \| `.standard-markdown` \| panel | 🟢→🟡 |
 | Viewer kapat / Share | `button[aria-label="Go back"]` → `"Close"` / `[data-testid="wiggle-controls-actions-share"]` → `textContent === 'Share'` | 🟢/🟢 |
 
-### ChatGPT (v1.8.2 — 2026-07 "wm" UI; her satırda yeni → eski fallback)
+### ChatGPT (v2.0.1 — 2026 Çalışma + "wm" + eski Canvas/turn geri dönüşleri)
 | Amaç | Selektör | K |
 |------|----------|---|
 | Turn | `li[data-message-role]` (id = mesaj UUID) → `[data-testid^="conversation-turn"]` + `[data-message-author-role]` — tek ortak selektör `CHATGPT_TURN_SELEKTORU` | 🟢 |
@@ -952,6 +1006,10 @@ Kırılganlık: 🟢 attribute/custom-element (dayanıklı) · 🟡 anlamsal cla
 | Paylaş | `button[aria-label="Paylaş"], button[aria-label="Share"]` (yeni UI'da mesaj bazlı `[data-share-message]`; header yoksa floating buton) | 🟢(2 dil) |
 | Sidebar aktif | `nav a[href^="/c/"][data-active="true"]` vb. 3'lü → doc.title | 🟡 |
 | Sanallaştırma | scroll-süpürme: kaydırılabilir ancestor + `clientHeight×0.75` adım + UUID dedup Map + scroll konumu geri yükleme | — |
+| Çalışma dosya atfı | `button[data-file-citation-primary-file-id]` / `button[data-file-citation-group-identity]` → uzantılı `button[aria-label]` | 🟢 |
+| Çalışma paneli | `section[data-testid="screen-threadFlyOut"][aria-label="<dosya>"]` → eski `canvas-panel`/Canvas-artifact dialog/aside geri dönüşleri | 🟢→🟡 |
+| Kaynak içerik | `[id^="artifact-"][id*="-source:"] .cm-content > code` → `.cm-content > code` → Canvas/ProseMirror/contenteditable/textarea/pre | 🟢→🟡 |
+| Panel kapat | `button[data-testid="close-button"]` → `data-testid*="close"` → `aria-label="Kapat"|"Close"` | 🟢 |
 | DİKKAT | Yeni DOM class'ları build hash'li (`_wdUoQG_*`) — class selektörü YASAK, yalnız `data-*` attribute | 🔴 |
 
 ### Grok
@@ -964,9 +1022,9 @@ YOL A — sayfa içi buton / Ctrl+Shift+P:
  1. click → yazdirmaBaslat()
  2. [Claude/ChatGPT/Grok] streamingMiKontrol → yazıyorsa uyar, DUR
  3. reentrance kilidi al
- 4. [Claude] artifactIcerikleriniCikar (progress toast'larıyla)
+ 4. [Claude] artifactIcerikleriniCikar; [ChatGPT] her asistan turn'ünde chatgptArtifactlariniCikar (progress toast'larıyla)
  5. resimIslemOturumuBaslat(90sn) → konusmayiCikar()
-    her turn: resimliHtmlCikar (klon+base64) + temizMetinCikar + turnResimleriniTopla
+    her turn: resimliHtmlCikar (klon+base64) + temizMetinCikar + turnResimleriniTopla + varsa artifactlar[]
  6. yazdirmayaBasla: ayar yükle → quotaKontrol → yazdirmaOturumuOlustur(UUID) → toast →
     await sendMessage(yazdirmaSayfasiAc, oturumKimligi)
  7. background: tabs.create(yazdir.html?oturum=UUID)
@@ -1085,7 +1143,7 @@ Kapat: oturumlu akışta yalnız aktif anahtar; parametresiz legacy akışta esk
 15. **Neden sıfır-seçim eylemleri kilitli?** Boş PDF veya anlamsız dosya üretmek sessiz başarısızlıktır; UI sayaç ve disabled state ile veri sözleşmesini eylemden önce görünür kılar.
 16. **Neden service worker TTL'i 6 saat?** Oku-sil normal akışı temizdir fakat tarayıcı/sekme kapanması sahipsiz paket bırakabilir; update'e kadar beklemek gereksiz yerel veri tutar, çok kısa TTL ise yavaş artifact çıkarımını riske atar.
 
-## EK I — Dosya/Fonksiyon Haritası (v2.0.0)
+## EK I — Dosya/Fonksiyon Haritası (v2.0.1)
 
 | Dosya | Satır | Fonksiyon sırası |
 |---|---:|---|
@@ -1095,7 +1153,7 @@ Kapat: oturumlu akışta yalnız aktif anahtar; parametresiz legacy akışta esk
 | `ortak-yardimcilar.js` | 477 | ayar doğrulama (25) · UUID (44–61) · ayar IO (78–93) · debounce/streaming/başlık/quota (107–193) · yazdırma başlatma (207) · Markdown (261–416) · UI temizlik/indirme (454–467) |
 | `content.js` | 520 | Gemini enjeksiyon/çıkarma (9–209) · hızlı indirme yüzeyi (298–486) · listener (492) |
 | `content-claude.js` | 436 | enjeksiyon (11–28) · yazdırma (132) · viewer kapatma (174) · artifact çıkarma (186) · mesaj çıkarma (313) · listener (398) |
-| `content-chatgpt.js` | 450 | enjeksiyon/floating (10–136) · yazdırma (207) · turn sözleşmesi (278–322) · tam süpürme (335) · listener (419) |
+| `content-chatgpt.js` | 685 | enjeksiyon/floating (10–205) · yazdırma (207) · turn sözleşmesi (278) · Çalışma/Canvas artefakt yaşam döngüsü (313–542) · tam süpürme (567) · listener (654) |
 | `content-grok.js` | 452 | floating enjeksiyon (9–29) · yazdırma (112) · rol/içerik (184–226) · çok katmanlı çıkarma (244) · listener (421) |
 | `popup.js` | 132 | form IO (7–21) · site/durum/busy (34–53) · DOMContentLoaded ayar ve çıkarma akışı (64 sonrası) |
 | `yazdir.js` | 735 | temel UI/hata durumu (11–78) · resim/sayfa/baskı (81–152) · DOMContentLoaded render ve eylemler (155 sonrası) · seçim (521–559) · kapat/pano/prefix/metin (566–653) · sanitizer (654) |
@@ -1156,6 +1214,12 @@ paylasButonunuBul(header: Element): HTMLButtonElement|null
 floatingButonEkle(): void
 chatgptTurnRolu(turn: Element): 'user'|'assistant'|null
 chatgptIcerikElemani(turn: Element, rol: string): Element
+chatgptArtifactAdaylariniBul(turn: Element): ArtifactAdayi[]
+chatgptArtifactPaneliniBul(baslik?: string): Element|null
+chatgptArtifactIceriginiOku(panel: Element): string
+chatgptArtifactIcerigininKararlilasmasiniBekle(panel: Element): Promise<string|null>
+chatgptArtifactPaneliniKapat(panel: Element): Promise<boolean>
+chatgptArtifactlariniCikar(turn: Element, ilerlemeBildir?: Function): Promise<{baslik,tur,icerik}[]>
 chatgptTurnAnahtari(turn: Element): string
 chatgptKaydiriciBul(turn: Element): Element|null
 
@@ -1188,7 +1252,7 @@ yazdirButonuDurumunuAyarla(calisiyor: boolean): void
 | Konu | Durum / Gerekçe |
 |------|------------------|
 | Cevap altı ↓ MD/↓ TXT yalnız Gemini'de | Diğer sitelere taşıma canlı DOM incelemesi gerektirir — tahmini selektörle kırık özellik gönderilmez |
-| ChatGPT Canvas / Gemini canvas-immersive | Desteklenmiyor (artifact karşılığı yalnız Claude'da) |
+| Gemini canvas-immersive | Desteklenmiyor; ChatGPT Çalışma/Canvas v2.0.1'de desteklenir |
 | `basligiTemizle` bare suffix agresifliği | "Sohbet Claude" → "Sohbet" yapar; kozmetik, v1.3.0'dan beri stabil |
 | `oncekiSoruMetniBul` sibling-zinciri varsayımı | Canlı testte doğrulandı; Gemini wrapper katmanı eklerse kırılır — o zaman çok-seviyeli aramaya genişletilir |
 | Nested tablo (`tabloyuCevir`) | İç tablonun tr'leri düz listelenir — AI çıktısında pratikte yok |
@@ -1206,8 +1270,8 @@ yazdirButonuDurumunuAyarla(calisiyor: boolean): void
 |-------|---------------|-------|
 | Turn | `user-query`/`model-response`, `conversation-turn` | Bir konuşma sırası |
 | Üç kanal | `mesaj.html/metin/resimler` | Aynı içeriğin render/TXT/görsel yolları |
-| Artifact | `.artifact-block-cell`, `artifactlar[]` | Claude'un ürettiği dosya |
-| Viewer | `#wiggle-file-content` | Artifact içerik paneli |
+| Artifact | `.artifact-block-cell` veya `data-file-citation-*`, `artifactlar[]` | Claude ya da ChatGPT'nin ürettiği dosya/Canvas belgesi |
+| Viewer | `#wiggle-file-content` veya `screen-threadFlyOut` | Claude/ChatGPT artefakt içerik paneli |
 | Stabilite polling | 2 ardışık eşit `textContent.length` | Stream bitti sinyali |
 | Deadline | `resimIslemDeadline`, 90 sn | Resim işleme toplam süre sigortası |
 | Reentrance kilidi | `yazdirmaIslemiSuruyor` | Çift tıklama paralel akış engeli |
@@ -1227,6 +1291,6 @@ yazdirButonuDurumunuAyarla(calisiyor: boolean): void
 
 ---
 
-**Dokümantasyon sonu — v2.0.0 (15.08.2026)**
+**Dokümantasyon sonu — v2.0.1 (15.08.2026)**
 
 > Bu dokümanın amacı, projeyi başka bir geliştirici veya LLM tarafından **birebir yeniden üretilebilir** kılmaktır. Belge eksiksiz takip edilirse sonuç v2.0.0 ile fonksiyonel olarak özdeş olur: önceki bütün çıktı ve dört-site çıkarma yetenekleri korunur; Baskı Stüdyosu UX, 8 alanlı sayfa sözleşmesi, rol seçimi, güvenli DOM dışa aktarımı, tam-hostname kontrolü, TTL temizliği ve otomatik/gerçek MV3 kabul kapısı eklenir. Bölüm 28 güncel kanonik sınırları; Bölüm 11–21 mekanik ayrıntıları; EK C seçicileri; EK E kabul kanıtını tanımlar.

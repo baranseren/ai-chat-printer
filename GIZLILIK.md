@@ -1,13 +1,13 @@
 # AI Chat Printer — Gizlilik Bildirimi
 
-> Sürüm: 2.0.0 · Son güncelleme: 15.08.2026
+> Sürüm: 2.0.1 · Son güncelleme: 15.08.2026
 
 AI Chat Printer, Gemini, Claude, ChatGPT ve Grok konuşmalarını kullanıcının kendi tarayıcısında yazdırılabilir ve dışa aktarılabilir belgelere dönüştüren bir Chrome eklentisidir.
 
 ## Veri İşleme İlkesi
 
 - Konuşma içeriği yalnız kullanıcının açık olan destekli AI sekmesinden, kullanıcının yazdırma veya dışa aktarma eylemi üzerine okunur.
-- Konuşmalar, görseller, artifact içerikleri, başlıklar ve dışa aktarılan dosyalar herhangi bir sunucuya gönderilmez.
+- Konuşmalar, görseller, Claude artifact içerikleri, ChatGPT Çalışma/Canvas içerikleri, başlıklar ve dışa aktarılan dosyalar herhangi bir sunucuya gönderilmez.
 - Uzak ölçüm, reklam, kullanıcı profilleme, analiz servisi, hata izleme servisi veya üçüncü taraf veri aktarımı yoktur.
 - Eklenti; kullanıcı adı, parola, ödeme bilgisi veya tarama geçmişi toplamaz.
 
@@ -38,3 +38,5 @@ Kullanıcı önizlemede mesajları tek tek veya role göre seçebilir, kod blokl
 ## Değişiklikler
 
 Bu bildirimin veri işleme kapsamını değiştiren bir sürüm yayımlanırsa sürüm numarası ve son güncelleme tarihi bu dosyada yenilenir.
+
+v2.0.1, ChatGPT Çalışma/Canvas içeriğini yalnız kullanıcının açık sekmesindeki DOM üzerinden yerel olarak okur; izin, saklama süresi, ağ erişimi ve üçüncü taraf aktarım sözleşmesi değişmemiştir.
