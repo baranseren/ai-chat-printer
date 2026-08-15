@@ -1,5 +1,5 @@
 // AI Chat Printer - Ortak Yardımcılar
-// Gemini, Claude ve ChatGPT content script'leri tarafından paylaşılır
+// Gemini, Claude, ChatGPT ve Grok content script'leri tarafından paylaşılır
 // MV3 content script array'inde ikinci sırada yüklenir (resim-yardimcilari'ndan sonra)
 
 // Tüm eklenti için tek varsayılan ayar kaynağı
@@ -7,7 +7,11 @@ const VARSAYILAN_AYARLAR = { // varsayılan kullanıcı ayarları
     kodBloklari: true, // kod blokları dahil
     otomatikYazdir: true, // otomatik yazdır
     yaziBoyutu: '13', // normal yazı boyutu (px)
-    footerGoster: true // eklenti imzasını göster (true = footer aktif)
+    footerGoster: true, // eklenti imzasını göster (true = footer aktif)
+    kagitBoyutu: 'A4', // varsayılan kâğıt boyutu
+    yonlendirme: 'portrait', // varsayılan dikey sayfa
+    kenarBosluk: 'normal', // varsayılan sayfa kenar boşluğu
+    linkAdresleriniGoster: true // baskıda bağlantı adreslerini görünür yap
 };
 
 // chrome.storage.local quota — API'den dinamik oku (varsayılan 10MB)
@@ -15,6 +19,60 @@ const VARSAYILAN_AYARLAR = { // varsayılan kullanıcı ayarları
 const STORAGE_LOCAL_LIMIT = (typeof chrome !== 'undefined' && chrome.storage?.local?.QUOTA_BYTES) || (10 * 1024 * 1024); // resmi quota veya fallback
 const STORAGE_UYARI_ESIGI = Math.floor(STORAGE_LOCAL_LIMIT * 0.8); // %80 eşik (8 MB) — bu eşikten sonra uyar
 const RESIM_TOPLAM_SURE_LIMIT = 90 * 1000; // 90 saniye — tüm resim dönüşümleri için toplam limit
+const YAZDIRMA_OTURUM_ANAHTAR_ON_EKI = 'aiChatPrinterOturum:'; // her yazdırma isteğini benzersiz storage anahtarında tutar
+
+// Kayıtlı ayarları izinli değerlerle sınırlar ve eksik alanları varsayılanla tamamlar
+function ayarlariDogrula(ayarlar) {
+    const ham = ayarlar && typeof ayarlar === 'object' ? ayarlar : {}; // yanlış tipte kaydı boş kabul et
+    const yaziBoyutlari = ['11', '13', '15', '17']; // desteklenen yazı boyutları
+    const kagitBoyutlari = ['A4', 'A3', 'Letter']; // desteklenen kâğıt boyutları
+    const yonlendirmeler = ['portrait', 'landscape']; // desteklenen sayfa yönleri
+    const kenarBosluklari = ['dar', 'normal', 'genis']; // desteklenen kenar boşlukları
+    return { // yalnız tanımlı alanları döndür
+        kodBloklari: ham.kodBloklari !== false, // varsayılan açık
+        otomatikYazdir: ham.otomatikYazdir !== false, // varsayılan açık
+        yaziBoyutu: yaziBoyutlari.includes(String(ham.yaziBoyutu)) ? String(ham.yaziBoyutu) : VARSAYILAN_AYARLAR.yaziBoyutu, // izinli boyut
+        footerGoster: ham.footerGoster !== false, // varsayılan açık
+        kagitBoyutu: kagitBoyutlari.includes(ham.kagitBoyutu) ? ham.kagitBoyutu : VARSAYILAN_AYARLAR.kagitBoyutu, // izinli kâğıt
+        yonlendirme: yonlendirmeler.includes(ham.yonlendirme) ? ham.yonlendirme : VARSAYILAN_AYARLAR.yonlendirme, // izinli yön
+        kenarBosluk: kenarBosluklari.includes(ham.kenarBosluk) ? ham.kenarBosluk : VARSAYILAN_AYARLAR.kenarBosluk, // izinli boşluk
+        linkAdresleriniGoster: ham.linkAdresleriniGoster !== false // varsayılan açık
+    };
+}
+
+// URL/storage üzerinden gelen oturum kimliğinin güvenli biçimde olup olmadığını denetler
+function yazdirmaOturumKimligiGecerliMi(oturumKimligi) {
+    return typeof oturumKimligi === 'string' && /^[a-z0-9-]{8,80}$/i.test(oturumKimligi); // UUID ve fallback kimlikleri kabul et
+}
+
+// Yazdırma oturumunun storage anahtarını üretir
+function yazdirmaOturumAnahtari(oturumKimligi) {
+    if (!yazdirmaOturumKimligiGecerliMi(oturumKimligi)) return ''; // geçersiz kimliği storage anahtarına taşıma
+    return YAZDIRMA_OTURUM_ANAHTAR_ON_EKI + oturumKimligi; // oturum kimliği ile çakışmasız anahtar üret
+}
+
+// Her yazdırma isteği için benzersiz bir kimlik üretir
+function yazdirmaOturumKimligiOlustur() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID(); // modern ve çakışmasız kimlik
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2); // eski tarayıcılar için fallback
+}
+
+// Konuşma verisini yalnızca ilgili yazdırma sekmesinin okuyacağı oturumda saklar
+async function yazdirmaOturumuOlustur(veri, ayarlar) {
+    if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+        throw new Error('Eklenti bağlantısı koptu. Sayfayı yenileyip (F5) tekrar deneyin.'); // storage yoksa anlamlı hata
+    }
+    const oturumKimligi = yazdirmaOturumKimligiOlustur(); // her yazdırma akışına ayrı kimlik ver
+    const anahtar = yazdirmaOturumAnahtari(oturumKimligi); // oturuma özel storage anahtarı
+    await chrome.storage.local.set({
+        [anahtar]: { // global anahtar çakışmasını önleyen paket
+            konusmaVerisi: veri, // çıkarılmış konuşma içeriği
+            yazdirAyarlari: ayarlariDogrula(ayarlar), // o akışta geçerli ve doğrulanmış ayarlar
+            olusturmaZamani: Date.now() // bakım temizliği için zaman damgası
+        }
+    });
+    return oturumKimligi; // yazdırma sayfasına aktarılacak kimlik
+}
 
 // Ayarları chrome.storage.sync'ten yükler — kalıcı senkronize ayarlar
 async function ayarlariYukle() {
@@ -24,7 +82,7 @@ async function ayarlariYukle() {
         }
         const kayit = await chrome.storage.sync.get(['kullaniciAyarlari']); // sync storage'dan oku
         const kayitli = kayit.kullaniciAyarlari || {}; // kayıtlı ayarlar veya boş obje
-        return { ...VARSAYILAN_AYARLAR, ...kayitli }; // varsayılanları override et
+        return ayarlariDogrula(kayitli); // kayıtlı değerleri doğrula ve varsayılanları tamamla
     } catch (hata) { // erişim başarısızsa varsayılanı dön
         console.log('AI Chat Printer: Ayar yükleme başarısız, varsayılan kullanılıyor:', hata.message); // sessiz log (warn değil — extension errors'ta görünmesin)
         return { ...VARSAYILAN_AYARLAR }; // varsayılan ayarları döndür
@@ -37,7 +95,7 @@ async function ayarlariKaydet(ayarlar) {
         if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.sync) {
             return false; // chrome.storage erişilemez
         }
-        await chrome.storage.sync.set({ kullaniciAyarlari: ayarlar }); // sync storage'a yaz
+        await chrome.storage.sync.set({ kullaniciAyarlari: ayarlariDogrula(ayarlar) }); // yalnız doğrulanmış ayarları sync storage'a yaz
         return true; // başarılı
     } catch (hata) { // erişim başarısızsa
         console.log('AI Chat Printer: Ayar kaydetme başarısız:', hata.message); // sessiz log
@@ -170,16 +228,9 @@ async function yazdirmayaBasla(veri, uyariBalonuGoster) {
         console.log('AI Chat Printer [DEBUG]: Büyük konuşma tespit edildi:', quotaDurum.mbBoyut, 'MB'); // debug
     }
 
-    // Veriyi chrome.storage.local'a kaydet
-    if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
-        uyariBalonuGoster('Eklenti bağlantısı koptu. Sayfayı yenileyip (F5) tekrar deneyin.', 'hata');
-        return false;
-    }
+    let oturumKimligi; // yalnız ilgili önizleme sekmesinin okuyacağı veri paketi
     try { // storage erişim denemesi
-        await chrome.storage.local.set({ // geçici veri kaydet
-            konusmaVerisi: veri, // konuşma içeriği
-            yazdirAyarlari: ayarlar // yazdırma ayarları
-        });
+        oturumKimligi = await yazdirmaOturumuOlustur(veri, ayarlar); // konuşmayı oturuma özel anahtarda sakla
     } catch (storageHata) { // extension context kaybolmuşsa veya quota aşıldıysa
         const mesaj = storageHata.message || ''; // hata mesajı
         if (/quota/i.test(mesaj)) { // quota hatası
@@ -195,8 +246,10 @@ async function yazdirmayaBasla(veri, uyariBalonuGoster) {
 
     // Yazdırma sayfasını aç
     try { // runtime erişim denemesi
-        chrome.runtime.sendMessage({ islem: 'yazdirmaSayfasiAc' }); // background'a mesaj gönder
+        const yanit = await chrome.runtime.sendMessage({ islem: 'yazdirmaSayfasiAc', oturumKimligi: oturumKimligi }); // doğru oturumla önizleme sayfasını aç
+        if (!yanit || !yanit.basari) throw new Error(yanit?.hata || 'Yazdırma sayfası açılamadı.'); // arka plan hatasını kullanıcıya aktar
     } catch (iletisimHata) { // runtime kaybolmuşsa
+        if (oturumKimligi) chrome.storage.local.remove(yazdirmaOturumAnahtari(oturumKimligi)).catch(() => {}); // açılamayan önizlemenin paketini bırakma
         uyariBalonuGoster('Arka plan bağlantısı koptu. Sayfayı yenileyin (F5).', 'hata'); // uyarı
         return false;
     }
@@ -360,7 +413,7 @@ function mesajMarkdownIcerigi(mesaj) {
 }
 
 // Konuşma verisini Markdown formatına dönüştürür (clipboard ve dosya export için)
-function konusmayiMarkdowneDonustur(veri) {
+function konusmayiMarkdowneDonustur(veri, footerGoster) {
     if (!veri || !veri.mesajlar) return ''; // veri yoksa boş
 
     const yapayZekaAdi = veri.kaynak === 'claude' ? 'Claude' : veri.kaynak === 'chatgpt' ? 'ChatGPT' : veri.kaynak === 'grok' ? 'Grok' : 'Gemini'; // kaynak adı
@@ -393,7 +446,7 @@ function konusmayiMarkdowneDonustur(veri) {
         md += '---\n\n'; // mesaj ayırıcı
     });
 
-    md += '\n> Bu çıktı AI Chat Printer eklentisi ile oluşturulmuştur.\n'; // footer
+    if (footerGoster !== false) md += '\n> Bu çıktı AI Chat Printer eklentisi ile oluşturulmuştur.\n'; // kullanıcı isterse footer ekle
     return md; // markdown string
 }
 

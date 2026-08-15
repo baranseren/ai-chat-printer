@@ -53,6 +53,7 @@ function butonuEnjekteEt() {
     // Yazdır butonu
     const yazdirButonu = document.createElement('button'); // buton elementi
     yazdirButonu.id = 'chatgpt-printer-buton'; // benzersiz id
+    yazdirButonu.type = 'button'; // form içine taşınsa bile submit davranışı üretme
     yazdirButonu.title = 'Konuşmayı Yazdır (AI Chat Printer)'; // tooltip
     yazdirButonu.setAttribute('aria-label', 'Konuşmayı Yazdır'); // erişilebilirlik
     yazdirButonu.style.cssText = [ // ChatGPT buton stiline uyumlu
@@ -137,14 +138,15 @@ function floatingButonEkle() {
 
     const yazdirButonu = document.createElement('button'); // buton elementi
     yazdirButonu.id = 'chatgpt-printer-buton'; // benzersiz id (observer aynı id'yi izler)
+    yazdirButonu.type = 'button'; // form içine taşınsa bile submit davranışı üretme
     yazdirButonu.title = 'Konuşmayı Yazdır (AI Chat Printer)'; // tooltip
     yazdirButonu.setAttribute('aria-label', 'Konuşmayı Yazdır'); // erişilebilirlik
     yazdirButonu.style.cssText = [ // floating buton stili — sağ üst köşede sabit
         'position:fixed', // viewport'a kilitli
-        'top:14px', // header seviyesinde
-        'right:64px', // sağ üstteki profil/menü alanının solu
-        'width:36px',
-        'height:36px',
+        'top:72px', // değişken header butonlarıyla çakışmayacak erişim noktası
+        'right:18px', // viewport kenarına dayanıklı konum
+        'width:42px',
+        'height:42px',
         'border-radius:9999px',
         'border:1px solid rgba(0,0,0,0.08)', // hafif kenarlık (görünürlük için)
         'background:#ffffff', // beyaz arka plan
@@ -155,7 +157,7 @@ function floatingButonEkle() {
         'transition:all 0.2s',
         'padding:0',
         'z-index:9999', // sayfa elementlerinin üstünde
-        'box-shadow:0 1px 3px rgba(0,0,0,0.08)' // hafif gölge
+        'box-shadow:0 5px 18px rgba(0,0,0,0.16)' // açık ve koyu temada görünür gölge
     ].join(';'); // stil özellikleri
 
     // Yazıcı SVG ikonu
@@ -260,7 +262,7 @@ function uyariBalonuGoster(mesaj, tip) {
     if (!document.querySelector('#chatgpt-printer-stil')) { // stil yoksa
         const stil = document.createElement('style'); // style elementi
         stil.id = 'chatgpt-printer-stil'; // benzersiz id
-        stil.textContent = '@keyframes chatgptPrinterFadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}'; // fade-in animasyonu
+        stil.textContent = '@keyframes chatgptPrinterFadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}#chatgpt-printer-buton:focus-visible{outline:3px solid rgba(16,163,127,.4)!important;outline-offset:3px!important}@media(prefers-reduced-motion:reduce){#chatgpt-printer-buton,#chatgpt-printer-uyari{animation:none!important;transition:none!important}}'; // animasyon + görünür klavye odağı
         document.head.appendChild(stil); // head'e ekle
     }
 
@@ -371,12 +373,19 @@ async function konusmayiCikar(ilerlemeBildir) {
             kaydirici.scrollTop = 0; // en üste git
             await new Promise((coz) => setTimeout(coz, 450)); // üst mesajların render'ını bekle
             let adim = 0; // adım sayacı
-            const maksAdim = 120; // güvenlik üst sınırı (çok uzun konuşma)
-            while (adim < maksAdim) { // aşağı doğru süpür
+            let ilerlemeyenAdim = 0; // kaydırıcının hareket etmediği ardışık adımlar
+            while (true) { // konuşmanın gerçek dibine kadar süpür
                 await gorunenleriIsle(); // bu dilimdeki turn'leri işle
                 if (kaydirici.scrollTop + kaydirici.clientHeight >= kaydirici.scrollHeight - 5) break; // dibe ulaşıldı
-                kaydirici.scrollTop += Math.max(200, Math.floor(kaydirici.clientHeight * 0.75)); // bir dilim aşağı
+                const oncekiScroll = kaydirici.scrollTop; // ilerleme denetimi için mevcut konum
+                const hedefScroll = Math.min(kaydirici.scrollHeight - kaydirici.clientHeight, oncekiScroll + Math.max(200, Math.floor(kaydirici.clientHeight * 0.75))); // sınırı aşmayan hedef
+                kaydirici.scrollTop = hedefScroll; // bir dilim aşağı
                 await new Promise((coz) => setTimeout(coz, 350)); // lazy render bekleme
+                ilerlemeyenAdim = kaydirici.scrollTop <= oncekiScroll + 1 ? ilerlemeyenAdim + 1 : 0; // gerçekten hareket etti mi
+                if (ilerlemeyenAdim >= 3) { // DOM üç kez hareket üretmediyse sonsuz döngüyü önle
+                    await gorunenleriIsle(); // mevcut son dilimi yine de işle
+                    break; // kaydırma yüzeyi ilerlemiyor
+                }
                 adim++; // sayaç
                 if (ilerlemeBildir && adim % 8 === 0) ilerlemeBildir('Uzun konuşma taranıyor... (' + mesajMap.size + ' mesaj)', 'basari'); // ilerleme bildirimi
             }

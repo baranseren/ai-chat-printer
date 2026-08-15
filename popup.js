@@ -1,186 +1,132 @@
-// Popup script - AI konuşmasını çıkarıp yazdırma sayfasını açar
-// VARSAYILAN_AYARLAR ve quotaKontrol ortak-yardimcilar.js'ten gelir (popup.html'de önce yüklenir)
+// Popup script - AI konuşmasını çıkarıp oturum-özel yazdırma sayfasını açar
+// Site ve ayar sözleşmeleri popup.html'de önce yüklenen ortak dosyalardan gelir.
 
-// Sayfa yüklendiğinde çalış
-document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğunda
-    const yazdirButonu = document.getElementById('yazdirButonu'); // yazdır butonu
-    const kodBloklariCheck = document.getElementById('kodBloklari'); // kod blokları toggle
-    const otomatikYazdirCheck = document.getElementById('otomatikYazdir'); // otomatik yazdır toggle
-    const yaziBoyutuSelect = document.getElementById('yaziBoyutu'); // yazı boyutu select
-    const footerGosterCheck = document.getElementById('footerGoster'); // footer toggle
+let durumGizlemeZamanlayicisi = null; // kısa bilgi mesajlarının tek zamanlayıcısı
 
-    // Sürüm bilgisini manifest'ten dinamik oku (hardcoded sürüm güncel kalmıyordu)
-    try { // manifest erişim denemesi
-        document.getElementById('surumBilgisi').textContent = 'AI Chat Printer v' + chrome.runtime.getManifest().version; // dinamik sürüm
-    } catch (surumHata) {} // erişilemezse sadece ad kalır
+// Formdaki tüm kullanıcı ayarlarını doğrulanmış nesne olarak döndürür
+function ayarlariFormdanOku() {
+    return ayarlariDogrula({ // ortak ayar doğrulayıcısını kullan
+        kodBloklari: document.getElementById('kodBloklari').checked, // kod blokları
+        otomatikYazdir: document.getElementById('otomatikYazdir').checked, // otomatik yazdır
+        yaziBoyutu: document.getElementById('yaziBoyutu').value, // yazı boyutu
+        footerGoster: document.getElementById('footerGoster').checked, // belge imzası
+        kagitBoyutu: document.getElementById('kagitBoyutu').value, // kâğıt boyutu
+        yonlendirme: document.getElementById('yonlendirme').value, // sayfa yönü
+        kenarBosluk: document.getElementById('kenarBosluk').value, // kenar boşluğu
+        linkAdresleriniGoster: document.getElementById('linkAdresleriniGoster').checked // baskıda link adresleri
+    });
+}
 
-    // Kalıcı ayarları yükle ve UI'ya yansıt
-    try { // storage erişim denemesi
-        const kayit = await chrome.storage.sync.get(['kullaniciAyarlari']); // sync storage'dan oku
-        const ayarlar = { ...VARSAYILAN_AYARLAR, ...(kayit.kullaniciAyarlari || {}) }; // varsayılanları override et (ortak modülden)
-        kodBloklariCheck.checked = ayarlar.kodBloklari; // toggle durumu
-        otomatikYazdirCheck.checked = ayarlar.otomatikYazdir; // toggle durumu
-        yaziBoyutuSelect.value = ayarlar.yaziBoyutu; // select değeri
-        footerGosterCheck.checked = ayarlar.footerGoster !== false; // varsayılan true
-    } catch (yukleHata) { // storage erişilemezse varsayılan kalır
-        console.warn('AI Chat Printer: Ayar yükleme başarısız:', yukleHata.message); // uyarı
+// Kayıtlı ayarları form kontrollerine yansıtır
+function ayarlariFormaYansit(ayarlar) {
+    const dogrulanmis = ayarlariDogrula(ayarlar); // eski sürüm kayıtlarını da tamamla
+    document.getElementById('kodBloklari').checked = dogrulanmis.kodBloklari; // kod blokları
+    document.getElementById('otomatikYazdir').checked = dogrulanmis.otomatikYazdir; // otomatik yazdır
+    document.getElementById('yaziBoyutu').value = dogrulanmis.yaziBoyutu; // yazı boyutu
+    document.getElementById('footerGoster').checked = dogrulanmis.footerGoster; // belge imzası
+    document.getElementById('kagitBoyutu').value = dogrulanmis.kagitBoyutu; // kâğıt boyutu
+    document.getElementById('yonlendirme').value = dogrulanmis.yonlendirme; // sayfa yönü
+    document.getElementById('kenarBosluk').value = dogrulanmis.kenarBosluk; // kenar boşluğu
+    document.getElementById('linkAdresleriniGoster').checked = dogrulanmis.linkAdresleriniGoster; // link adresleri
+}
+
+// Etkin sekmenin destek durumunu kullanıcıya açık biçimde gösterir
+function siteDurumunuGoster(siteBilgisi) {
+    const alan = document.getElementById('siteDurumu'); // durum satırı
+    const metin = document.getElementById('siteDurumuMetni'); // durum metni
+    alan.className = 'site-durumu ' + (siteBilgisi ? 'destekleniyor' : 'desteklenmiyor'); // renk durumu
+    metin.textContent = siteBilgisi ? siteBilgisi.gorunenAd + ' konuşması hazır' : 'Bu sekme desteklenen bir AI konuşması değil'; // anlaşılır sonuç
+}
+
+// Durum mesajını erişilebilir canlı bölgede gösterir
+function durumGoster(tip, mesaj, otomatikGizle) {
+    const durumAlani = document.getElementById('durumAlani'); // durum alanı
+    if (durumGizlemeZamanlayicisi) clearTimeout(durumGizlemeZamanlayicisi); // önceki gizleme yarışını iptal et
+    durumAlani.className = 'durum gorunur ' + tip; // CSS durum sınıfları
+    durumAlani.textContent = mesaj; // güvenli metin
+    if (otomatikGizle) { // kısa bilgi mesajıysa
+        durumGizlemeZamanlayicisi = setTimeout(() => durumAlani.classList.remove('gorunur'), otomatikGizle); // belirtilen sürede gizle
+    }
+}
+
+// Ana butonun çalışma ve metin durumunu değiştirir
+function yazdirButonuDurumunuAyarla(calisiyor) {
+    const buton = document.getElementById('yazdirButonu'); // ana buton
+    const metin = document.getElementById('yazdirButonMetni'); // buton metni
+    buton.disabled = calisiyor; // paralel tıklamayı engelle
+    buton.setAttribute('aria-busy', calisiyor ? 'true' : 'false'); // yardımcı teknolojiye işlem durumu
+    metin.textContent = calisiyor ? 'Konuşma hazırlanıyor…' : 'Konuşmayı Önizle'; // görünür durum
+}
+
+// Popup açıldığında ayarları ve etkin sekmeyi hazırlar
+document.addEventListener('DOMContentLoaded', async () => {
+    const yazdirButonu = document.getElementById('yazdirButonu'); // ana işlem butonu
+    const ayarKontrolleri = Array.from(document.querySelectorAll('.ayar-bolumu input, .ayar-bolumu select')); // kalıcı ayar kontrolleri
+    let aktifSekme = null; // tıklamada yeniden doğrulanacak etkin sekme
+
+    try { // sürüm bilgisini manifest'ten tek kaynaktan oku
+        document.getElementById('surumBilgisi').textContent = 'v' + chrome.runtime.getManifest().version; // dinamik sürüm
+    } catch (surumHata) {} // erişilemezse ürün adı korunur
+
+    ayarlariFormaYansit(await ayarlariYukle()); // kayıtlı ayarları doğrulayıp forma yaz
+
+    try { // etkin sekmeyi proaktif doğrula
+        [aktifSekme] = await chrome.tabs.query({ active: true, currentWindow: true }); // etkin sekme
+        const siteBilgisi = desteklenenSiteBilgisi(aktifSekme?.url || ''); // tam hostname kontrolü
+        siteDurumunuGoster(siteBilgisi); // görünür durum
+        yazdirButonu.disabled = !siteBilgisi; // desteklenmeyen sekmede işlemi kapat
+        if (!siteBilgisi) durumGoster('bilgi', 'Gemini, Claude, ChatGPT veya Grok üzerinde açık bir konuşmaya geçildiğinde buton etkinleşir.'); // yol gösterici bilgi
+    } catch (sekmeHata) { // sekme bilgisi alınamadıysa
+        siteDurumunuGoster(null); // desteklenmiyor durumu
+        yazdirButonu.disabled = true; // yanlış işlem başlatma
+        durumGoster('hata', 'Etkin sekme bilgisi alınamadı.'); // açık hata
     }
 
-    // Aktif sekmeyi proaktif kontrol et — desteklenmeyen sitedeyse bilgi ver
-    const DESTEKLENEN_URLLER = ['gemini.google.com', 'claude.ai', 'chatgpt.com', 'grok.com']; // tek doğru kaynak
-    try { // sekme bilgisi
-        const [aktif] = await chrome.tabs.query({ active: true, currentWindow: true }); // aktif sekme
-        const url = aktif?.url || ''; // URL
-        const desteklenenSite = DESTEKLENEN_URLLER.some((domain) => url.includes(domain)); // desteklenen mi
-        if (!desteklenenSite) { // değilse uyar
-            durumGoster('bilgi', 'Bu sayfa desteklenmiyor. Eklenti gemini.google.com, claude.ai, chatgpt.com ve grok.com sayfalarında çalışır.'); // bilgi mesajı
-            yazdirButonu.disabled = true; // yazdır butonunu disable et
-            yazdirButonu.style.opacity = '0.5'; // görsel feedback
-            yazdirButonu.style.cursor = 'not-allowed'; // imleç değişimi
-        }
-    } catch (sekmeHata) { // tabs API hatası — görmezden gel, normal akış devam etsin
-        console.warn('AI Chat Printer: Sekme kontrolü başarısız:', sekmeHata.message); // uyarı
-    }
+    // Her ayar değişikliğini tek doğrulayıcı üzerinden kalıcı kaydeder
+    ayarKontrolleri.forEach((kontrol) => kontrol.addEventListener('change', async () => {
+        const basari = await ayarlariKaydet(ayarlariFormdanOku()); // ortak kalıcı kayıt
+        durumGoster(basari ? 'bilgi' : 'hata', basari ? 'Ayar kaydedildi.' : 'Ayar kaydedilemedi.', basari ? 1400 : 0); // sonuç bildirimi
+    }));
 
-    // Ayar değiştiğinde otomatik kalıcı kaydet + feedback göster
-    const ayarKaydet = async () => { // ayarları kaydeden iç fonksiyon
-        const ayarlar = { // mevcut UI ayarları
-            kodBloklari: kodBloklariCheck.checked, // kod blokları dahil mi
-            otomatikYazdir: otomatikYazdirCheck.checked, // otomatik yazdır mı
-            yaziBoyutu: yaziBoyutuSelect.value, // yazı boyutu
-            footerGoster: footerGosterCheck.checked // footer göster
-        };
-        try { // storage erişim denemesi
-            await chrome.storage.sync.set({ kullaniciAyarlari: ayarlar }); // sync storage'a yaz
-            durumGoster('bilgi', 'Ayar kaydedildi.'); // kullanıcıya feedback
-            setTimeout(() => { // 1.5sn sonra durum alanını gizle (yazdır butonu aktifse etkilemez)
-                const du = document.getElementById('durumAlani');
-                if (du && du.classList.contains('bilgi')) du.classList.remove('gorunur');
-            }, 1500);
-        } catch (kayitHata) { // erişim başarısızsa
-            console.warn('AI Chat Printer: Ayar kaydetme başarısız:', kayitHata.message); // uyarı
-            durumGoster('hata', 'Ayar kaydedilemedi.'); // hata feedback
-        }
-    };
-    kodBloklariCheck.addEventListener('change', ayarKaydet); // toggle değişimi
-    otomatikYazdirCheck.addEventListener('change', ayarKaydet); // toggle değişimi
-    yaziBoyutuSelect.addEventListener('change', ayarKaydet); // select değişimi
-    footerGosterCheck.addEventListener('change', ayarKaydet); // footer toggle değişimi
+    // Konuşmayı çıkarır, benzersiz pakete yazar ve önizleme sekmesini açar
+    yazdirButonu.addEventListener('click', async () => {
+        yazdirButonuDurumunuAyarla(true); // çift tıklama kilidi
+        durumGoster('bilgi', 'Konuşma içeriği ve görseller hazırlanıyor…'); // işlem durumu
+        let oturumKimligi = ''; // hata hâlinde temizlenecek paket
 
-    // Yazdır butonuna tıklama olayı
-    yazdirButonu.addEventListener('click', async () => { // tıklama dinleyici
-        yazdirButonu.disabled = true; // butonu devre dışı bırak
-        butonMetniGuncelle(yazdirButonu, 'Çıkarılıyor...'); // SVG'yi koruyarak metni güncelle
-        durumGoster('bilgi', 'Konuşma içeriği çıkarılıyor...'); // bilgi mesajı göster
+        try { // uçtan uca çıkarma ve açma akışı
+            [aktifSekme] = await chrome.tabs.query({ active: true, currentWindow: true }); // tıklama anındaki sekmeyi yeniden al
+            const siteBilgisi = desteklenenSiteBilgisi(aktifSekme?.url || ''); // tam hostname doğrulaması
+            if (!siteBilgisi) throw new Error('Bu sekme desteklenen bir AI konuşması değil.'); // kapsam dışı sekme
 
-        try {
-            // Aktif sekmeyi al
-            const [aktifSekme] = await chrome.tabs.query({ active: true, currentWindow: true }); // aktif sekme bilgisi
-
-            // Desteklenen site kontrolü (DRY — yukarıdaki DESTEKLENEN_URLLER ile aynı)
-            const desteklenenSite = DESTEKLENEN_URLLER.some((domain) => (aktifSekme.url || '').includes(domain)); // URL kontrolü
-            if (!desteklenenSite) { // desteklenmeyen site
-                durumGoster('hata', 'Bu eklenti gemini.google.com, claude.ai, chatgpt.com ve grok.com sayfalarında çalışır.'); // hata mesajı
-                butonuSifirla(); // butonu eski haline getir
-                return;
+            let yanit; // content script yanıtı
+            try { // sayfa bağlamıyla iletişim
+                yanit = await chrome.tabs.sendMessage(aktifSekme.id, { islem: 'konusmayiCikar' }); // konuşmayı çıkar
+            } catch (iletisimHata) { // eklenti güncellendikten sonra eski sayfa bağlamı
+                throw new Error('Sayfadaki eklenti bağlantısı eski. Sekme yenilendiğinde yeni sürüm etkinleşir.'); // teknik jargonsuz açıklama
             }
 
-            // Content script'e mesaj gönder — context kaybolmuşsa yakalama
-            let yanit; // response bekleme
-            try { // content script iletişim denemesi
-                yanit = await chrome.tabs.sendMessage(aktifSekme.id, { islem: 'konusmayiCikar' }); // konuşma çıkar isteği
-            } catch (iletisimHata) { // content script yanıt vermediyse
-                durumGoster('hata', 'Content script yüklenmemiş. Sayfayı yenileyip (F5) tekrar deneyin.'); // kullanıcı rehberi
-                butonuSifirla(); // butonu sıfırla
-                return;
+            if (!yanit) throw new Error('Sayfadan konuşma verisi alınamadı.'); // boş yanıt
+            if (yanit.hata) throw new Error(yanit.hata); // çıkarıcı hatası
+            if (!Array.isArray(yanit.mesajlar) || yanit.mesajlar.length === 0) throw new Error('Açık konuşmada yazdırılabilir mesaj bulunamadı.'); // boş konuşma
+
+            const quotaDurum = quotaKontrol(yanit); // gerçek storage sınırını denetle
+            if (!quotaDurum.gecerli) throw new Error(quotaDurum.mesaj); // sınır aşıldı
+
+            const ayarlar = ayarlariFormdanOku(); // işlem anındaki ayarlar
+            await ayarlariKaydet(ayarlar); // popup ve önizleme ayarlarını senkron tut
+            oturumKimligi = await yazdirmaOturumuOlustur(yanit, ayarlar); // yalnız bu önizlemeye ait paket
+
+            const acilisYaniti = await chrome.runtime.sendMessage({ islem: 'yazdirmaSayfasiAc', oturumKimligi: oturumKimligi }); // arka plandan yeni sekme aç
+            if (!acilisYaniti?.basari) throw new Error(acilisYaniti?.hata || 'Önizleme sekmesi açılamadı.'); // açılış hatası
+            durumGoster('basarili', yanit.mesajSayisi + ' mesaj önizlemeye aktarıldı.'); // başarı sonucu
+        } catch (hata) { // tüm hata yolları tek kullanıcı mesajında birleşir
+            if (oturumKimligi) { // sahipsiz paket oluştuysa
+                const anahtar = yazdirmaOturumAnahtari(oturumKimligi); // güvenli anahtar
+                if (anahtar) chrome.storage.local.remove(anahtar).catch(() => {}); // paketi temizle
             }
-
-            if (!yanit) { // boş yanıt
-                durumGoster('hata', 'Sayfadan yanıt alınamadı. Sayfayı yenileyip (F5) tekrar deneyin.'); // rehber
-                butonuSifirla(); // butonu sıfırla
-                return;
-            }
-
-            if (yanit.hata) { // hata varsa
-                durumGoster('hata', yanit.hata); // hata mesajını göster
-                butonuSifirla(); // butonu sıfırla
-                return;
-            }
-
-            if (!yanit.mesajlar || yanit.mesajlar.length === 0) { // mesaj yoksa
-                durumGoster('hata', 'Konuşmada mesaj bulunamadı. Bir sohbet açık olduğundan emin olun.'); // uyarı
-                butonuSifirla(); // butonu sıfırla
-                return;
-            }
-
-            // Storage quota kontrolü (ortak modülden) — sayfa içi buton akışıyla aynı koruma
-            const quotaDurum = quotaKontrol(yanit); // veri boyutu kontrolü
-            if (!quotaDurum.gecerli) { // hard limit aşılmışsa
-                durumGoster('hata', quotaDurum.mesaj); // spesifik quota mesajı
-                butonuSifirla(); // butonu sıfırla
-                return;
-            }
-
-            // Ayarları oku (UI'dan)
-            const ayarlar = { // kullanıcı tercihleri
-                kodBloklari: kodBloklariCheck.checked, // kod blokları dahil mi
-                otomatikYazdir: otomatikYazdirCheck.checked, // otomatik yazdır mı
-                yaziBoyutu: yaziBoyutuSelect.value, // yazı boyutu
-                footerGoster: footerGosterCheck.checked // footer göster
-            };
-
-            // Ayarları kalıcı olarak kaydet (bu tıklamada değişmiş olabilir)
-            try { // sync storage denemesi
-                await chrome.storage.sync.set({ kullaniciAyarlari: ayarlar }); // kalıcı kaydet
-            } catch (syncHata) { // başarısızsa görmezden gel
-                console.warn('AI Chat Printer: Sync kaydı başarısız:', syncHata.message); // uyarı
-            }
-
-            // Veriyi chrome.storage.local'a kaydet
-            await chrome.storage.local.set({ // geçici veri kaydet
-                konusmaVerisi: yanit, // konuşma içeriği
-                yazdirAyarlari: ayarlar // yazdırma ayarları
-            });
-
-            durumGoster('basarili', yanit.mesajSayisi + ' mesaj çıkarıldı. Yazdırma sayfası açılıyor...'); // başarı mesajı
-
-            // Yazdırma sayfasını aç
-            chrome.tabs.create({ url: chrome.runtime.getURL('yazdir.html') }); // yeni sekmede aç
-
-        } catch (hata) { // hata yakalandıysa
-            console.error('AI Chat Printer hata:', hata); // konsola yaz
-            durumGoster('hata', 'Bir hata oluştu: ' + hata.message); // kullanıcıya göster
-            butonuSifirla(); // butonu sıfırla
+            durumGoster('hata', hata.message || 'Konuşma hazırlanamadı.'); // somut hata
+            yazdirButonuDurumunuAyarla(false); // yeniden denemeye izin ver
         }
     });
 });
-
-// Durum mesajını gösterir
-function durumGoster(tip, mesaj) { // tip: basarili, hata, bilgi
-    const durumAlani = document.getElementById('durumAlani'); // durum alanı
-    durumAlani.className = 'durum gorunur ' + tip; // CSS sınıflarını ayarla
-    durumAlani.textContent = mesaj; // mesaj metnini yaz
-}
-
-// Butonu varsayılan haline döndürür (SVG'yi koruyarak)
-function butonuSifirla() {
-    const yazdirButonu = document.getElementById('yazdirButonu'); // buton referansı
-    yazdirButonu.disabled = false; // butonu aktif et
-    butonMetniGuncelle(yazdirButonu, 'Konuşmayı Yazdır'); // SVG'yi koruyarak metni geri yükle
-}
-
-// Butonun metnini değiştirir — içindeki SVG'yi korur (ilk text node'u günceller)
-function butonMetniGuncelle(buton, yeniMetin) {
-    let metinNode = null; // mevcut text node
-    for (const cocuk of buton.childNodes) { // çocukları tara
-        if (cocuk.nodeType === Node.TEXT_NODE && cocuk.textContent.trim()) { // dolu text node
-            metinNode = cocuk; // bulundu
-            break;
-        }
-    }
-    if (metinNode) { // mevcut text node varsa
-        metinNode.textContent = ' ' + yeniMetin; // güncelle (baştaki boşluk SVG ile mesafe için)
-    } else { // yoksa yeni text node ekle (SVG'den sonra)
-        buton.appendChild(document.createTextNode(' ' + yeniMetin)); // yeni text node ekle
-    }
-}

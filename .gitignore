@@ -3,10 +3,17 @@ talimatlar.md
 yol-haritasi.md
 aha_point.md
 Hafiza/
-icons/ikon_olustur.py
 tasks/
 .claude/
 .vscode/
 *.log
 .DS_Store
 Thumbs.db
+
+# Test ve Python çalışma artıkları
+__pycache__/
+.pytest_cache/
+test-results/
+screenshots/
+dist/
+_store_capture/

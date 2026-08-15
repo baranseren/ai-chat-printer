@@ -36,14 +36,15 @@ function butonuEnjekteEt() {
     // Yazdır butonu (floating, fixed positioned)
     const yazdirButonu = document.createElement('button'); // buton elementi
     yazdirButonu.id = 'grok-printer-buton'; // benzersiz id
+    yazdirButonu.type = 'button'; // form içine taşınsa bile submit davranışı üretme
     yazdirButonu.title = 'Konuşmayı Yazdır (AI Chat Printer)'; // tooltip
     yazdirButonu.setAttribute('aria-label', 'Konuşmayı Yazdır'); // erişilebilirlik
     yazdirButonu.style.cssText = [ // floating button stili — sağ üst köşede sabit
         'position:fixed', // viewport'a kilitli
-        'top:14px', // header seviyesinde
-        'right:240px', // Paylaş butonunun yaklaşık solu (Grok layout'una göre)
-        'width:36px',
-        'height:36px',
+        'top:72px', // değişken header butonlarıyla çakışmayacak sabit erişim noktası
+        'right:18px', // viewport kenarına dayanıklı konum
+        'width:42px',
+        'height:42px',
         'border-radius:9999px',
         'border:1px solid rgba(0,0,0,0.08)', // hafif kenarlık (görünürlük için)
         'background:#ffffff', // beyaz arka plan (header görünür kalır)
@@ -54,7 +55,7 @@ function butonuEnjekteEt() {
         'transition:all 0.2s',
         'padding:0',
         'z-index:9999', // tüm Grok elementlerinin üstünde
-        'box-shadow:0 1px 3px rgba(0,0,0,0.08)' // hafif gölge
+        'box-shadow:0 5px 18px rgba(0,0,0,0.16)' // hem açık hem koyu temada görünür gölge
     ].join(';'); // stil özellikleri
 
     // Yazıcı SVG ikonu
@@ -166,7 +167,7 @@ function uyariBalonuGoster(mesaj, tip) {
     if (!document.querySelector('#grok-printer-stil')) { // stil yoksa
         const stil = document.createElement('style'); // style elementi
         stil.id = 'grok-printer-stil'; // benzersiz id
-        stil.textContent = '@keyframes grokPrinterFadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}'; // fade-in animasyonu
+        stil.textContent = '@keyframes grokPrinterFadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}#grok-printer-buton:focus-visible{outline:3px solid rgba(184,71,54,.45)!important;outline-offset:3px!important}@media(prefers-reduced-motion:reduce){#grok-printer-buton,#grok-printer-uyari{animation:none!important;transition:none!important}}'; // animasyon + görünür klavye odağı
         document.head.appendChild(stil); // head'e ekle
     }
 
@@ -224,7 +225,7 @@ function grokMesajRolu(el) {
 // Bir element'in en uzun metin içeriğini barındıran descendant'ını bulur (agresif içerik çıkarma)
 function enZenginIcerikDescendant(el) {
     // Markdown / prose adayları (öncelikli)
-    const oncelikliAday = el.querySelector('.markdown, .prose, .markdown-content, [class*="prose"], [class*="markdown"], [class*="message-text"], [class*="response-text"], [class*="query-text"]'); // öncelikli class'lar
+    const oncelikliAday = el.querySelector('[data-testid="message-content"], [data-content="message"], .response-content-markdown.markdown, .markdown, .prose, .markdown-content, .message-text, .response-text, .query-text'); // exact attribute/class öncelikleri
     if (oncelikliAday && (oncelikliAday.textContent || '').trim().length > 5) return oncelikliAday; // öncelikli aday
 
     // Eğer öncelikli yoksa, en uzun metin barındıran descendant'ı bul
@@ -244,7 +245,14 @@ async function konusmayiCikar() {
     const mesajlar = []; // tüm mesajları tutacak dizi
     const debug = { stratejiler: {}, kullanilan: null }; // debug bilgisi (DevTools'a yazılır)
 
-    // STRATEJİ 1: Konuşma scroll alanının doğrudan child'ları (Grok'ta en yaygın)
+    // STRATEJİ 0: Güncel Grok'un açık ve rolü kesin data-testid mesajları
+    let mesajContainerlari = Array.from(document.querySelectorAll('[data-testid="user-message"], [data-testid="assistant-message"]')); // güvenilir güncel mesaj balonları
+    if (mesajContainerlari.length >= 2) { // anlamlı konuşma bulunduysa
+        debug.kullanilan = '0-kesinDataTestId'; // hangi stratejinin kazandığını kaydet
+        debug.stratejiler.kesinDataTestId = mesajContainerlari.length; // yalnız sayı, konuşma metni yok
+    }
+
+    // STRATEJİ 1: Konuşma scroll alanının doğrudan child'ları (eski Grok yapıları)
     function konusmaScrollAlaniBul() {
         // Çoklu aday selektörler — class isimleri Tailwind tabanlı
         const adayQueryler = [
@@ -264,11 +272,9 @@ async function konusmayiCikar() {
         return null; // hiçbir scroll alanı bulunamadı
     }
 
-    let mesajContainerlari = []; // bulunan mesaj container'ları
-
     // Strateji 1: scroll alanı child'ları
-    const scrollAlani = konusmaScrollAlaniBul(); // scroll alanı bul
-    if (scrollAlani) { // bulunduysa
+    const scrollAlani = mesajContainerlari.length < 2 ? konusmaScrollAlaniBul() : null; // kesin aday yoksa scroll alanı bul
+    if (scrollAlani && mesajContainerlari.length < 2) { // bulunduysa
         const child1 = Array.from(scrollAlani.children).filter((c) => // doğrudan child'ları filtrele
             (c.textContent || '').trim().length > 0 && // içerik var
             (c.tagName === 'DIV' || c.tagName === 'ARTICLE' || c.tagName === 'SECTION') // blok element
@@ -293,7 +299,7 @@ async function konusmayiCikar() {
     // STRATEJİ 2: data-attribute tabanlı arama
     if (mesajContainerlari.length < 2) { // strateji 1 başarısızsa
         mesajContainerlari = Array.from(document.querySelectorAll(
-            '[data-message-author-role], [data-author], [data-role="user"], [data-role="assistant"], [data-sender], [data-message-role], [data-testid*="message"]'
+            '[data-message-author-role], [data-author], [data-role="user"], [data-role="assistant"], [data-sender], [data-message-role]'
         )); // data attribute aramaları
         if (mesajContainerlari.length >= 2) debug.kullanilan = '2-dataAttribute'; // debug
         debug.stratejiler.dataAttr = mesajContainerlari.length; // debug
@@ -326,27 +332,32 @@ async function konusmayiCikar() {
         debug.stratejiler.classRegex = mesajContainerlari.length; // debug
     }
 
-    // Debug bilgisini DevTools console'a yaz (kullanıcı sorun bildirirse buraya bakar)
+    // Adayları DOM kimliğiyle tekilleştir ve aynı role ait iç içe kopyaların dıştaki mesaj sarmalayıcısını koru
+    mesajContainerlari = Array.from(new Set(mesajContainerlari)).filter((aday, indeks, tumAdaylar) => { // nesne kimliği tekilleştirme + nested guard
+        const adayRolu = grokMesajRolu(aday); // adayın açık rolü
+        if (!adayRolu) return true; // rolü fallback ile belirlenecek eski aday
+        return !tumAdaylar.some((diger, digerIndeks) => digerIndeks !== indeks && diger.contains(aday) && grokMesajRolu(diger) === adayRolu); // aynı rolün iç içe kopyasını atla
+    });
+
+    // Debug bilgisi yalnız yapısal sayıları içerir; kullanıcı konuşma metni loglanmaz
     console.log('AI Chat Printer [Grok DEBUG]:', debug); // detaylı debug
     console.log('AI Chat Printer [Grok DEBUG]: Bulunan container sayısı:', mesajContainerlari.length); // sayı
 
     if (mesajContainerlari.length === 0) { // hiç mesaj container'ı bulunamadı
-        return { hata: 'Grok konuşma yapısı tanınamadı. F12 → Console\'da [Grok DEBUG] log\'larını inceleyip eklenti geliştiricisine iletin.', mesajlar: [] };
+        return { hata: 'Grok konuşma yapısı tanınamadı. Açık bir konuşma bulunduğunu doğrulayın.', mesajlar: [] };
     }
 
-    // Debug: ilk 2 container'ın yapısını yazdır
+    // Debug: ilk iki container'ın yalnız etiketi ve sınıf yapısı
     if (mesajContainerlari[0]) { // ilk varsa
         console.log('AI Chat Printer [Grok DEBUG]: 1. container:', { // debug
             tag: mesajContainerlari[0].tagName, // tag
-            cls: (mesajContainerlari[0].className || '').toString().slice(0, 120), // class
-            txt: (mesajContainerlari[0].textContent || '').trim().slice(0, 80) // metin önizleme
+            cls: (mesajContainerlari[0].className || '').toString().slice(0, 120) // class
         });
     }
     if (mesajContainerlari[1]) { // ikinci varsa
         console.log('AI Chat Printer [Grok DEBUG]: 2. container:', { // debug
             tag: mesajContainerlari[1].tagName, // tag
-            cls: (mesajContainerlari[1].className || '').toString().slice(0, 120), // class
-            txt: (mesajContainerlari[1].textContent || '').trim().slice(0, 80) // metin önizleme
+            cls: (mesajContainerlari[1].className || '').toString().slice(0, 120) // class
         });
     }
 
@@ -387,7 +398,7 @@ async function konusmayiCikar() {
     console.log('AI Chat Printer [Grok DEBUG]: Çıkarılan mesaj sayısı:', basariliMesaj); // sonuç
 
     if (mesajlar.length === 0) { // hiçbir mesaj çıkarılamadıysa
-        return { hata: 'Grok konuşma içeriği çıkarılamadı. F12 → Console\'da [Grok DEBUG] log\'larını inceleyip eklenti geliştiricisine iletin.', mesajlar: [] };
+        return { hata: 'Grok konuşma içeriği çıkarılamadı. Açık konuşmayı yenileyip yeniden deneyin.', mesajlar: [] };
     }
 
     // Konuşma başlığını al — sidebar aktif link veya document.title

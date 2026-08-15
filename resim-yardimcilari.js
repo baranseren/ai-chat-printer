@@ -1,5 +1,5 @@
 // AI Chat Printer - Ortak Resim Yardımcıları
-// Gemini, Claude ve ChatGPT content script'leri tarafından paylaşılır
+// Gemini, Claude, ChatGPT ve Grok content script'leri tarafından paylaşılır
 // MV3 content script array'inde ilk sırada yüklenir, diğer script'lere global olarak görünür
 
 // Toplam resim işleme deadline'ı — tüm resimler için global zaman limiti
@@ -21,12 +21,49 @@ function resimDeadlineDoldu() {
     return resimIslemDeadline > 0 && Date.now() > resimIslemDeadline; // deadline kontrolü
 }
 
+// Bir EventTarget üzerinde başarı, hata veya timeout sonucunu tek seferde bekler
+function resimOlayiniBekle(hedef, basariOlayi, hataOlayi, sure) {
+    return new Promise((coz, reddet) => { // olayları Promise yüzeyine çevir
+        let tamamlandi = false; // birden fazla sonucun yarışı için kilit
+        const temizle = () => { // dinleyicileri ve timer'ı birlikte temizle
+            hedef.removeEventListener(basariOlayi, basarili); // başarı dinleyicisini kaldır
+            hedef.removeEventListener(hataOlayi, basarisiz); // hata dinleyicisini kaldır
+            clearTimeout(zamanlayici); // timeout'u kaldır
+        };
+        const basarili = () => { // başarı olayı
+            if (tamamlandi) return; // yarış sonucu önceden geldiyse çık
+            tamamlandi = true; // sonucu kilitle
+            temizle(); // kaynakları temizle
+            coz(); // Promise'i tamamla
+        };
+        const basarisiz = () => { // hata olayı
+            if (tamamlandi) return; // yarış sonucu önceden geldiyse çık
+            tamamlandi = true; // sonucu kilitle
+            temizle(); // kaynakları temizle
+            reddet(new Error('Resim yüklenemedi.')); // anlamlı hata üret
+        };
+        const zamanlayici = setTimeout(() => { // azami bekleme süresi
+            if (tamamlandi) return; // sonuç geldiyse çık
+            tamamlandi = true; // sonucu kilitle
+            temizle(); // kaynakları temizle
+            reddet(new Error('Resim yükleme süresi doldu.')); // timeout hatası
+        }, sure);
+        hedef.addEventListener(basariOlayi, basarili, { once: true }); // sayfanın mevcut handler'ını ezmeden dinle
+        hedef.addEventListener(hataOlayi, basarisiz, { once: true }); // sayfanın mevcut handler'ını ezmeden dinle
+    });
+}
+
+// Yazdırma akışında kabul edilen raster data URI biçimini doğrular
+function guvenliRasterDataUriMi(kaynak) {
+    return /^data:image\/(png|jpeg|jpg|gif|webp);(?:base64,|charset=)/i.test(kaynak || ''); // SVG ve bilinmeyen biçimleri reddet
+}
+
 // Tek bir resmi base64 data URL'e dönüştürür (canvas + fetch + URL fallback)
 async function resmiBase64Yap(resimElementi) {
     if (!resimElementi || !resimElementi.src) return null; // kaynak yoksa çık
-    if (resimElementi.src.startsWith('data:')) return resimElementi.src; // zaten base64 ise aynen döndür
+    if (resimElementi.src.startsWith('data:')) return guvenliRasterDataUriMi(resimElementi.src) ? resimElementi.src : null; // yalnız güvenli raster data URI'yi koru
     if (resimDeadlineDoldu()) { // toplam süre dolmuşsa
-        console.log('AI Chat Printer [DEBUG]: Resim deadline aşıldı, atlanıyor:', resimElementi.src.substring(0, 60)); // debug
+        console.log('AI Chat Printer [DEBUG]: Resim deadline aşıldı; kalan görsel güvenli fallback ile işlendi.'); // özel veya imzalı URL'yi loglama
         return resimElementi.src.startsWith('https://') ? resimElementi.src : null; // https ise URL'i döndür
     }
 
@@ -36,12 +73,7 @@ async function resmiBase64Yap(resimElementi) {
     try {
         // Resim henüz yüklenmediyse bekle
         if (!resimElementi.complete) { // yüklenmemiş resim
-            await new Promise((coz, reddet) => { // yüklenme promise'i
-                // addEventListener kullan — sayfanın kendi onload/onerror handler'larını EZME
-                const zamanlayici = setTimeout(() => reddet(new Error('resim timeout')), TEK_RESIM_TIMEOUT); // tek resim timeout
-                resimElementi.addEventListener('load', () => { clearTimeout(zamanlayici); coz(); }, { once: true }); // yüklenince çöz
-                resimElementi.addEventListener('error', () => { clearTimeout(zamanlayici); reddet(new Error('resim yüklenemedi')); }, { once: true }); // hata olursa reddet
-            });
+            await resimOlayiniBekle(resimElementi, 'load', 'error', TEK_RESIM_TIMEOUT); // mevcut handler'ları ezmeden yüklenmeyi bekle
         }
 
         if (resimElementi.naturalWidth === 0) { // geçersiz resim (0 piksel)
@@ -62,6 +94,7 @@ async function resmiBase64Yap(resimElementi) {
         canvas.width = genislik; // canvas genişliği
         canvas.height = yukseklik; // canvas yüksekliği
         const ctx = canvas.getContext('2d'); // 2D çizim bağlamı
+        if (!ctx) throw new Error('Canvas çizim bağlamı oluşturulamadı.'); // kapalı/bozuk canvas durumunu fallback'e taşı
         ctx.drawImage(resimElementi, 0, 0, genislik, yukseklik); // resmi canvas'a çiz
         return canvas.toDataURL('image/jpeg', 0.92); // JPEG %92 kaliteyle base64'e çevir
     } catch (canvasHata) { // canvas tainted hatası (cross-origin resim)
@@ -70,13 +103,19 @@ async function resmiBase64Yap(resimElementi) {
             // Fetch için timeout wrapper — takılı kalmayı önle
             const kontrolci = new AbortController(); // fetch iptal
             const timeoutId = setTimeout(() => kontrolci.abort(), TEK_RESIM_TIMEOUT); // timeout
-            const yanit = await fetch(orijinalSrc, { signal: kontrolci.signal }); // signal'lı fetch
-            clearTimeout(timeoutId); // timeout iptal
+            let yanit; // fetch yanıtı
+            try { // timeout'un her durumda temizlenmesini garanti et
+                yanit = await fetch(orijinalSrc, { signal: kontrolci.signal, credentials: 'omit', referrerPolicy: 'no-referrer' }); // kimlik bilgisi veya sayfa adresi taşımadan signal'lı fetch
+            } finally { // başarılı veya hatalı fetch sonrası
+                clearTimeout(timeoutId); // timeout iptal
+            }
+            if (!yanit.ok) throw new Error('Resim isteği başarısız: HTTP ' + yanit.status); // HTML hata sayfasını resim diye alma
             const blob = await yanit.blob(); // blob olarak al
+            if (!/^image\/(png|jpeg|jpg|gif|webp)$/i.test(blob.type || '')) throw new Error('Yanıt güvenli bir raster resim değil.'); // içerik türünü doğrula
             return await new Promise((coz, reddet) => { // FileReader ile base64'e çevir
                 const okuyucu = new FileReader(); // dosya okuyucu
-                okuyucu.onloadend = () => coz(okuyucu.result); // okuma bitince döndür
-                okuyucu.onerror = reddet; // hata
+                okuyucu.addEventListener('load', () => coz(okuyucu.result), { once: true }); // okuma bitince döndür
+                okuyucu.addEventListener('error', () => reddet(new Error('Resim verisi okunamadı.')), { once: true }); // hata
                 okuyucu.readAsDataURL(blob); // blob'u data URL'e çevir
             });
         } catch (fetchHata) { // fetch de başarısız olduysa
@@ -123,6 +162,14 @@ function uiElementiIcindeMi(element) {
 // Turn/container elementinde kaynak element dışında kalan resimleri toplar (img + background-image)
 async function turnResimleriniTopla(turn, kaynakElement) {
     const resimler = []; // ekstra resim dizisi
+    const eklenenKaynaklar = new Set(); // aynı görselin img ve background kanallarından iki kez eklenmesini önle
+
+    // Tekilleştirilmiş resmi sonuç listesine ekler
+    const resimEkle = (kaynak, alt) => {
+        if (!kaynak || eklenenKaynaklar.has(kaynak)) return; // boş veya mükerrer kaynağı atla
+        eklenenKaynaklar.add(kaynak); // kaynağı işlendi olarak işaretle
+        resimler.push({ src: kaynak, alt: alt || '' }); // sonucu ekle
+    };
 
     // 1. Standart <img> etiketlerini ara
     const turnResimleri = turn.querySelectorAll('img'); // turn'deki tüm resimler
@@ -133,7 +180,7 @@ async function turnResimleriniTopla(turn, kaynakElement) {
         if (resimDeadlineDoldu()) break; // deadline dolmuşsa döngüyü kır
         const base64 = await resmiBase64Yap(resim); // base64'e çevir
         if (base64) { // dönüşüm başarılıysa
-            resimler.push({ src: base64, alt: resim.alt || '' }); // resim verisini ekle
+            resimEkle(base64, resim.alt || ''); // resim verisini tekilleştirerek ekle
         }
     }
 
@@ -150,22 +197,20 @@ async function turnResimleriniTopla(turn, kaynakElement) {
                 const urlEslesmesi = arkaplanResim.match(/url\(["']?(.+?)["']?\)/); // URL'i çıkar
                 if (urlEslesmesi && urlEslesmesi[1]) { // URL bulunduysa
                     const resimUrl = urlEslesmesi[1]; // çıkarılan URL
-                    if (resimUrl.startsWith('data:') || resimUrl.startsWith('https://') || resimUrl.startsWith('blob:')) { // geçerli URL
+                    if (guvenliRasterDataUriMi(resimUrl) || resimUrl.startsWith('https://') || resimUrl.startsWith('blob:')) { // geçerli URL
                         // background-image'ı geçici img element ile dönüştür
                         const geciciResim = new Image(); // geçici img oluştur
                         geciciResim.crossOrigin = 'anonymous'; // CORS için
-                        geciciResim.src = resimUrl; // kaynak ayarla
+                        geciciResim.referrerPolicy = 'no-referrer'; // kaynak konuşma adresini uzak sunucuya taşıma
                         try {
-                            await new Promise((coz, reddet) => { // yüklenmesini bekle
-                                geciciResim.onload = coz;
-                                geciciResim.onerror = reddet;
-                                setTimeout(reddet, TEK_RESIM_TIMEOUT); // tek resim timeout
-                            });
+                            const yukleme = resimOlayiniBekle(geciciResim, 'load', 'error', TEK_RESIM_TIMEOUT); // handler atamadan önce dinleyicileri kur
+                            geciciResim.src = resimUrl; // dinleyiciler hazırken kaynağı ayarla
+                            await yukleme; // yüklenmesini bekle
                             const base64 = await resmiBase64Yap(geciciResim); // base64'e çevir
-                            if (base64) resimler.push({ src: base64, alt: '' }); // ekle
+                            if (base64) resimEkle(base64, ''); // tekilleştirerek ekle
                         } catch (resimHata) { // yükleme başarısız
                             if (resimUrl.startsWith('https://')) { // https ise direkt ekle
-                                resimler.push({ src: resimUrl, alt: '' });
+                                resimEkle(resimUrl, ''); // tekilleştirerek ham URL ekle
                             }
                         }
                     }

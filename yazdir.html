@@ -1,83 +1,87 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Chat Printer - Yazdırma Önizleme</title>
+    <title>AI Chat Printer — Yazdırma Önizleme</title>
     <link rel="stylesheet" href="yazdir.css">
 </head>
 <body>
-    <!-- Yazdırma kontrol çubuğu (sadece ekranda, yazıcıya gitmez) -->
-    <div class="kontrol-cubugu" id="kontrolCubugu" role="toolbar" aria-label="Yazdırma Kontrolleri">
-        <span class="kontrol-baslik">AI Chat Printer - Yazdırma Önizleme</span>
-        <div class="kontrol-butonlar">
-            <button id="yazdirTetikle" class="kontrol-buton birincil" aria-label="Yazdır" title="Yazdır (Ctrl+P)">Yazdır</button>
-            <button id="markdownKopyala" class="kontrol-buton ikincil" aria-label="Markdown olarak panoya kopyala" title="Markdown olarak panoya kopyala">Markdown</button>
-            <button id="metinKopyala" class="kontrol-buton ikincil" aria-label="Düz metin olarak panoya kopyala" title="Düz metin olarak panoya kopyala">Metin</button>
-            <button id="markdownIndir" class="kontrol-buton ikincil" aria-label="Markdown dosyası olarak indir" title="Markdown dosyası olarak indir (.md)">&#8595; MD</button>
-            <button id="metinIndir" class="kontrol-buton ikincil" aria-label="Metin dosyası olarak indir" title="Düz metin dosyası olarak indir (.txt)">&#8595; TXT</button>
-            <button id="htmlIndir" class="kontrol-buton ikincil" aria-label="HTML dosyası olarak indir" title="Tek dosya HTML olarak indir (.html)">&#8595; HTML</button>
-            <button id="jsonIndir" class="kontrol-buton ikincil" aria-label="JSON dosyası olarak indir" title="Yapılandırılmış veri olarak indir (.json)">&#8595; JSON</button>
-            <button id="sayfayiKapat" class="kontrol-buton ikincil" aria-label="Sayfayı kapat" title="Sayfayı kapat (Esc)">Kapat</button>
+    <header class="uygulama-kontrolleri" id="kontrolCubugu">
+        <div class="kontrol-ana-satir">
+            <div class="kontrol-marka">
+                <span class="kontrol-marka-ikonu" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                </span>
+                <span class="kontrol-marka-metni"><small>BASKI STÜDYOSU</small><strong>Yazdırma Önizleme</strong></span>
+                <span id="onizlemeOzeti" class="onizleme-ozeti" aria-live="polite">Konuşma hazırlanıyor…</span>
+            </div>
+
+            <div class="kontrol-butonlar" role="toolbar" aria-label="Belge işlemleri">
+                <button id="yazdirTetikle" class="kontrol-buton birincil" type="button" title="Yazdır (Ctrl+P)"><svg class="buton-ikonu" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg> Yazdır</button>
+                <span class="buton-grubu" role="group" aria-label="Panoya kopyala">
+                    <button id="markdownKopyala" class="kontrol-buton" type="button" title="Markdown olarak panoya kopyala">Markdown</button>
+                    <button id="metinKopyala" class="kontrol-buton" type="button" title="Düz metin olarak panoya kopyala">Metin</button>
+                </span>
+                <span class="buton-grubu" role="group" aria-label="Dosya indir">
+                    <button id="markdownIndir" class="kontrol-buton simgeli" type="button" title="Markdown dosyası indir"><span aria-hidden="true">↓</span> MD</button>
+                    <button id="metinIndir" class="kontrol-buton simgeli" type="button" title="Metin dosyası indir"><span aria-hidden="true">↓</span> TXT</button>
+                    <button id="htmlIndir" class="kontrol-buton simgeli" type="button" title="Bağımsız HTML dosyası indir"><span aria-hidden="true">↓</span> HTML</button>
+                    <button id="jsonIndir" class="kontrol-buton simgeli" type="button" title="Yapılandırılmış JSON dosyası indir"><span aria-hidden="true">↓</span> JSON</button>
+                </span>
+                <button id="sayfayiKapat" class="kontrol-buton kapat" type="button" title="Sayfayı kapat (Esc)">Kapat</button>
+            </div>
         </div>
-    </div>
 
-    <!-- Canlı ayar çubuğu (sadece ekranda, yazıcıya gitmez) -->
-    <div class="ayar-cubugu" id="ayarCubugu" role="toolbar" aria-label="Önizleme Ayarları">
-        <label class="ayar-oge" for="canliYaziBoyutu">
-            <span>Yazı boyutu</span>
-            <select id="canliYaziBoyutu" aria-label="Yazı boyutu seç">
-                <option value="11">Küçük (11px)</option>
-                <option value="13">Normal (13px)</option>
-                <option value="15">Büyük (15px)</option>
-            </select>
-        </label>
-        <label class="ayar-oge">
-            <input type="checkbox" id="canliKodBloklari" checked>
-            <span>Kod blokları</span>
-        </label>
-        <label class="ayar-oge">
-            <input type="checkbox" id="mesajSecimModu">
-            <span>Mesaj seçimi</span>
-        </label>
-        <button id="tumunuSecKaldir" class="kontrol-buton ikincil kucuk gizli-buton" aria-label="Tüm mesajları seç veya kaldır" title="Tüm mesajları seç / kaldır">Tümünü Kaldır</button>
-        <span id="secimBilgisi" class="secim-bilgisi" aria-live="polite"></span>
-    </div>
+        <div class="ayar-cubugu" id="ayarCubugu" role="toolbar" aria-label="Önizleme ve sayfa ayarları">
+            <label class="ayar-oge" for="canliYaziBoyutu"><span>Yazı</span><select id="canliYaziBoyutu"><option value="11">11 px</option><option value="13">13 px</option><option value="15">15 px</option><option value="17">17 px</option></select></label>
+            <label class="ayar-oge" for="canliKagitBoyutu"><span>Kâğıt</span><select id="canliKagitBoyutu"><option value="A4">A4</option><option value="A3">A3</option><option value="Letter">Letter</option></select></label>
+            <label class="ayar-oge" for="canliYonlendirme"><span>Yön</span><select id="canliYonlendirme"><option value="portrait">Dikey</option><option value="landscape">Yatay</option></select></label>
+            <label class="ayar-oge" for="canliKenarBosluk"><span>Kenar</span><select id="canliKenarBosluk"><option value="dar">Dar</option><option value="normal">Normal</option><option value="genis">Geniş</option></select></label>
+            <span class="ayar-ayirici" aria-hidden="true"></span>
+            <label class="ayar-onay" for="canliKodBloklari"><input type="checkbox" id="canliKodBloklari" checked><span>Kod</span></label>
+            <label class="ayar-onay" for="canliFooterGoster"><input type="checkbox" id="canliFooterGoster" checked><span>İmza</span></label>
+            <label class="ayar-onay" for="canliLinkAdresleri"><input type="checkbox" id="canliLinkAdresleri" checked><span>Link adresi</span></label>
+            <label class="ayar-onay secim-onayi" for="mesajSecimModu"><input type="checkbox" id="mesajSecimModu"><span>Mesaj seçimi</span></label>
+            <span id="secimAraclari" class="secim-araclari gizli-buton" role="group" aria-label="Mesaj seçim araçları">
+                <button id="tumunuSecKaldir" class="mini-buton" type="button">Tümünü Kaldır</button>
+                <button id="yalnizKullaniciSec" class="mini-buton" type="button">Yalnız Kullanıcı</button>
+                <button id="yalnizYapayZekaSec" class="mini-buton" type="button">Yalnız AI</button>
+            </span>
+            <span id="secimBilgisi" class="secim-bilgisi" aria-live="polite"></span>
+        </div>
+    </header>
 
-    <!-- Loading overlay (veri yüklenirken gösterilir) -->
     <div class="yukleme-overlay" id="yuklemeOverlay" role="status" aria-live="polite">
         <div class="yukleme-icerik">
-            <div class="yukleme-spinner" aria-hidden="true"></div>
-            <p class="yukleme-metin">Konuşma yükleniyor...</p>
+            <span class="yukleme-sayfa" aria-hidden="true"><span></span><span></span><span></span></span>
+            <p class="yukleme-metin">Konuşma yükleniyor…</p>
         </div>
     </div>
 
-    <!-- Toast bildirim alanı (screen reader uyumlu) -->
     <div id="toastAlani" class="toast-alani" role="status" aria-live="polite" aria-atomic="true"></div>
+    <style id="dinamikSayfaStili"></style>
 
-    <!-- Yazdırılacak içerik -->
-    <div id="yazdirmaAlani" class="yazdirma-alani">
-        <!-- Başlık bölümü -->
-        <div class="sayfa-basligi">
+    <main id="yazdirmaAlani" class="yazdirma-alani">
+        <header class="sayfa-basligi">
+            <p class="belge-turu">AI KONUŞMA DÖKÜMÜ</p>
             <h1 id="konusmaBasligi">&nbsp;</h1>
             <div class="ust-bilgi">
                 <span id="konusmaTarihi"></span>
                 <span id="mesajSayisi"></span>
                 <span id="kaynakSite">&nbsp;</span>
             </div>
-            <hr>
-        </div>
+        </header>
 
-        <!-- Mesajlar buraya dinamik olarak eklenir -->
-        <div id="mesajlarAlani"></div>
+        <section id="mesajlarAlani" aria-label="Konuşma mesajları"></section>
 
-        <!-- Alt bilgi -->
-        <div class="sayfa-alt-bilgi">
-            <hr>
-            <p>Bu çıktı AI Chat Printer eklentisi ile oluşturulmuştur.</p>
-        </div>
-    </div>
+        <footer class="sayfa-alt-bilgi">
+            <span>AI Chat Printer</span>
+            <span>Yerel olarak oluşturuldu · Dış servise gönderilmedi</span>
+        </footer>
+    </main>
 
+    <script src="site-yardimcilari.js"></script>
     <script src="ortak-yardimcilar.js"></script>
     <script src="yazdir.js"></script>
 </body>

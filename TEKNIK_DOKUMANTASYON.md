@@ -1,12 +1,16 @@
-# AI Chat Printer — Teknik Dokümantasyon (v1.8.3)
+# AI Chat Printer — Teknik Dokümantasyon (v2.0.0)
+
+> Revizyon: 15.08.2026 - 17.00 — v2.0.0 mimari sertleştirme, Baskı Stüdyosu UX, genişletilmiş sayfa ayarları, güvenli dışa aktarım, gerçek MV3 kabul paketi ve gizlilik sözleşmesi işlendi.
 
 > Bu belge, projeyi **sıfırdan birebir yeniden inşa edebilmek** için hazırlanmıştır. Düşük yetenekli bir LLM dahi bu dokümandaki adımları, fonksiyon imzalarını, selektör tablolarını, algoritma adımlarını ve birebir kod kurallarını takip ederek **fonksiyonel olarak özdeş bir eklenti** üretebilir. Hiçbir karar "açık" bırakılmamıştır — buton piksel boyutlarından sanitizer whitelist'ine, Markdown fence algoritmasından mesaj kanalı semantiğine, toast renklerinden storage anahtarlarına kadar her şey burada tanımlıdır.
 >
-> **SÜRÜM NOTU (19.07.2026):** Belge **v1.8.1**'i anlatır. Sürüm geçmişi özeti:
+> **SÜRÜM NOTU (15.08.2026):** Belge **v2.0.0**'ı anlatır. Sürüm geçmişi özeti:
 > - **v1.7.8** (commit `2547bab`, 10.06.2026): v1.7.0 derin denetimi + 8 saatlik öz-denetim turunun ürünü; bulunan 14 gerçek bug'ın düzeltmeleri gövdeye işlendi ("neden böyle" kuralları için bkz. EK G ve EK H).
 > - **v1.8.0** (commit `f79d049` + `33e62fb`): Yazdırma sayfasına üç büyük yetenek eklendi — **canlı ayar çubuğu** (yazı boyutu / kod blokları / mesaj seçim modu; popup'a dönmeden anlık uygulanır), **mesaj seçimi** (checkbox'la her mesajı çıktıdan hariç tutabilme + Tümünü Seç/Kaldır), **HTML ve JSON dışa aktarma** (tek dosya bağımsız HTML + yapılandırılmış JSON). Kod bloğu gizleme `pre.remove()` yerine `body.kod-gizli` CSS class'ına taşındı (DOM silinmez, canlı geri açılır). Tüm dışa aktarımlar mesaj seçimine saygılıdır. Bölüm 16 ve 18 bu sürümü anlatır; popup sürüm satırı `chrome.runtime.getManifest().version` ile dinamikleşti.
 > - **v1.8.1** (19.07.2026): claude.ai 2026-07 UI güncellemesi eklentiyi tamamen kırdı; Bölüm 11 ve EK C canlı DOM analiziyle yeniden yazıldı. Kırılan 5 nokta: (1) `page-header` → `chat-header`, (2) turn-bazlı mesaj döngüsü → document-order `querySelectorAll` akışı (tüm konuşma artık `children[0]` tek ağaç), (3) artifact aç `[role="button"]` → grup içi `button[aria-label^="View"]`, (4) viewer kapat `Close` → `Go back`, (5) başlık sidebar linki → `chat-title-split`. Grok rol tespitine `data-testid` katmanı eklendi. Tüm yeni selektörler eski UI fallback'leriyle birlikte uygulanır.
 > - **v1.8.2** (22.07.2026): ChatGPT 2026-07 "wm" UI güncellemesi çıkarıcıyı kırdı ("konuşmanın tamamı yazdırılmıyor" şikayeti). Canlı DOM analiziyle tespit: `[data-testid^="conversation-turn"]`, `[data-message-author-role]`, `.markdown`, `.user-message-bubble-color` yeni DOM'da 0 eşleşme; yeni yapı `ol[data-conversation-transcript] > li[data-message-role]` (id = mesaj UUID), kullanıcı içerik `[data-user-message-bubble]`, AI içerik `[data-assistant-markdown]`, sr-only `h4[data-message-attribution]` ("Şunu dedin:"/"ChatGPT:") sızıntı riski. `content-chatgpt.js` yeniden yazıldı: (1) çift DOM ortak selektörü `CHATGPT_TURN_SELEKTORU`, (2) rol tespiti li-attribute → descendant-attribute zinciri, (3) içerik elementi zinciri (attribution/actions sızıntısız, fallback `chatgptTurnGovdesi`), (4) **sanallaştırma scroll-süpürmesi** (`chatgptKaydiriciBul` + en üste git → %75 viewport adımlarıyla in → UUID/testid anahtarlı `Map` dedup → scroll konumu geri yüklenir; kısa konuşmada atlanır), (5) header 5 denemede bulunamazsa **floating buton fallback** (`floatingButonEkle`, Grok kalıbı), (6) streaming tespitine `li[data-message-role="assistant"][data-assistant-content-started]:not([data-message-complete])` göstergesi eklendi (`data-message-complete` reload'da hiç eklenmez — tek başına kullanılamaz). CLAUDE.md ChatGPT DOM tablosu çift sütunlu (yeni/eski) yeniden yazıldı.
+> - **v1.9.0** (15.08.2026): Global `konusmaVerisi`/`yazdirAyarlari` anahtarları kaldırıldı. Her yazdırma isteği `crypto.randomUUID()` ile üretilen benzersiz oturum kimliği altında, `aiChatPrinterOturum:<kimlik>` anahtarında saklanır; background ilgili kimliği `yazdir.html?oturum=<kimlik>` adresine taşır. Böylece art arda veya eşzamanlı yazdırmalarda hiçbir sekme başka konuşmanın verisini okuyamaz. Oturum paketi okunur okunmaz silinir; F5 yedeği de oturum kimliğiyle ayrılır. Önceki sürümden açık kalmış doğrudan `yazdir.html` sekmeleri için eski anahtar okuma fallback'i korunur.
+> - **v2.0.0** (15.08.2026): Popup ve önizleme “Baskı Stüdyosu” tasarım sistemiyle baştan kuruldu. Ayar sözleşmesi 8 alana genişledi; A4/A3/Letter, dikey/yatay, üç kenar boşluğu, 11/13/15/17 px, kod, belge imzası, bağlantı adresi ve otomatik yazdırma birlikte doğrulanır. Rol bazlı mesaj seçimi ve boş seçim kilidi eklendi. `site-yardimcilari.js` tam-hostname doğrulamasını merkezileştirdi. Service worker sahipsiz oturumlara 6 saat TTL uyguladı. HTML dışa aktarımı güvenli DOM belgesiyle yeniden yazıldı; sanitizer yalnız `PRE`/`CODE` üzerindeki `language-*` sınıflarını geçirir. Resim kanalı raster allowlist, kimlik bilgisi/referrer izolasyonu, olay/zamanlayıcı temizliği ve yazdırma öncesi seçili-resim hazır olma bariyeri kazandı. ChatGPT süpürmesi gerçek sona kadar ilerler; Claude artifact paneli her sonuçta kapanır; Grok kesin `data-testid` seçicilerini önce kullanır ve özel konuşma metnini loglamaz. `tests/acceptance_tests.py`, statik + gerçek Chromium + gerçek MV3 service worker/content-script zincirini 14 kabul maddesiyle doğrular.
 
 ---
 
@@ -39,6 +43,7 @@
 25. [Versiyonlama](#25-versiyonlama)
 26. [Kurulum ve Test Workflow](#26-kurulum-ve-test-workflow)
 27. [Sıfırdan İnşa Adım Adım](#27-sıfırdan-inşa-adım-adım)
+28. [v2.0.0 Kanonik Modernizasyon Sözleşmesi](#28-v200-kanonik-modernizasyon-sözleşmesi)
 
 ### Ekler
 
@@ -46,7 +51,7 @@
 - **EK B** — Encoding ve Türkçe Diakritik Kuralları
 - **EK C** — DOM Selektör Master Tablosu (4 site, kırılganlık dereceli)
 - **EK D** — Veri Akışı Sırası (iki tetikleme yolu, tam tur)
-- **EK E** — Test Kontrol Listesi (37 madde)
+- **EK E** — Test Kontrol Listesi ve Otomatik Kabul Paketi
 - **EK F** — Kullanıcıya Görünen Tüm Metinler (birebir Türkçe)
 - **EK G** — Kritik Etkileşim Noktaları (14 sıkça atlanan davranış)
 - **EK H** — Tasarım Kararları ve Gerekçeleri (10 "neden böyle?")
@@ -65,10 +70,10 @@
 |------------|----------------|--------------|
 | gemini.google.com | `content.js` | Resim base64 gömme + cevap altı ↓ MD / ↓ TXT indirme butonları |
 | claude.ai | `content-claude.js` | Artifact içeriği çıkarma (tıkla-aç-oku-kapat döngüsü) |
-| chatgpt.com | `content-chatgpt.js` | Turn tabanlı çıkarma |
-| grok.com | `content-grok.js` | 5 kademeli DOM tanıma stratejisi + floating buton |
+| chatgpt.com | `content-chatgpt.js` | Eski + “wm” DOM, gerçek sona kadar sanallaştırma scroll-süpürmesi |
+| grok.com | `content-grok.js` | Kesin `data-testid` önceliği + geriye uyumlu çok katmanlı fallback |
 
-**Temel davranış zinciri:** Sayfaya enjekte edilen yazıcı butonu → DOM'dan konuşma çıkarılır (mesajlar + resimler + artifact'lar) → `chrome.storage.local`'a yazılır → `yazdir.html` yeni sekmede açılır → veri okunur-okunduğu anda silinir → sanitize edilip render edilir → `window.print()` (PDF dosya adı = konuşma başlığı).
+**Temel davranış zinciri:** Sayfaya enjekte edilen yazıcı butonu → DOM'dan konuşma çıkarılır (mesajlar + resimler + artifact'lar) → benzersiz oturum anahtarıyla `chrome.storage.local`'a yazılır → `yazdir.html?oturum=<kimlik>` yeni sekmede açılır → yalnız o oturumun verisi okunur-okunduğu anda silinir → sanitize edilip render edilir → `window.print()` (PDF dosya adı = konuşma başlığı).
 
 **Dışa aktarma yüzeyleri (6):**
 1. Yazdırma / PDF (tarayıcı print dialogu)
@@ -76,7 +81,7 @@
 3. Dosyaya indir: `.md` / `.txt` (yazdırma sayfası araç çubuğu)
 4. Dosyaya indir: `.html` (tek dosya, gömülü CSS'li bağımsız belge) / `.json` (yapılandırılmış ham veri) — v1.8.0
 5. Cevap altı hızlı indirme: tek soru-cevap çifti `.md` / `.txt` (yalnız Gemini)
-6. Canlı önizleme kontrolü: yazdırma sayfasında yazı boyutu / kod blokları anlık değişir; **mesaj seçim modu** ile tek tek mesajlar çıktıdan çıkarılabilir (v1.8.0) — tüm dışa aktarımlar (2/3/4) seçime saygılıdır
+6. Canlı önizleme kontrolü: yazı boyutu, kâğıt, yön, kenar, kod, imza ve link adresi anlık değişir; **mesaj seçim modu** tekil/toplu/yalnız kullanıcı/yalnız AI seçimi sunar — bütün dışa aktarımlar aynı seçime saygılıdır
 
 Markdown çıktıları **gerçek Markdown'dır** — `htmlToMarkdown` motoru başlık, dil etiketli kod fence'i, iç içe liste, pipe tablo, link, alıntı üretir (Bölüm 9).
 
@@ -97,10 +102,10 @@ Markdown çıktıları **gerçek Markdown'dır** — `htmlToMarkdown` motoru ba�
 │         │   konusmayiCikar() → {baslik, mesajlar[], ...}   │              │
 │         └──────────────────────┬───────────────────────────┘              │
 └────────────────────────────────┼──────────────────────────────────────────┘
-                                 │ chrome.storage.local.set({konusmaVerisi,
-                                 │                            yazdirAyarlari})
+                                 │ chrome.storage.local.set({
+                                 │  ['aiChatPrinterOturum:' + kimlik]: paket})
                                  │ chrome.runtime.sendMessage(
-                                 │            {islem:'yazdirmaSayfasiAc'})
+                                 │ {islem:'yazdirmaSayfasiAc', oturumKimligi})
                                  ▼
                   ┌──────────────────────────────┐
                   │   background.js (SW, MV3)    │
@@ -109,21 +114,21 @@ Markdown çıktıları **gerçek Markdown'dır** — `htmlToMarkdown` motoru ba�
                   │  • badge uyarıları (!,F5)    │
                   │  • onInstalled kalıntı temizliği
                   └──────────────┬───────────────┘
-                                 │ chrome.tabs.create(yazdir.html)
+                                 │ chrome.tabs.create(yazdir.html?oturum=kimlik)
                                  ▼
 ┌────────────────────────── YAZDIRMA SEKMESİ ───────────────────────────────┐
-│  yazdir.html  →  ortak-yardimcilar.js + yazdir.js                         │
-│  1. storage.local.get → OKU-VE-HEMEN-SİL (multi-tab race koruması)        │
-│  2. sessionStorage'a yedekle (F5 dayanıklılığı — sekmeye özel)            │
+│  yazdir.html  →  site-yardimcilari.js + ortak-yardimcilar.js + yazdir.js │
+│  1. storage.local.get(oturum anahtarı) → OKU-VE-HEMEN-SİL                 │
+│  2. sessionStorage'a oturumlu yedekle (F5 dayanıklılığı — sekmeye özel)   │
 │  3. htmlTemizle() whitelist sanitizer → DOM render                        │
-│  4. Araç çubuğu: Yazdır | Markdown | Metin | ↓ MD | ↓ TXT | Kapat         │
-│  5. otomatikYazdir ise: resimler yüklenince window.print()                │
+│  4. Araç çubuğu: Yazdır | Markdown | Metin | ↓ MD/TXT/HTML/JSON | Kapat   │
+│  5. otomatikYazdir ise: seçili resimler yüklenip decode edilince print()  │
 └───────────────────────────────────────────────────────────────────────────┘
 
 İkinci tetikleme yolu (popup):
   popup.js → chrome.tabs.sendMessage({islem:'konusmayiCikar'})
            → content script async yanıt → popup quota kontrolü
-           → popup storage.local.set + tabs.create(yazdir.html)
+           → popup yazdırma oturumu oluşturur + background yazdir.html?oturum açar
 ```
 
 **Önemli mimari kararlar:**
@@ -132,8 +137,8 @@ Markdown çıktıları **gerçek Markdown'dır** — `htmlToMarkdown` motoru ba�
 |-------|---------|
 | Ortak modüller `content_scripts.js[]` array'inde ilk sırada | MV3'te aynı isolated world'e sıralı yüklenir; ES module/bundler gerekmez. Top-level `function` bildirimleri sonraki script'lere global görünür |
 | `popup.html` ve `yazdir.html` de `ortak-yardimcilar.js`'i `<script>` ile yükler | `VARSAYILAN_AYARLAR`, `quotaKontrol`, `htmlToMarkdown`, `dosyayaIndir` tek kaynak (DRY) |
-| Veri taşıma `chrome.storage.local` üzerinden (URL parametresi değil) | Konuşma MB mertebesinde olabilir; URL limiti yetmez. Storage 10 MB |
-| Oku-ve-hemen-sil + sessionStorage yedeği | Multi-tab yarışını çözer + F5 veri kaybını önler (Bölüm 20) |
+| Veri taşıma `chrome.storage.local` üzerinden (URL parametresi yalnız oturum kimliği taşır) | Konuşma MB mertebesinde olabilir; URL limiti yetmez. Storage 10 MB |
+| Oturum-özel anahtar + oku-ve-hemen-sil + sessionStorage yedeği | Eşzamanlı yazdırmaların veri karışmasını engeller, F5 veri kaybını önler (Bölüm 20) |
 | Resimler base64'e content script'te çevrilir | Yazdırma sayfası farklı origin — sayfanın blob/korumalı resimlerine erişemez (EK G.6) |
 | Vanilla JS, sıfır bağımlılık | Baran kuralı: framework yok, npm yok, minimal etki |
 
@@ -154,25 +159,41 @@ Markdown çıktıları **gerçek Markdown'dır** — `htmlToMarkdown` motoru ba�
 ```
 GeminiPrinter/
 ├── manifest.json            # MV3 manifest — izinler, content_scripts, commands, CSP, i18n
-├── background.js            # Service worker (57 satır)
-├── resim-yardimcilari.js    # Paylaşılan resim→base64 + deadline + UI görsel filtresi (178)
-├── ortak-yardimcilar.js     # Ayarlar, quota, başlık, MD motoru, indirme (423)
-├── content.js               # Gemini (518)
-├── content-claude.js        # Claude + artifact (446)
-├── content-chatgpt.js       # ChatGPT (286)
-├── content-grok.js          # Grok çoklu-fallback (441)
-├── popup.html               # Eklenti popup UI — inline CSS (216)
-├── popup.js                 # Popup mantığı (186)
-├── yazdir.html              # Yazdırma önizleme iskeleti + canlı ayar çubuğu (84)
-├── yazdir.js                # Okuma + sanitizer + render + export + canlı ayar/seçim (589)
-├── yazdir.css               # Ekran + @media print stilleri + ayar çubuğu/seçim (549)
+├── background.js            # Service worker — sekme açma, kısayol ve 6 saatlik oturum temizliği
+├── site-yardimcilari.js     # Tam-hostname destekli site ve kaynak görünüm sözleşmesi
+├── resim-yardimcilari.js    # Resim→base64, raster allowlist, deadline ve olay temizliği
+├── ortak-yardimcilar.js     # Ayar doğrulama, quota, oturum, başlık, Markdown ve indirme
+├── content.js               # Gemini + resimler + cevap altı MD/TXT
+├── content-claude.js        # Claude + hata yalıtımlı artifact yaşam döngüsü
+├── content-chatgpt.js       # ChatGPT çift DOM + sınırsız sanallaştırma süpürmesi
+├── content-grok.js          # Grok kesin data-testid öncelikli çoklu fallback
+├── popup.html               # Erişilebilir Baskı Stüdyosu popup iskeleti
+├── popup.css                # Popup tasarım sistemi ve responsive durumlar
+├── popup.js                 # Popup ayar, site doğrulama ve önizleme akışı
+├── yazdir.html              # Tek sticky kontrol yüzeyi + sayfa/mesaj araçları
+├── yazdir.js                # Güvenli render, sayfa ayarı, seçim ve dışa aktarım
+├── yazdir.css               # Ekran, responsive ve @media print stilleri
 ├── _locales/
 │   ├── tr/messages.json     # extName, extDescription, actionTitle, kisayolAciklama
 │   └── en/messages.json     # Aynı 4 anahtar İngilizce
 ├── icons/
 │   ├── icon16.png  icon48.png  icon128.png
 │   └── ikon_olustur.py      # PIL ile ikon üretici (geliştirme aracı, pakete girmez)
-├── README.md                # İki dilli tanıtım + changelog
+├── tests/
+│   └── acceptance_tests.py  # Statik + Playwright + gerçek MV3 kabul paketi
+├── store_assets/v2.0.0/
+│   ├── 01-baski-studyosu-1280x800.png
+│   ├── 02-mesaj-secimi-1280x800.png
+│   ├── 03-popup-ve-onizleme-1280x800.png
+│   ├── 04-dar-ekran-640x400.png
+│   ├── tanitim-kucuk-440x280.png
+│   ├── tanitim-marquee-1400x560.png
+│   └── TASARIM_FELSEFESI.md
+├── README.md                # İki dilli tanıtım + sürüm geçmişi
+├── CHROME_WEB_STORE_v2.0.0.md # Mağaza metni, izin, veri ve görsel yükleme sözleşmesi
+├── RELEASE_NOTES_v2.0.0.md  # Kullanıcıya dönük tam sürüm notu
+├── DISTRIBUTION_v2.0.0.md   # Web Store ZIP künyesi, SHA-256 ve açılmış paket kabulü
+├── GIZLILIK.md              # Veri işleme, yerel saklama ve izin beyanı
 ├── CLAUDE.md                # Geliştirme kuralları (Claude Code için)
 ├── TEKNIK_DOKUMANTASYON.md  # Bu dosya
 ├── LICENSE                  # MIT
@@ -181,23 +202,23 @@ GeminiPrinter/
 
 ### `.gitignore` (birebir)
 ```gitignore
-# Claude Code yerel ayarları
+CLAUDE.md
+talimatlar.md
+yol-haritasi.md
+aha_point.md
+Hafiza/
+tasks/
 .claude/
-
-# İşletim sistemi çöp dosyaları
-Thumbs.db
-Desktop.ini
-.DS_Store
-
-# Editör
 .vscode/
-.idea/
-*.swp
-
-# Log ve geçici dosyalar
 *.log
-*.tmp
-*.bak
+.DS_Store
+Thumbs.db
+__pycache__/
+.pytest_cache/
+test-results/
+screenshots/
+dist/
+_store_capture/
 ```
 
 ---
@@ -209,7 +230,7 @@ Desktop.ini
   "manifest_version": 3,
   "name": "__MSG_extName__",
   "short_name": "__MSG_extName__",
-  "version": "1.8.3",
+  "version": "2.0.0",
   "description": "__MSG_extDescription__",
   "minimum_chrome_version": "114",
   "default_locale": "tr",
@@ -248,7 +269,7 @@ Desktop.ini
 | `run_at: document_idle` | SPA'lar tam yüklensin; buton enjeksiyonu zaten retry + MutationObserver'lı |
 | `js[]` sırası | resim-yardimcilari → ortak-yardimcilar → site script'i. **Sıra değişirse global fonksiyonlar tanımsız kalır** |
 | CSP `img-src 'self' data: https:` | Yazdırma sayfası base64 (`data:`) ve https resimleri gösterir. **`blob:` bilinçli YOK** — content-origin blob extension sayfasında zaten ölü doğar (EK G.6) |
-| CSP `style-src 'unsafe-inline'` | popup.html inline `<style>` bloğu + dinamik `style.cssText` atamaları için zorunlu |
+| CSP `style-src 'unsafe-inline'` | Content script düğme/toast `style.cssText` değerleri ve dinamik `@page` style elementi için zorunlu; popup görünümü harici `popup.css` içindedir |
 | `__MSG_*__` | `_locales` i18n — Web Store iki dilde listeler |
 
 ---
@@ -298,9 +319,9 @@ Her yazdırma akışı `resimIslemOturumuBaslat(RESIM_TOPLAM_SURE_LIMIT)` (90 sn
 
 ### `resmiBase64Yap(resimElementi) -> Promise<string|null>` — 3 katmanlı fallback
 
-1. `src` yoksa → `null`; `src` zaten `data:` ise → aynen döndür; deadline dolmuşsa → https ise URL'i döndür, değilse `null`
-2. **Katman 1 — Canvas:** resim `!complete` ise `addEventListener('load'/'error', {once:true})` + 5 sn timeout ile bekle (**`onload =` property ATAMA YASAK** — sayfanın kendi handler'ını ezer, EK G.8). `naturalWidth === 0` → https ise URL döndür. Genişlik > **800 px** ise oranlı küçült. `canvas.toDataURL('image/jpeg', 0.92)`
-3. **Katman 2 — Fetch:** Canvas `SecurityError` (tainted cross-origin) fırlatırsa: `AbortController` + 5 sn timeout'lu `fetch(orijinalSrc)` → `blob` → `FileReader.readAsDataURL`
+1. `src` yoksa → `null`; `data:` yalnız `guvenliRasterDataUriMi` ile PNG/JPEG/GIF/WebP ise kabul; deadline dolmuşsa HTTPS URL'i döndür, diğerini atla.
+2. **Katman 1 — Canvas:** resim `!complete` ise `resimOlayiniBekle()` load/error listener'larını ve timeout'u tek settlement noktasında temizler. Property `onload/onerror` ataması yoktur. `naturalWidth === 0` veya 2D context yoksa HTTPS fallback uygulanır. Genişlik > **800 px** ise oranlı küçült; çıktı `canvas.toDataURL('image/jpeg', 0.92)`.
+3. **Katman 2 — Fetch:** Canvas cross-origin nedeniyle başarısızsa `AbortController` + 5 sn timeout ile `fetch(orijinalSrc, {credentials:'omit', referrerPolicy:'no-referrer'})`; `response.ok` ve raster `Content-Type` doğrulanır; blob `FileReader` ile data URL olur. Abort timeout'u `finally` içinde temizlenir.
 4. **Katman 3 — URL:** Fetch de başarısızsa: `https://` ile başlıyorsa orijinal URL'i döndür (yazdırma sayfası `<img>` ile dener), değilse `null`
 
 ### `resimliHtmlCikar(element) -> Promise<string>`
@@ -312,7 +333,7 @@ Element klonlanır (`cloneNode(true)`), **orijinaldeki** img'ler sırayla `resmi
 ### `turnResimleriniTopla(turn, kaynakElement) -> Promise<Array<{src,alt}>>`
 Kaynak elementin DIŞINDA kalan görselleri toplar (kullanıcının yüklediği dosya önizlemeleri vb.):
 1. `turn.querySelectorAll('img')` — kaynak içindekiler ve `uiElementiIcindeMi` olanlar atlanır; kalanlar `resmiBase64Yap`
-2. `turn.querySelectorAll('*')` üzerinde `getComputedStyle(el).backgroundImage` taraması — `url(...)` regex'i `/url\(["']?(.+?)["']?\)/`; `data:`/`https:`/`blob:` URL'ler geçici `new Image()` (`crossOrigin='anonymous'`) ile yüklenip base64'e çevrilir; yükleme başarısızsa https URL ham eklenir. Aynı iki atlama kuralı geçerli; her adımda deadline kontrolü
+2. `turn.querySelectorAll('*')` üzerinde `getComputedStyle(el).backgroundImage` taraması — `url(...)` ayrıştırılır; güvenli raster data URI, HTTPS veya sayfa-bağlamı blob adayları geçici `Image` ile denenir. Geçici `Image` için `referrerPolicy='no-referrer'` uygulanır. Blob yalnız başarıyla canvas üzerinden raster data URI'ye çevrilirse çıkar; ham blob başka extension bağlamına taşınmaz. Listener'lar `src` atamasından önce kurulur, timeout sonunda kaldırılır. Kaynaklar `Set` ile mükerrersizleştirilir; SVG ve bilinmeyen şemalar çıktı kanalına girmez.
 
 ---
 
@@ -320,15 +341,26 @@ Kaynak elementin DIŞINDA kalan görselleri toplar (kullanıcının yüklediği 
 
 ### Sabitler
 ```javascript
-const VARSAYILAN_AYARLAR = { kodBloklari: true, otomatikYazdir: true, yaziBoyutu: '13', footerGoster: true };
+const VARSAYILAN_AYARLAR = {
+    kodBloklari: true,
+    otomatikYazdir: true,
+    yaziBoyutu: '13',
+    footerGoster: true,
+    kagitBoyutu: 'A4',
+    yonlendirme: 'portrait',
+    kenarBosluk: 'normal',
+    linkAdresleriniGoster: true
+};
 const STORAGE_LOCAL_LIMIT = chrome.storage?.local?.QUOTA_BYTES || (10 * 1024 * 1024);  // dinamik; fallback 10 MB
 const STORAGE_UYARI_ESIGI = Math.floor(STORAGE_LOCAL_LIMIT * 0.8);                     // %80
 const RESIM_TOPLAM_SURE_LIMIT = 90 * 1000;                                             // 90 sn
 ```
 
 ### Ayarlar — `chrome.storage.sync`, anahtar `kullaniciAyarlari`
-- `ayarlariYukle() -> Promise<object>`: `{...VARSAYILAN_AYARLAR, ...kayitli}`. chrome.storage erişilemezse (context invalidation) **sessizce varsayılan döner** — `console.log` ile loglanır (`warn`/`error` DEĞİL: chrome://extensions "Errors" sayfasını kirletmesin)
-- `ayarlariKaydet(ayarlar) -> Promise<boolean>`
+- `ayarlariDogrula(ayarlar)`: boolean alanları normalize eder; yazı boyutunu `11|13|15|17`, kâğıdı `A4|A3|Letter`, yönü `portrait|landscape`, kenarı `dar|normal|genis` allowlist'ine sıkıştırır. Eski sürümde bulunmayan alanlar varsayılandan tamamlanır; bozuk storage değeri UI veya `@page` kuralına ulaşamaz.
+- `ayarlariYukle() -> Promise<object>`: storage değerini okuyup mutlaka `ayarlariDogrula` sonucunu döndürür. Chrome context erişilemezse doğrulanmış varsayılanlar kullanılır.
+- `ayarlariKaydet(ayarlar) -> Promise<boolean>`: yalnız doğrulanmış nesneyi kaydeder.
+- `yazdirmaOturumKimligiGecerliMi(oturumKimligi)`: URL/storage anahtarında yalnız `[A-Za-z0-9-]` ve 8–80 karakter kabul eder; parametre enjeksiyonu ve kontrolsüz storage anahtarı üretimi engellenir.
 
 ### `debounce(fonksiyon, gecikme)` — klasik timeout-resetli sarmalayıcı. MutationObserver'larda 200 ms ile kullanılır.
 
@@ -351,7 +383,13 @@ AI hâlâ yanıt yazıyor mu? Kaynak başına görünür "Durdur" butonu (`offse
 `new Blob([JSON.stringify(veri)]).size` (Unicode-doğru bayt). Limit aşımı → `gecerli:false` + **dinamik** limitli mesaj (`'Storage sınırı ' + limitMb + ' MB.'` — sabit "10" yazmak yanlış bilgi olurdu); %80 üstü → `uyari:true`.
 
 ### `yazdirmayaBasla(veri, uyariBalonuGoster) -> Promise<boolean>` — ortak yazdırma akışı
-1. `veri.hata` → toast + `false`  2. mesaj yoksa → toast + `false`  3. `ayarlariYukle()`  4. `quotaKontrol` — geçersizse toast + `false`  5. `chrome.storage.local` mevcudiyet kontrolü (yoksa "Eklenti bağlantısı koptu... F5")  6. `storage.local.set({konusmaVerisi, yazdirAyarlari})` — catch'te quota/`context` ayrımı yapılır  7. başarı toastı (`'N mesaj çıkarıldı...'`)  8. `chrome.runtime.sendMessage({islem:'yazdirmaSayfasiAc'})`
+1. `veri.hata` → toast + `false`  2. mesaj yoksa → toast + `false`  3. `ayarlariYukle()`  4. `quotaKontrol` — geçersizse toast + `false`  5. `yazdirmaOturumuOlustur(veri, ayarlar)` — `crypto.randomUUID()` kimliğiyle oturum-özel paketi `storage.local`'a yazar  6. başarı toastı (`'N mesaj çıkarıldı...'`)  7. `chrome.runtime.sendMessage({islem:'yazdirmaSayfasiAc', oturumKimligi})` çağrısını **await** eder; background olumsuz yanıt verirse paket silinip kullanıcıya bağlantı hatası gösterilir.
+
+### Yazdırma Oturumu Yardımcıları
+- `YAZDIRMA_OTURUM_ANAHTAR_ON_EKI = 'aiChatPrinterOturum:'`
+- `yazdirmaOturumAnahtari(oturumKimligi)` → storage anahtarı
+- `yazdirmaOturumKimligiOlustur()` → öncelikle `crypto.randomUUID()`, desteklenmeyen ortamda zaman+rastgele fallback
+- `yazdirmaOturumuOlustur(veri, ayarlar)` → `{konusmaVerisi, yazdirAyarlari, olusturmaZamani}` paketini yalnız ilgili yazdırma isteğinin anahtarında saklar ve kimliği döndürür
 
 ### Dosya İndirme — `dosyayaIndir(icerik, dosyaAdi, mimeType)`
 `Blob` → `URL.createObjectURL` → gizli `<a download>` append → `click()` → remove → 1 sn sonra `revokeObjectURL`. Content script'te de extension sayfasında da çalışır.
@@ -494,24 +532,19 @@ Gemini erişilebilirlik önekleri `startsWith` ile soyulur: `'Siz şunu dediniz:
 ### `yazdirmaBaslat()`
 `streamingMiKontrol('claude')` → uyar+çık; reentrance kilidi; artifact sayısı toastı (`'N artifact bulundu, içerikleri çıkarılıyor (0/N)...'`); `artifactIcerikleriniCikar(progressCallback)`; "Konuşma çıkarılıyor..." toastı; `konusmayiCikar(artifactIcerikleri)`; `yazdirmayaBasla`; catch+finally standart.
 
-### `artifactIcerikleriniCikar(ilerlemeCallback)` — tıkla-aç-oku-kapat döngüsü
-```
-artifactCikarmaAktif = true     (try/finally garantili reset)
-her .artifact-block-cell kartı için sırayla:
-  1. progress callback (mevcut/toplam) — try'lı güvenli çağrı
-  2. başlık = '.leading-tight.line-clamp-1', tür = '.text-text-400.line-clamp-1'
-  3. tıklanabilir zinciri (v1.8.1): kartGrubu = kart.closest('[class*="group/artifact-block"]') →
-     grup içi button[aria-label^="View"] (yeni UI overlay) || kart.closest('[role="button"]') (eski UI) || kartGrubu;
-     hiçbiri yoksa {baslik, tur, icerik:null} ekle, geç
-  4. click() → viewer bekleme: 6×500ms (3 sn) '#wiggle-file-content' DOM'a gelene dek; gelmezse icerik:null
-  5. 1 sn ekstra render beklemesi
-  6. STABİLİTE POLLING (16×500ms = 8 sn): hedef = '#wiggle-file-content .code-block__code' || '... pre' || '... .standard-markdown' || panelin kendisi
-     uzunluk öncekiyle AYNI ve >10 ise stabilSayac++; 2 ardışık eşitlikte içerik kesinleşti (streaming yarım okuma önlenir)
-  7. stabilite sağlanamadıysa son durumda >10 karakter varsa onu al (aynı 4'lü hedef zinciri)
-  8. kapat: button[aria-label="Go back"] (yeni UI) || button[aria-label="Close"] (eski UI) .click() → 600 ms animasyon → 6×300ms '#wiggle-file-content' silinene dek doğrula
-  9. {baslik, tur, icerik} listeye
-artifactCikarmaAktif = false
-```
+### `artifactViewerKapat()` ve `artifactIcerikleriniCikar(ilerlemeCallback)`
+
+Her `.artifact-block-cell` kendi `try/catch/finally` sınırında işlenir. Bir kartın click, render veya stabilite hatası sonraki artifact'ı iptal etmez. `finally`, o kart için `artifactViewerKapat()` çağırır; yardımcı `button[aria-label="Go back"] → button[aria-label="Close"]` zincirini kullanır ve `#wiggle-file-content` DOM'dan kalkana kadar doğrular.
+
+Akış:
+
+1. Başlık `.leading-tight.line-clamp-1`, tür `.text-text-400.line-clamp-1` üzerinden okunur.
+2. Açma hedefi grup içi `button[aria-label^="View"]`, eski `closest('[role=button]')` ve grup fallback sırasıyla seçilir.
+3. Panel en çok 3,2 saniye beklenir; render için ek kısa bekleme uygulanır.
+4. İçerik hedefi `.code-block__code → pre → .standard-markdown → panel` zinciridir.
+5. Uzunluk 400 ms aralıklarla ölçülür; iki ardışık eşit ve 10 karakterden uzun değer stabil kabul edilir. Üst sınırda mevcut anlamlı içerik yine korunur.
+6. Her hata `icerik:null` ile yalnız ilgili artifact kaydına yansır; sıra ve diğer kartlar korunur.
+7. Dış `finally`, `artifactCikarmaAktif=false` yaparak observer baskısını her koşulda kaldırır.
 
 ### `konusmayiCikar(artifactIcerikleri)` (v1.8.1 — document-order akış)
 - Konteyner: `.flex-1.flex.flex-col.px-4.max-w-3xl`
@@ -528,148 +561,116 @@ artifactCikarmaAktif = false
 
 ---
 
-## 12. ChatGPT Content Script (v1.8.2 — 2026-07 "wm" UI + eski UI çift destek)
+## 12. ChatGPT Content Script (v2.0.0 — güncel “wm” UI + eski UI çift destek)
 
-- Buton (v1.8.3): `paylasButonunuBul(header)` — önce `button[aria-label="Paylaş"/"Share"]` (eski UI), yoksa header butonlarında `textContent.trim() === 'Paylaş'/'Share'` (yeni UI aria-label taşımıyor). Bulunursa Paylaş'ın **aynı parent'ına** `insertBefore` (aynı satır hizası garantisi); **bulunamazsa header'a gömülMEZ** (dikey container'da üst satıra yapışıyordu — v1.8.2'de yaşanan hizalama bug'ı) → `floatingButonEkle()`. 36×36, radius 10px, renk `#8e8ea0`, hover `#10a37f`, `align-self:center` + `flex-shrink:0`. **Header 5 denemede hiç bulunamazsa** da floating: `document.body`'ye `position:fixed; top:14px; right:64px` yuvarlak beyaz buton (Grok kalıbı, aynı `#chatgpt-printer-buton` id'si — observer re-inject bozulmaz)
+- Buton: `paylasButonunuBul(header)` önce `button[aria-label="Paylaş"/"Share"]`, sonra görünür buton metnini kullanır. Bulunursa Paylaş'ın aynı parent'ına `insertBefore`; bulunamazsa header yapısına zorla gömülmeden `floatingButonEkle()` çağrılır. Floating düğme `top:72px; right:18px`, 42×42 px, görünür gölge/odak halkası taşır; değişken header eylemleriyle sabit 64/240 px tahmin üzerinden çakışmaz.
 - **Ortak turn selektörü:** `CHATGPT_TURN_SELEKTORU = '[data-testid^="conversation-turn"], li[data-message-role]'` — eski + yeni DOM document-order, selektörler kesişmez
 - **Rol tespiti `chatgptTurnRolu(turn)`:** önce li'nin kendisinde `data-message-role` (yeni wm DOM), yoksa descendant `[data-message-author-role]` (eski DOM); ikisi de yoksa null → turn atlanır
 - **İçerik elementi `chatgptIcerikElemani(turn, rol)`:** user → `[data-user-message-bubble]` → `.user-message-bubble-color` → `[data-message-author-role="user"]` → `chatgptTurnGovdesi`; assistant → `[data-assistant-markdown]` → `.markdown` → `[data-message-author-role="assistant"]` → `chatgptTurnGovdesi`. Gövde fallback'i `data-message-actions`/`data-message-supplement` taşımayan ilk DIV çocuğu — sr-only `h4[data-message-attribution]` ("Şunu dedin:"/"ChatGPT:") sızmaz
-- **Sanallaştırma scroll-süpürmesi (`konusmayiCikar(ilerlemeBildir)`):** uzun konuşmada görünmeyen turn'ler DOM'dan düşebilir. `chatgptKaydiriciBul` (turn'den yukarı overflow-y auto/scroll/overlay + scrollHeight > clientHeight+10 ancestor; yoksa `document.scrollingElement`) → `scrollHeight > 1.5×clientHeight` ise: konum kaydet → en üste git (450ms bekle) → her adımda `gorunenleriIsle()` (DOM'daki turn'leri `chatgptTurnAnahtari` ile — `id:` UUID → `testid:` → içerik parmak izi — `Map`'e dedup'lu ekle) → `clientHeight×0.75` adımlarla aşağı (350ms/adım, maks 120 adım) → dipte son geçiş → `finally` ile scroll konumu geri. Kısa konuşmada tek geçiş. Her 8 adımda toast ilerleme bildirimi
+- **Sanallaştırma scroll-süpürmesi (`konusmayiCikar(ilerlemeBildir)`):** uzun konuşmada görünmeyen turn'ler DOM'dan düşebilir. `chatgptKaydiriciBul` kaydırılabilir ancestor'ı veya belge kökünü bulur; yükseklik 1,5 viewport'u aşarsa konum kaydedilir, en üste gidilir ve %75 viewport adımlarıyla gerçek dibe kadar ilerlenir. Eski sessiz `maks 120 adım` sınırı kaldırılmıştır; çok uzun konuşmanın son kısmı kırpılmaz. Sonsuz döngü koruması, kaydırma yüzeyinin üç ardışık adımda ilerlememesi koşuludur. Her dilim UUID/testid/parmak izi anahtarlı `Map` ile mükerrersiz işlenir; `finally` kullanıcının scroll konumunu geri yükler.
 - Başlık: `nav a[href^="/c/"][data-active="true"]` | `.bg-token-sidebar-surface-secondary` | `[aria-current="page"]` → doc.title → `'ChatGPT Konuşması'`
 - Streaming kontrolü: eski göstergeler + yeni wm DOM `li[data-message-role="assistant"][data-assistant-content-started]:not([data-message-complete])` (**`data-message-complete` yalnız canlı stream tamamlanınca eklenir, reload'da yok** — `:not()` tek başına kullanılamaz, `data-assistant-content-started` ile kombinlenir); toast renkleri: başarı `#10a37f`, hata `#ef4444`
 
 ## 13. Grok Content Script
 
-- **Floating buton:** Grok'un agresif React reconciliation'ı header enjeksiyonunu siliyor → buton `document.body`'ye `position:fixed; top:14px; right:240px` 36×36 yuvarlak beyaz buton olarak eklenir (React DOM'una dokunulmaz)
-- `grokMesajRolu(el)` — 4 stratejili rol tespiti: (0) **data-testid** (v1.8.1 — 2026-07 Grok DOM'u `.message-bubble` balonlarını `data-testid="user-message"` / `"assistant-message"` ile işaretler; `/(^|-)(user|human)(-|$)/` ve `/(^|-)(assistant|grok|ai|bot|model)(-|$)/` kalıpları), (1) data attribute'lar (`data-message-author-role`, `data-role`, `data-author`, `data-sender`, `data-message-role` → user/human vs assistant/grok/ai/bot/model), (2) aria-label substring (ASCII-boundary regex — Türkçe karakter `\b` ile çalışmaz: `/(^|[^a-z])(user|you|sen|kullanıcı|kullanici)([^a-z]|$)/i`), (3) class regex (user-message/query-bubble vs assistant-message/response-bubble havuzları)
-- `konusmayiCikar()` — **5 kademeli konteyner stratejisi** (sırayla, ≥2 aday bulan kazanır): (1) scroll alanı doğrudan çocukları (`main [class*="overflow-y"]` vb. 7 aday selektör; çocuk yetersizse `:scope > * > *` derinliği), (2) data-attribute taraması, (3) aria-label taraması, (4) `article, [role="article"]`, (5) geniş class regex havuzu. Her stratejinin sonucu `[Grok DEBUG]` console loglarına yazılır (hata mesajı kullanıcıyı F12'ye yönlendirir — bilinçli üretim logu)
-- Rol bulunamazsa **alternating fallback** (`oncekiRol` ters çevirme, ilk mesaj user varsayımı); içerik `enZenginIcerikDescendant` (öncelik `.markdown/.prose/[class*="message-text"]`; yoksa en uzun metinli descendant)
+- **Floating buton:** React reconciliation riskine karşı `document.body` düzeyinde, `position:fixed; top:72px; right:18px`, 42×42 px, yüksek kontrastlı ve klavye odağı görünür bir düğmedir. Sabit `right:240px` tahmini kaldırıldığı için farklı pencere genişliklerinde site eylemleriyle çakışmaz.
+- `konusmayiCikar()` ilk olarak güncel sözleşmenin kesin balonlarını tarar: `[data-testid="user-message"], [data-testid="assistant-message"]`. Bu sonuç yeterliyse geniş heuristiklere hiç girilmez. Kapsayıcı/nested mükerrerler filtrelenir.
+- `grokMesajRolu(el)` kesin `data-testid` değerini önce, ardından data attribute, aria-label ve geriye uyumlu class kalıplarını kullanır. Rol bulunamazsa eski arayüzler için alternating fallback korunur.
+- İçerik seçiminde kesin `[data-message-content]`, `.markdown` ve `.prose` hedefleri geniş substring class aramasından önce gelir. Bu, UI araçlarının konuşma metni sanılma riskini düşürür.
+- Console tanısı yalnız strateji adı, aday sayısı, tag ve kısa class yapısını kaydeder; konuşma metninin ilk karakterleri artık loglanmaz. Kullanıcı hata metni F12/log gönderme işi istemez, doğrudan anlaşılır çıkarma hatası verir.
 - Tema: koyu gri `#1f2937`; toast başarı koyu gri, hata `#dc2626`
 
 ---
 
 ## 14. Background Service Worker
 
-```javascript
-chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => {
-    if (mesaj.islem === 'yazdirmaSayfasiAc') {
-        chrome.tabs.create({ url: chrome.runtime.getURL('yazdir.html') });
-        yanitGonder({ basari: true });
-        return false;                       // senkron yanıt
-    }
-    return false;
-});
-```
+Service worker ilk satırda `importScripts('site-yardimcilari.js')` çağırır. Popup ile background aynı `DESTEKLENEN_SITELER` ve `desteklenenSiteBilgisi()` sözleşmesini kullanır; destek kontrolü URL içinde metin aramasıyla yinelenmez.
 
-**Ctrl+Shift+P komutu (`yazdir-kisayol`):** aktif sekme `chrome.tabs.query({active:true, currentWindow:true})`; URL 4 desteklenen domain'den birini içermiyorsa kırmızı `!` badge 3 sn; içeriyorsa `chrome.tabs.sendMessage({islem:'klavyeKisayoluYazdir'})` — content script erişilemezse (catch) amber `F5` badge 4 sn (sayfa yenileme önerisi).
+**`yazdirmaSayfasiAc` mesajı:** `oturumKimligi`, background'a özgü aynı `[A-Za-z0-9-]`, 8–80 karakter allowlist'iyle doğrulanır. Geçersiz kimlikte sekme açılmaz ve `{basari:false}` döner. Geçerliyse `yazdir.html?oturum=<encodeURIComponent>` oluşturulur; `chrome.tabs.create` tamamlanana kadar mesaj kanalı `return true` ile açık tutulur.
 
-**`onInstalled`:** install/update logu + **kalıntı temizliği**: `chrome.storage.local.remove(['konusmaVerisi','yazdirAyarlari'])` — yazdir.html hiç açılmadan kalmış geçici veri (10 MB'a dek) silinir.
+**Ctrl+Shift+P komutu (`yazdir-kisayol`):** aktif sekme `chrome.tabs.query({active:true,currentWindow:true})` ile alınır. `new URL()` sonucu HTTPS ve hostname tam olarak dört destekli değerden biri değilse kırmızı `!` badge gösterilir. `example.invalid/?next=https://chatgpt.com` gibi substring saldırıları destekli sayılmaz. Destekli sekmeye `{islem:'klavyeKisayoluYazdir'}` gönderilir; içerik betiği yoksa amber `F5` badge görünür. Kapalı sekmede badge temizleme hatası sessizce yakalanır.
+
+**Kalıntı temizliği:** `YAZDIRMA_OTURUM_AZAMI_YASI = 6 saat`. Başlangıçta ve worker uyanışında eski global anahtarlar ile tarihi geçersiz veya 6 saatten eski `aiChatPrinterOturum:*` paketleri silinir. `onInstalled` install/update sırasında tüm eski paketleri temizler. Güncel ve henüz sahiplenilmemiş paketler worker yeniden başladığında korunur; MV3 worker yaşam döngüsü veri kaybına yol açmaz.
 
 ---
 
 ## 15. Popup
 
-**popup.html:** 320 px genişlik, koyu tema (`#1a1a2e` zemin), inline `<style>`. Bileşenler: başlık (28px yazıcı SVG + "AI Chat Printer" + alt açıklama), `#durumAlani` (gizli durum şeridi; `.basarili/.hata/.bilgi` sol-kenar renkli), 4 ayar satırı (toggle switch'ler: `kodBloklari`, `otomatikYazdir`, `footerGoster`; select: `yaziBoyutu` 11/13/15), `#yazdirButonu` (gradyan `#4a8cff→#6a5aff`), alt bilgi (kısayol + `#surumBilgisi` — HTML'de yalnız "AI Chat Printer" başlar, popup.js `getManifest().version` ile "v1.8.1" ekler). Script sırası: `ortak-yardimcilar.js` → `popup.js`.
+**Dosya ayrımı:** Yapı `popup.html`, görünüm `popup.css`, davranış `popup.js` içindedir. Inline stil ve inline script yoktur. Script sırası `site-yardimcilari.js → ortak-yardimcilar.js → popup.js` biçimindedir.
 
-**popup.js akışı:**
-1. `DOMContentLoaded`: `#surumBilgisi`'ni `'AI Chat Printer v' + chrome.runtime.getManifest().version` ile doldur; `chrome.storage.sync.get(['kullaniciAyarlari'])` → `{...VARSAYILAN_AYARLAR, ...kayit}` → UI'ya yansıt
-2. **Proaktif site kontrolü:** aktif sekme URL'si `DESTEKLENEN_URLLER = ['gemini.google.com','claude.ai','chatgpt.com','grok.com']` içinde değilse bilgi mesajı + yazdır butonu disabled (opacity 0.5, `not-allowed`)
-3. Her ayar değişiminde otomatik `sync.set` + "Ayar kaydedildi." (1.5 sn sonra yalnız `bilgi` sınıfıysa gizlenir)
-4. Yazdır tıklaması: buton disable + "Çıkarılıyor..." (**`butonMetniGuncelle`** — SVG'yi koruyarak yalnız text node güncellenir) → site kontrolü → `sendMessage({islem:'konusmayiCikar'})` try/catch ("Content script yüklenmemiş... F5") → boş yanıt / `yanit.hata` / boş mesajlar ayrı ayrı raporlanır → **`quotaKontrol(yanit)`** → ayarlar `sync.set` → `local.set({konusmaVerisi: yanit, yazdirAyarlari})` → `tabs.create(yazdir.html)`
+**Tasarım sistemi:** 390 px sıcak kâğıt zemini, koyu mürekkep başlık, vermilyon vurgu ve Georgia/Tahoma hiyerarşisi kullanılır. “İçerik” ile “Sayfa” iki net karttır. Toggle'lar native checkbox semantiğini korur; select alanlarının görünür label'ı vardır. Tüm eylemlerde `:focus-visible`, `aria-live` durum metni ve `prefers-reduced-motion` desteği bulunur.
+
+**Ayar yüzeyi:** Kod blokları, belge imzası, bağlantı adresleri, yazı boyutu, kâğıt boyutu, yön, kenar boşluğu ve otomatik yazdırma. `ayarlariFormdanOku()` ham UI değerlerini `ayarlariDogrula()` üzerinden geçirir; `ayarlariFormaYansit()` yalnız doğrulanmış değerleri gösterir. Her değişiklik `ayarlariKaydet()` ile tek sözleşmeye yazılır.
+
+**Site durumu:** Aktif sekme `desteklenenSiteBilgisi()` ile tam-hostname doğrulanır. Destekli sayfada yeşil nokta ve “Claude konuşması hazır” benzeri durum görünür. Desteksiz veya eklenti sayfasında native `disabled` ile düğme devre dışı bırakılır; işlem anında ayrıca `aria-busy` kullanılır.
+
+**Önizleme akışı:** Düğme busy durumuna geçer → content script'ten `konusmayiCikar` istenir → hata/boş konuşma/quota denetlenir → doğrulanmış ayarlarla UUID paketi oluşturulur → background'a yalnız oturum kimliği gönderilir. Background başarısızsa yazılan paket geri silinir. Başarılı açılışta popup kapanacağı için düğmeyi tekrar etkinleştirmek gerekmez; hata yollarının tamamı UI durumunu geri yükler.
 
 ---
 
 ## 16. Yazdırma Sayfası
 
-**yazdir.html iskeleti (ekranda görünen, yazıcıya gitmeyen iki çubuk + içerik):**
-1. `.kontrol-cubugu` (`#kontrolCubugu`, `role="toolbar"`): başlık + **8 buton** — `#yazdirTetikle` "Yazdır" [birincil], `#markdownKopyala` "Markdown", `#metinKopyala` "Metin", `#markdownIndir` "↓ MD", `#metinIndir` "↓ TXT", `#htmlIndir` "↓ HTML", `#jsonIndir` "↓ JSON", `#sayfayiKapat` "Kapat"
-2. `.ayar-cubugu` (`#ayarCubugu`, `role="toolbar"`) — **v1.8.0 canlı ayar çubuğu**: `<select id="canliYaziBoyutu">` (11/13/15), `<input type="checkbox" id="canliKodBloklari" checked>` "Kod blokları", `<input type="checkbox" id="mesajSecimModu">` "Mesaj seçimi", `<button id="tumunuSecKaldir" class="... kucuk gizli-buton">` "Tümünü Kaldır", `<span id="secimBilgisi" aria-live="polite">` (seçim sayacı)
-3. `#yuklemeOverlay` (spinner + durum metni, `role="status" aria-live="polite"`), `#toastAlani` (ARIA live region)
-4. `#yazdirmaAlani` (başlık bloğu `#konusmaBasligi` h1 + `#konusmaTarihi/#mesajSayisi/#kaynakSite` + `#mesajlarAlani` + `.sayfa-alt-bilgi` footer)
+### HTML ve kontrol yüzeyi
 
-Script sırası: `ortak-yardimcilar.js` → `yazdir.js`. Global: `let mevcutKonusma = null` (render sonrası export/seçim için).
+`yazdir.html` tek bir sticky `.uygulama-kontrolleri` başlığı kullanır; eski iki sabit çubuğun üst üste binme ve içerik marjı hesaplama bağı kaldırılmıştır. İlk satır marka/özet ile Yazdır, Markdown, Metin, MD, TXT, HTML, JSON ve Kapat eylemlerini; ikinci satır canlı sayfa/içerik ayarlarını taşır. Dar görünümde iki satır da `flex-wrap` ile sarılır, yatay kaydırma veya sağdaki kontrollerin kesilmesi yoktur.
 
-**yazdir.js `DOMContentLoaded` akışı (sıra önemli):**
-1. `storage.local.get(['konusmaVerisi','yazdirAyarlari'])` → veri geldiyse **anında** `storage.local.remove(...)` (oku-ve-hemen-sil)
-2. **sessionStorage senkronizasyonu:** veri geldiyse `sessionStorage.setItem('aiChatPrinterYedek', JSON.stringify({konusmaVerisi, yazdirAyarlari}))` (quota aşımı sessizce yutulur); veri YOKSA (F5) yedekten `JSON.parse` ile geri yükle
-3. Veri hâlâ yoksa: overlay gizle + "Konuşma verisi bulunamadı..." mesajı, çık
-4. `mevcutKonusma = konusma` (global referans — export ve seçim buradan okur)
-5. `KAYNAK_HARITA` ile tema seçimi: `{ad:'GEMINI', sinif:'gemini', site:'gemini.google.com', baslik:'Gemini Konuşması'}` ×4 + bilinmeyen kaynak → `{ad:'AI', sinif:'ai', baslik:'AI Konuşması'}` (sessizce gemini'ye düşmek YASAK)
-6. Ayar uygulama: `yaziBoyutu` → `#yazdirmaAlani.style.fontSize`; `footerGoster === false` → footer `display:none`
-7. Başlık/tarih/sayı/site **`textContent` ile** yazılır (XSS-güvenli); `document.title = baslik` (**PDF dosya adı bu satırdır**)
-8. **Mesaj render döngüsü** — `forEach((mesaj, mesajIndex) => ...)`; her mesaj için `.mesaj-blogu` (`dataset.mesajIndex = mesajIndex` — **export filtresinin anahtarı**) > etiket satırı + `.mesaj-icerigi`:
-   - **Etiket satırı** (`.mesaj-etiket-satiri`): `.mesaj-secim-kutusu` checkbox (`checked=true`, seçim modunda görünür; `change`'de bloğa `.mesaj-secilmedi` toggle + `secimBilgisiniGuncelle()`) + `.mesaj-numara` (`#N`) + `.mesaj-etiketi` (`KULLANICI|GEMINI|...` rozeti)
-   - `hamIcerik = mesaj.html || escape(mesaj.metin).replace(/\n/g,'<br>')` — düz metin fallback'inde newline'lar korunur (`& < >` önce escape edilir)
-   - `htmlTemizle(hamIcerik)` → DOM fragment append; boşsa resimliyse "(Bu mesajda yalnızca görsel içerik var)", değilse "(Boş mesaj)"
-   - kullanıcı mesajıysa `prefixTemizleDOM` (TreeWalker ilk DOLU text node'da "Siz şunu dediniz: " soyulur)
-   - **Kod bloğu gizleme artık `pre.remove()` DEĞİL** — `body.kod-gizli` class'ıyla CSS'te yapılır (aşağı, adım 9); DOM silinmez, canlı geri açılabilir
-   - tablolar varsa flag (landscape toast'u için)
-   - `mesaj.resimler` döngüsü: yalnız `data:image/` veya `https://` src kabul; `loading="lazy"`, `onerror`'da kendini gizler
-   - `mesaj.artifactlar`: `.artifact-blogu` (koyu başlık şeridi + `pre>code` textContent içerik veya "(Artifact içeriği çıkarılamadı)"); `body.kod-gizli` ile CSS'te gizlenir
-9. **Kod blokları başlangıç durumu:** `document.body.classList.toggle('kod-gizli', ayarlar.kodBloklari === false)` — kayıtlı ayara göre
-10. **Canlı ayar çubuğu bağlama (v1.8.0):**
-    - `canliYaziBoyutu.value = ayarlar.yaziBoyutu || '13'`; `change` → `#yazdirmaAlani.style.fontSize` anında güncellenir
-    - `canliKodBloklari.checked = ayarlar.kodBloklari !== false`; `change` → `body.classList.toggle('kod-gizli', !checked)`
-    - `mesajSecimModu.change` → `body.classList.toggle('secim-modu-acik', checked)` (checkbox görünürlüğü) + `tumunuSecKaldir` `.gizli-buton` toggle + `secimBilgisiniGuncelle()`
-    - `tumunuSecKaldir.click` → tüm `.mesaj-secim-kutusu`'lar: hepsi seçiliyse hepsini kaldır, değilse hepsini seç (`every` ile durum tespiti) + blok `.mesaj-secilmedi` senkronu + sayaç
-11. Tablo varsa 1.2 sn sonra "Geniş tablolar tespit edildi... Yatay (Landscape)..." bilgi toastı
-12. `otomatikYazdir` ise: TÜM `img`'lerin load/error/3sn-timeout promise'leri `Promise.all` → 200 ms → `window.print()`
-13. **Buton bağlama** (tüm kopyala/indir **`seciliKonusmaVerisi()`** kullanır — mesaj seçimine saygılı):
-    - Yazdır → `window.print()`
-    - Markdown/Metin kopyala → `konusmayiMarkdowneDonustur` / `konusmayiDuzMetneDonustur` → `panoyaKopyala` (Clipboard API → `execCommand('copy')` fallback'li) + toast
-    - ↓ MD / ↓ TXT → aynı üreticiler → `dosyayaIndir(icerik, baslik + '.md|.txt', mime)` (iç `konusmayiDosyaIndir(format)` yardımcısı)
-    - **↓ HTML** → `#yazdirmaAlani.cloneNode(true)` klonundan `.mesaj-secim-kutusu`'lar ve `.mesaj-secilmedi` bloklar çıkarılır; `body.kod-gizli` ise klondan `pre, .artifact-blogu` da çıkarılır; `fetch(chrome.runtime.getURL('yazdir.css'))` ile CSS gömülür → `<!DOCTYPE html>...` tek dosya (canlı yazı boyutu inline korunur) → `dosyayaIndir(..., '.html', 'text/html')`
-    - **↓ JSON** → `dosyayaIndir(JSON.stringify(seciliKonusmaVerisi(), null, 2), baslik + '.json', 'application/json')`
-    - Kapat → `sayfayiKapat()` (storage temizle + `chrome.tabs.getCurrent → tabs.remove`, fallback `window.close`)
-14. Kısayollar: `Escape` → kapat; `Ctrl/Cmd+Shift+M` → Markdown kopyala
+Canlı ayarlar: `canliYaziBoyutu`, `canliKagitBoyutu`, `canliYonlendirme`, `canliKenarBosluk`, `canliKodBloklari`, `canliFooterGoster`, `canliLinkAdresleri` ve `mesajSecimModu`. Seçim modu açılınca `tumunuSecKaldir`, `yalnizKullaniciSec`, `yalnizYapayZekaSec` ile sayaç görünür. Kontroller semantic `button/select/input`, görünür label, `role=toolbar/group` ve `aria-live` kullanır.
 
-**`seciliKonusmaVerisi()` (v1.8.0):** seçim modunda işareti kaldırılmış (`.mesaj-blogu.mesaj-secilmedi`) blokların `dataset.mesajIndex`'lerini `Set`'e toplar; hiç gizli yoksa `mevcutKonusma`'yı **aynen** döndürür (eski davranış birebir); varsa `mesajlar.filter((m,i) => !gizli.has(i))` ile filtreli kopya (`mesajSayisi` de güncellenir). Tüm dışa aktarımların tek veri kaynağıdır.
+Script sırası `site-yardimcilari.js → ortak-yardimcilar.js → yazdir.js` biçimindedir. `<style id="dinamikSayfaStili">`, doğrulanmış sayfa ayarını çalışma anında `@page { size: <kâğıt> <yön>; margin: <ölçü>; }` kuralına dönüştürür:
 
-**`secimBilgisiniGuncelle()`:** seçim modu kapalıysa `#secimBilgisi` boşaltılır; açıksa "`{secili} / {toplam} mesaj seçili`" yazılır ve `#tumunuSecKaldir` etiketi duruma göre "Tümünü Kaldır" ↔ "Tümünü Seç" olur.
+| Ayar | Kabul edilen değer | Baskı karşılığı |
+|---|---|---|
+| Kâğıt | `A4`, `A3`, `Letter` | `@page size` |
+| Yön | `portrait`, `landscape` | `@page size` ikinci bileşeni |
+| Kenar | `dar`, `normal`, `genis` | sırasıyla `1cm`, `2cm 1.5cm`, `2.7cm 2.2cm` |
+| Yazı | `11`, `13`, `15`, `17` | `#yazdirmaAlani.style.fontSize` |
 
-**`konusmayiDuzMetneDonustur(veri)`:** başlık + tarih + 60×`=`; her mesaj `[#N] ROL` + 40×`-` + `mesaj.metin`; artifact'lar `[DOSYA] baslik (tur)` + içerik; resimler `[N görsel içerik]`; footer imza.
+### Veri alma ve F5 dayanıklılığı
 
----
+1. URL'deki `oturum` parametresi `yazdirmaOturumKimligiGecerliMi` ile doğrulanır. Parametre var ama geçersizse eski global anahtara düşülmez; sahte parametrenin başka paketi okutması engellenir.
+2. Geçerli UUID için yalnız `aiChatPrinterOturum:<UUID>` okunur ve paket hemen silinir.
+3. Taze paket `sessionStorage['aiChatPrinterYedek:<UUID>']` içine yazılır. F5'te local paket artık yoksa aynı sekme/UUID yedeği okunur.
+4. Konuşma veya mesaj dizisi yoksa yükleme kapanır; çıktı ve ayar kontrolleri kilitlenir, “Önizleme kullanılamıyor” durumu gösterilir, Kapat/Escape etkin kalır. Geçersiz oturum parametresi eski global paketi okuyamaz veya silemez.
+5. Paket ayarları `ayarlariDogrula` ile normalize edilir; `mevcutAyarlar` render, yazdırma ve bütün dışa aktarımların tek kaynağı olur.
+
+### Render ve seçim
+
+Kaynak görünümü `kaynakSiteBilgisi(mevcutKonusma.kaynak)` ile alınır. Başlık, tarih, sayı ve hostname yalnız `textContent` ile yazılır. Her mesaj `dataset.mesajIndex`, rol rozeti, seçim checkbox'ı ve sanitize edilmiş içerik taşır. Düz metin fallback'i önce escape edilir. Ek resimler yalnız `guvenliResimKaynagiMi` sonucunda eklenir; `loading=eager`, `decoding=async`, `referrerpolicy=no-referrer` uygulanır ve hata listener'ı yalnız kendi resmini gizler. Artifact içeriği `textContent` ile `pre>code` içine yazılır.
+
+`seciliKonusmaVerisi()`, görünür mesaj indekslerine göre konuşmanın filtreli kopyasını üretir. `gecerliSecimVerisi()` sıfır mesajda bütün yazdırma/kopyalama/indirme düğmelerini devre dışı bırakır ve somut durum metni verir. Rol seçimleri DOM sırasını değiştirmez; yalnız checkbox ve `.mesaj-secilmedi` durumu güncellenir. MD, TXT, HTML, JSON ve yazdırma aynı seçim sözleşmesine uyar.
+
+### Baskı ve dışa aktarım
+
+`belgeResimleriniBekle()`, yalnız seçili mesajların görselleri için `complete/naturalWidth`, `decode()`, load/error ve 5 saniye üst sınırını birleştirir. Manuel ve otomatik yazdırma `yazdirmayaHazirlaVeYazdir()` üzerinden geçer; seçilmeyen büyük görseller baskıyı bekletmez ve geç yüklenen görseller yüzünden eksik ilk baskı oluşmaz.
+
+- Markdown: `konusmayiMarkdowneDonustur(veri, mevcutAyarlar.footerGoster)`.
+- Metin: `konusmayiDuzMetneDonustur(veri, mevcutAyarlar.footerGoster)`.
+- JSON: yalnız seçili konuşma nesnesi, iki boşluk girintili UTF-8.
+- HTML: `document.implementation.createHTMLDocument` ile yeni belge kurulur; kontrollü CSS ve dinamik `@page` eklenir, sanitize edilmiş `#yazdirmaAlani` klonu `importNode` ile taşınır. Konuşma başlığı HTML string'ine birleştirilmez. Seçilmeyen mesajlar, checkbox'lar ve kapalı kod/artifact içerikleri dosyaya girmez.
+- Dosya adı: `guvenliDosyaTemeli`, başlığı yeniden temizler; uzantı eklenmeden önce boş/yasaklı değerleri engeller.
 
 ## 17. HTML Sanitizer
 
-`htmlTemizle(htmlString) -> HTMLDivElement` — **innerHTML hiçbir yerde kullanılmaz**; her düğüm `createElement`/`createTextNode` ile yeniden üretilir.
+`htmlTemizle(htmlString) -> HTMLDivElement`, girdiyi `DOMParser` ile inert belgeye ayrıştırır ve her düğümü yeni DOM node'u olarak kurar. Kaynak HTML hiçbir aşamada çıktı konteynerine doğrudan atanmaz.
 
-**İzinli etiketler (whitelist, 46):**
-`P H1-H6 UL OL LI PRE CODE STRONG B EM I U BR TABLE THEAD TBODY TR TH TD TFOOT CAPTION BLOCKQUOTE A SPAN DIV HR SUP SUB IMG FIGURE FIGCAPTION DEL S MARK SMALL KBD SAMP VAR DL DT DD`
+**İzinli yapısal etiketler:** `P H1-H6 UL OL LI PRE CODE STRONG B EM I U BR TABLE THEAD TBODY TR TH TD TFOOT CAPTION BLOCKQUOTE A SPAN DIV HR SUP SUB IMG FIGURE FIGCAPTION DEL S MARK SMALL KBD SAMP VAR DL DT DD`.
 
-**İçerikleriyle atlanan etiketler:** `SCRIPT STYLE NOSCRIPT TEMPLATE IFRAME OBJECT EMBED BUTTON SELECT TEXTAREA SVG CANVAS AUDIO VIDEO MAT-ICON` (`tagName.toUpperCase()` ile) — buton yazısı/ikon ligature/CSS kuralı çıktıya giremez.
+**Tamamen atlanan etiketler:** `SCRIPT STYLE NOSCRIPT TEMPLATE IFRAME OBJECT EMBED BUTTON SELECT TEXTAREA SVG CANVAS AUDIO VIDEO MAT-ICON`. Bilinmeyen kabuk etiketi atılır fakat güvenli çocukları rekürsif işlenir.
 
-**Üç sınıf kuralı:** whitelist'te → kopyala + içine in; atlama listesinde → tamamen yok say; ikisinde de değil → **tag'i at, içeriğine in** (yapısal kabuk div'leri için).
+**Attribute sözleşmesi:**
 
-**Attribute kuralları:**
-- `class` aynen kopyalanır (stil sürekliliği); başka attribute default kopyalanmaz
-- `A`: yalnız `http:// https:// mailto: tel:` href; http(s) ise `target="_blank"` + `rel="noopener noreferrer"`
-- `IMG`: src yalnız `^data:image/(png|jpeg|jpg|gif|webp);(base64,|charset=)` (SVG data-URI XSS engeli — raster-only) VEYA `https://` (içinde `javascript:` geçmeyen). Ek: `alt` (yoksa "Görsel"), `loading="lazy"`, `referrerpolicy="no-referrer"`
-
----
+- Kaynak sitenin class listesi taşınmaz. Yalnız `PRE` ve `CODE` düğümlerindeki `language-*` token'ları regex allowlist'inden geçerek korunur. Böylece kaynak `mesaj-secilmedi`, utility veya dahili UI sınıfıyla önizleme davranışı değiştirilemez.
+- `A`: `new URL(href)` ile yalnız mutlak `http:`, `https:`, `mailto:`, `tel:` bağlantıları kabul edilir; göreli/bozuk değerler reddedilir. HTTP(S) için `target=_blank` ve `rel=noopener noreferrer`.
+- `IMG`: yalnız raster `data:image/(png|jpeg|jpg|gif|webp)` veya HTTPS. SVG data URI, blob, javascript ve bilinmeyen MIME reddedilir. Kabul edilen resim eager/async/no-referrer nitelikleriyle kurulur.
+- Başlık, alt metin ve bütün kullanıcı görünür değerleri property/`textContent` ile atanır; event attribute veya inline stil kopyalanmaz.
 
 ## 18. Yazdırma Stilleri
 
-**Ekran:** zemin `#eef1f5`; içerik kartı 820 px, beyaz, 48/56 px padding. Kontrol çubuğu (`top:0`) koyu `#1a1a2e`, `flex-wrap: wrap` (8 buton dar pencerede alt satıra sarar). **Canlı ayar çubuğu** (`.ayar-cubugu`, `top:58px`) bir ton açık `#24243e`, `z-index:999` (kontrol çubuğunun altında, içeriğin üstünde). İki sabit çubuk için `.yazdirma-alani` üst marjı **118 px** (`margin: 118px auto 48px`). Yükleme overlay'i `rgba(26,26,46,0.92)` + dönen spinner. `.kontrol-buton.kucuk` (ayar çubuğu kompakt buton) + `.gizli-buton { display:none }` (seçim modu kapalıyken "Tümünü Seç/Kaldır" gizli).
+Tasarım dili sıcak kâğıt (`#fffdf8`), koyu mürekkep (`#172630`) ve vermilyon vurgu (`#c54a3d`) üçlüsüdür. Georgia başlıklarda, sistem sans-serif kontrollerde, Consolas kodda kullanılır. Görsel hiyerarşi site markasını taklit etmez; kaynak rolü yalnız rozet ve sol çizgi rengiyle belirtilir.
 
-**v1.8.0 ekran-özel sınıfları:**
-- `.mesaj-secim-kutusu` — 17×17 checkbox, `display:none` varsayılan; `body.secim-modu-acik .mesaj-secim-kutusu { display:inline-block }` (yalnız seçim modunda görünür)
-- `.mesaj-blogu.mesaj-secilmedi { opacity:0.35 }` (seçim modunda soluk); `body:not(.secim-modu-acik) .mesaj-blogu.mesaj-secilmedi { display:none }` (seçim modu kapatılınca çıkarılan mesaj tamamen gizli — hem ekranda hem export klonunda)
-- `body.kod-gizli .mesaj-icerigi pre { display:none }` + `body.kod-gizli .artifact-blogu { display:none }` — **kod bloğu gizleme artık DOM silme değil CSS class'ı** (canlı toggle, geri açılabilir; ekran + yazdırma ortak)
+Ekranda araç yüzeyi sticky, belge yüzeyi gerçek kâğıt oranını çağrıştıran gölgeli bir karttır. `max-width:1080px` altında ana eylemler ve ayarlar satıra sarılır; `max-width:680px` altında export grupları bağımsız düğmelere dönüşür, belge padding'i küçülür. Klavye odağı 3 px görünür halka taşır. `prefers-reduced-motion:reduce` tüm animasyon/geçiş sürelerini etkisizleştirir.
 
-**Rol renk sistemi (rozet zemin/metin + içerik sol çizgisi):**
-| Sınıf | Rozet | Sol çizgi |
-|-------|-------|-----------|
-| `.kullanici` | `#e3edfd` / `#1a6be0` | `#4a8cff` |
-| `.gemini` | `#fde3e1` / `#d42b1e` | `#ea4335` |
-| `.claude` | `#fef3c7` / `#b45309` | `#d97706` |
-| `.chatgpt` | `#d1fae5` / `#047857` | `#10a37f` |
-| `.grok` | `#e5e7eb` / `#1f2937` | `#1f2937` |
-
-**Tipografi:** kod `Consolas`; `pre` açık gri kutu, `code` `#c7254e`; tablolar `table-layout: fixed` + `word-break: break-word` (taşma çözümü); linkler `word-break: break-all`.
-
-**`@media print`:** kontrol çubuğu **+ ayar çubuğu** (`.ayar-cubugu`) + overlay + toast `display:none !important`; **`.mesaj-secim-kutusu` + `.mesaj-blogu.mesaj-secilmedi` `display:none !important`** (seçim checkbox'ları ve çıkarılan mesajlar yazıcıya gitmez); tüm elementlere `print-color-adjust: exact`; `@page { size: A4; margin: 2cm 1.5cm; }` — **`@page` margin box'ları (`@bottom-right` + `counter(pages)`) KULLANILMAZ: Chrome desteklemiyor** (14 ay dead CSS olarak yaşadı, v1.7.0'da kaldırıldı); `pre` satır kaydırmalı; `.mesaj-blogu`/`tr`/`img`/`.artifact-blogu` `page-break-inside: avoid`; `thead { display: table-header-group }` (çok sayfalı tabloda başlık tekrarı); `a[href^="http"]::after { content: " (" attr(href) ")" }` (yazdırılan linkin URL'i görünür).
+Yazdırmada uygulama kontrolleri, overlay, toast ve seçim UI'ı yok edilir. Uzun `.mesaj-blogu` ve `.mesaj-icerigi` blokları sayfalar arasında bölünebilir; eski `page-break-inside:avoid` kaynaklı yarım boş sayfa davranışı kaldırılmıştır. Paragraf ve listelerde `orphans/widows:3`; `thead` için `table-header-group`; satır ve görseller için `break-inside:avoid` kullanılır. Tablolar baskıda `table-layout:auto`, kod `pre-wrap` olur. Bağlantı URL'si yalnız `linkAdresleriniGoster` açıksa `::after` ile basılır. Footer `footerGoster` kapalıysa ekran, baskı ve bütün metinsel dışa aktarımlarda birlikte yoktur.
 
 ---
 
@@ -677,7 +678,7 @@ Script sırası: `ortak-yardimcilar.js` → `yazdir.js`. Global: `let mevcutKonu
 
 | `islem` | Yön | Yanıt | Kanal kuralı |
 |---------|-----|-------|--------------|
-| `yazdirmaSayfasiAc` | content → background | `{basari:true}` senkron | `return false` |
+| `yazdirmaSayfasiAc` | content → background | `{basari:true}` veya `{basari:false,hata}` **asenkron** | `tabs.create` tamamlanana kadar `return true` |
 | `konusmayiCikar` | popup → content | konusmaVerisi VEYA `{hata, mesajlar:[]}` **asenkron** | bu dalda `return true` |
 | `klavyeKisayoluYazdir` | background → content | `{basari:true}` senkron | `return false` |
 
@@ -708,28 +709,33 @@ chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => {
 ## 20. Storage Mimarisi
 
 | Depo | Anahtar | İçerik | Yaşam döngüsü |
-|------|---------|--------|----------------|
-| `chrome.storage.sync` | `kullaniciAyarlari` | 4 ayar | Kalıcı, cihazlar arası senkron (100 KB sınıfı, sorun değil) |
-| `chrome.storage.local` | `konusmaVerisi`, `yazdirAyarlari` | Taşıma verisi (10 MB'a dek) | content/popup yazar → yazdir.js okur-okuduğu anda **siler** → `onInstalled`'da kalıntı temizliği → `sayfayiKapat`'ta da silinir |
-| `sessionStorage` (yazdir sekmesi) | `aiChatPrinterYedek` | Aynı taşıma verisi | Sekmeye özel F5 yedeği; sekme kapanınca tarayıcı siler |
+|---|---|---|---|
+| `chrome.storage.sync` | `kullaniciAyarlari` | Doğrulanmış 8 ayar | Değişince kaydedilir; cihazlar arası kullanıcı tercihi |
+| `chrome.storage.local` | `aiChatPrinterOturum:<UUID>` | `{konusmaVerisi,yazdirAyarlari,olusturmaZamani}` | Üreten yüzey yazar; yalnız UUID'li önizleme okur ve hemen siler |
+| `sessionStorage` | `aiChatPrinterYedek:<UUID>` | Aynı konuşma ve ayar paketi | Sekme/oturum özel F5 yedeği; sekme kapanınca biter |
 
-**Oku-ve-hemen-sil + sessionStorage ikilisi:** local storage tek global anahtar olduğundan iki sekmede art arda "yazdır" basılırsa son yazan kazanırdı; okur okumaz silmek yarış penceresini daraltır. Silme F5'te veri kaybı yaratır → sekmeye özel sessionStorage yedeği bunu kapatır ve **multi-tab korumasını bozmaz** (sessionStorage sekme-izoledir). Quota: 10 MB veri sessionStorage'a sığmayabilir → `try/catch` sessiz; o durumda F5 davranışı eski hâline (veri bulunamadı) döner.
+`chrome.storage.local.QUOTA_BYTES` çalışma anında okunur; yoksa 10 MB fallback kullanılır. Paket boyutu `Blob(JSON.stringify(veri)).size` ile UTF-8 bayt olarak hesaplanır. %80 üstü uyarı, limit üstü kesin durdurma üretir.
 
----
+Oturum kimliği üretiminde `crypto.randomUUID()` önceliklidir. Kimlik hem üreten yardımcıda, hem önizlemede, hem background'da allowlist ile doğrulanır. Bu üçlü doğrulama; URL parametresi, storage key ve sekme açma sınırlarını aynı sözleşmede tutar.
 
-## 21. Güvenlik Modeli
+Oku-ve-hemen-sil, iki önizlemenin aynı paketi tüketmesini engeller. F5 gereksinimi local paketin yaşamını uzatmakla değil, sekmeye özel `sessionStorage` ile çözülür. Sahipsiz paketler `olusturmaZamani` üzerinden 6 saat TTL ile temizlenir; install/update tüm eski sürüm kalıntılarını kaldırır.
 
-| Katman | Önlem |
-|--------|-------|
-| İzin minimizasyonu | Yalnız `activeTab + storage + clipboardWrite`; host izni yok, `tabs` yok, `scripting` yok |
-| XSS — render | Whitelist sanitizer, `createElement`-only, `innerHTML` yasak; DOMParser script çalıştırmaz |
-| XSS — resim | data-URI yalnız raster formatlar (`svg+xml` REDDEDİLİR — SVG script taşıyabilir); https src'de `javascript:` substring engeli |
-| XSS — metin yolları | Başlık/tarih/sayı/toast/hata mesajları her yerde `textContent` |
-| Link güvenliği | href şema whitelist'i; `rel="noopener noreferrer"`; MD motoru da yalnız `^https?://` linkler |
-| Referrer sızıntısı | Tüm render img'lerinde `referrerpolicy="no-referrer"` |
-| UI metni sızıntısı | 4 kanalda (render, metin, MD, resim) buton/ikon/stil içerikleri filtrelenir |
-| CSP | `script-src 'self'` — extension sayfalarında inline/uzak script imkânsız |
-| Veri gizliliği | Hiçbir veri dışarı gönderilmez; taşıma verisi okunur okunmaz silinir |
+## 21. Güvenlik ve Gizlilik Modeli
+
+| Katman | Uygulanan önlem |
+|---|---|
+| İzin minimizasyonu | Yalnız `activeTab`, `storage`, `clipboardWrite`; `tabs/history/cookies/downloads/scripting` ve geniş host izni yok |
+| Site sınırı | `new URL()` + HTTPS + tam hostname; URL substring'i, alt alan adı veya yönlendirme parametresi kabul edilmez |
+| XSS render | Inert `DOMParser`, etiket allowlist'i, yeni DOM üretimi; script/event/style doğrudan taşınmaz |
+| CSS davranış enjeksiyonu | Kaynak class'ları atılır; yalnız güvenli `language-*` kod sınıfı korunur |
+| Resim | Raster data URI allowlist'i; HTTPS için güvenli URL, `credentials:omit`, `referrerpolicy:no-referrer`; SVG/blob reddi |
+| Link | Yalnız HTTP(S), mailto ve tel; yeni sekmede `noopener noreferrer` |
+| Dışa aktarım | HTML string enjeksiyonu yerine `createHTMLDocument + importNode`; dosya adı çıkış sınırında yeniden temizlenir |
+| Storage | UUID izolasyonu, kimlik allowlist'i, oku-sil, sekme yedeği, 6 saat TTL |
+| Özel veri | Konuşma metni Grok debug loguna yazılmaz; uzak analiz/telemetri/sunucu yok |
+| CSP | `script-src 'self'; object-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'` |
+
+`GIZLILIK.md`, Chrome Web Store beyanının teknik kaynağıdır: konuşma yalnız kullanıcı eylemiyle aktif sekmeden okunur; ayarlar dışında kalıcı kişisel veri tutulmaz; konuşma paketi üçüncü tarafa gönderilmez. Clipboard yalnız kullanıcının açık kopyalama eyleminde yazılır.
 
 ---
 
@@ -757,11 +763,11 @@ DOM sıralı işlendiği ve await içerdiği her yerde `for...of` — `forEach(a
 
 ## 24. İkon Üretimi
 
-`icons/ikon_olustur.py` (geliştirme aracı): PIL ile 16/48/128 px PNG'ler — mavi-mor gradyan zemin üzerine beyaz yazıcı pikt ogramı. Üretim paketi yalnız PNG'leri içerir.
+`icons/ikon_olustur.py` (geliştirme aracı): PIL ile 16/48/128 px PNG'ler üretir. 128 px sürümde resmî Web Store kılavuzuna uygun 16 px şeffaf güvenli alan içinde, Baskı Stüdyosu'nun koyu mürekkep + kâğıt + vermilyon paletini taşıyan önden görünüşlü yazıcı piktogramı bulunur. Betik 512 px ana çizimi Lanczos ile küçültür; doğrudan çalıştırıldığında üç ikonu kendi klasöründe yeniden üretir. Dağıtım paketi yalnız PNG'leri içerir, üretici betik kaynak paketinde kalır.
 
 ## 25. Versiyonlama
 
-**İkili eş-zamanlı bump kuralı (ASLA ayrı commit'e kalmaz):** `manifest.json version` + `README.md` rozet ve changelog. **popup sürüm satırı artık hardcoded DEĞİL** — `popup.js` `#surumBilgisi`'ni `'AI Chat Printer v' + chrome.runtime.getManifest().version` ile dinamik yazar (v1.8.0'da hardcoded sürüm güncel kalmadığı için değiştirildi), dolayısıyla manuel senkron gerektirmez. Kontrol: `grep -n "1\.8\.3" manifest.json README.md` ikisinde de eşleşmeli.
+**Dörtlü eş-zamanlı bump kuralı:** `manifest.json version`, `README.md` rozet/changelog, `TEKNIK_DOKUMANTASYON.md` başlık/revizyon ve `GIZLILIK.md` sürüm satırı birlikte güncellenir. Popup sürümü hardcoded değildir; `chrome.runtime.getManifest().version` değerini gösterir. Otomatik kabul manifest sürümünü ve doküman dosyalarının varlığını doğrular.
 
 | Sürüm | Özet |
 |-------|------|
@@ -775,32 +781,104 @@ DOM sıralı işlendiği ve await içerdiği her yerde `for...of` — `forEach(a
 | 1.8.1 | claude.ai 2026-07 UI kırılması giderildi (chat-header, document-order mesaj akışı, View/Go back artifact akışı, chat-title-split başlık) + Grok `data-testid` rol tespiti — hepsi eski UI fallback'li |
 | 1.8.2 | ChatGPT 2026-07 "wm" UI kırılması giderildi: çift DOM turn selektörü (`li[data-message-role]` + eski `conversation-turn`), `[data-user-message-bubble]`/`[data-assistant-markdown]` içerik zinciri, sr-only attribution sızıntı koruması, sanallaştırma scroll-süpürmesi (UUID dedup'lu Map), floating buton fallback, yeni streaming göstergesi |
 | 1.8.3 | ChatGPT yazdır butonu hizalama düzeltmesi: `paylasButonunuBul` (aria-label + buton metni araması), Paylaş yanına aynı-parent insert, Paylaş yoksa header yerine floating buton, `align-self:center`+`flex-shrink:0` |
+| 1.9.0 | UUID tabanlı eşzamanlı yazdırma oturumları, oturum kimlikli URL ve sekmeye özel F5 yedeği |
+| 2.0.0 | Baskı Stüdyosu UX, 8 alanlı doğrulanmış sayfa sözleşmesi, rol seçimi, dinamik `@page`, güvenli DOM dışa aktarımı, tam-hostname kontrolü, 6 saat TTL, resim/Claude/ChatGPT/Grok sertleştirmesi, gizlilik beyanı, Web Store güvenli alanlı ikon ve görsel seti, TR/EN mağaza metni, yayın notları ve 14 maddelik otomatik/gerçek MV3 kabul paketi |
 
-## 26. Kurulum ve Test Workflow
+## 26. Kurulum ve Kabul Akışı
 
 **Kurulum:** `chrome://extensions` → Geliştirici modu AÇIK → "Paketlenmemiş öğe yükle" → klasörü seç. Açık hedef-site sekmeleri **F5** ister.
 
 **Değişiklik döngüsü:** kod değiştir → eklenti kartında ↻ → hedef sekme F5 → butonla uçtan uca dene.
 
-**Hızlı doğrulama komutları:**
-```bash
-for f in *.js; do node --check "$f"; done
-node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8'))"
+**Kanonik otomatik kabul:**
+
+```powershell
+python .\tests\acceptance_tests.py
 ```
 
-**Tarayıcı-içi birim test düzeneği (bağımlılıksız):** geçici `test.html` (fixture DOM + `<script src="ortak-yardimcilar.js">` + doğrulama scripti) → `python -m http.server 8765` → `http://127.0.0.1:8765/test.html` → sonuç `<pre>`'den okunur → düzenek SİLİNİR. `file://` ÇALIŞMAZ (tarayıcı otomasyon araçları https'e zorlar). Uçtan uca render testi için `window.chrome` mock'u (storage.local.get fixture döndürür) + yazdir.html iskeleti + `yazdir.js` yüklenir — XSS/sızıntı/prefix/artifact zinciri tek seferde doğrulanır.
+Test önce tüm kök JavaScript dosyalarını `node --check`, bütün Python dosyalarını yerleşik `compile()` ile doğrular; manifest/sürüm/izin/script sırası/CSP, zorunlu dosya, UTF-8/mojibake ve resim olay-kimlik bilgisi-referrer sözleşmelerini tarar. Ardından geçici localhost fixture üzerinde gerçek Chrome ile sanitizer, XSS, raster resim, güvenli class, dinamik `@page`, Markdown, footer, seçim, rol seçimi, boş seçim kilidi, yalnız seçili resimlerde `decode()` bariyeri, MD/HTML indirme, canlı ayar, F5, geçersiz oturum UX'i, paralel oturum yalıtımı ve popup hostname/erişilebilirlik kabulü çalışır.
+
+Son katmanda Playwright’ın Chromium binary’si geçici profil ile `--load-extension` üzerinden paketlenmemiş eklentiyi yükler. Service worker’ın v2.0.0 manifestini, ortak hostname sözleşmesini, gerçek `storage.sync` erişimini ve 6 saat TTL temizliğini doğrular. Gemini, Claude, ChatGPT ve Grok HTTPS istekleri yalnız test bağlamında siteye özgü fixture HTML ile route edilir; dört gerçek content script kendi düğmesini enjekte eder ve tıklama `storage.local → background.js → chrome-extension://.../yazdir.html?oturum=...` zincirini çalıştırır. Her sitede kullanıcı+AI mesajı, hostname ve sekme yedeği; Gemini'de cevap-altı Markdown indirme, Claude'da gerçek tıkla-aç-oku-kapat artifact akışı, ChatGPT'de altı mesajlı kaydırma süpürmesi/konum geri yükleme ve `language-js` kod sınıfı doğrulanır. Geçici Chromium profili test sonunda otomatik silinir.
+
+Kurulu kararlı Google Chrome, tarayıcı render/popup katmanında ayrıca kullanılır. Gerçek eklenti yükleme katmanında Chromium seçilmesinin nedeni ürün kısıtı değil, Chrome 137'den itibaren resmî markalı Chrome build'lerinde `--load-extension` komut satırı bayrağının kaldırılmış olmasıdır. Chromium ve Chrome for Testing bu bayrağı desteklemeye devam eder; Chrome ekibinin kanonik duyurusu: `https://groups.google.com/a/chromium.org/g/chromium-extensions/c/1-g8EFx2BBY`.
+
+İsteğe bağlı görsel kabul `AI_CHAT_PRINTER_SCREENSHOT_DIR` ortam değişkeniyle masaüstü, 640 px dar görünüm ve popup PNG’lerini üretir; kalıcı kabulte görseller vision ile incelendikten sonra silinir.
+
+**Açılmış dağıtım paketi kabulü:** Test dosyası çalışma alanında kalırken `AI_CHAT_PRINTER_PROJECT_ROOT` açılmış ZIP köküne yöneltilir ve `--runtime-only` kullanılır. Böylece pakette test/dokümantasyon bulunmasa bile manifest, service worker, content script ve önizleme zinciri doğrudan paket dosyalarından çalışır:
+
+```powershell
+$env:AI_CHAT_PRINTER_PROJECT_ROOT = "C:\gecici\AI-Chat-Printer-v2.0.0"
+python .\tests\acceptance_tests.py --runtime-only
+```
+
+**Web Store paket sözleşmesi:** ZIP kökünde `manifest.json` bulunur. Paket yalnız manifestin çalışma anında kullandığı HTML, CSS, JavaScript, locale ve PNG ikonlarını taşır; test, dokümantasyon, üretici betik, ekran görüntüsü ve geliştirme kuralı içermez. `dist/SHA256SUMS-v2.0.0.txt` teslim edilen ZIP’in byte seviyesinde doğrulama kaynağıdır.
 
 ## 27. Sıfırdan İnşa Adım Adım
 
 1. Klasör + `manifest.json` (Bölüm 5 birebir) + `_locales` (Bölüm 23) + ikonlar
-2. `resim-yardimcilari.js` (Bölüm 7 — deadline API → resmiBase64Yap → resimliHtmlCikar → uiElementiIcindeMi → turnResimleriniTopla)
-3. `ortak-yardimcilar.js` (Bölüm 8 sırasıyla; MD motoru Bölüm 9 spesifikasyonuyla)
-4. `background.js` (Bölüm 14)
-5. `content.js` (Bölüm 10): baslat → buton → yazdirmaBaslat → uyariBalonuGoster → konusmayiCikar → cevap altı blok → prefix → listener (Bölüm 19 iskeleti)
-6. `content-claude.js` (Bölüm 11 — artifact algoritması adım adım), sonra `content-chatgpt.js` (12), `content-grok.js` (13)
-7. `popup.html` + `popup.js` (Bölüm 15)
-8. `yazdir.html` (iki çubuk: kontrol 8 buton + canlı ayar çubuğu) + `yazdir.css` (Bölüm 18 — v1.8.0 seçim/kod-gizli sınıfları dahil) + `yazdir.js` (Bölüm 16 akışı: render + `dataset.mesajIndex` + canlı ayar bağlama + `seciliKonusmaVerisi` + HTML/JSON export + Bölüm 17 sanitizer)
-9. Bölüm 26 doğrulamaları + EK E test listesi (37 madde)
+2. `site-yardimcilari.js` tam-hostname ve kaynak sözleşmesi
+3. `resim-yardimcilari.js` (Bölüm 7 — deadline → güvenli olay bekleme → raster allowlist → canvas/fetch → dedup)
+4. `ortak-yardimcilar.js` (Bölüm 8: doğrulanmış 8 ayar → UUID/kimlik → quota → Markdown/indirme)
+5. `background.js` (Bölüm 14: site helper import → TTL → önizleme → kısayol)
+6. `content.js` (Bölüm 10): başlat → buton → yazdırma → çıkarma → hızlı MD/TXT → listener
+7. `content-claude.js` (Bölüm 11), `content-chatgpt.js` (12), `content-grok.js` (13); ortak mesaj kanalı Bölüm 19
+8. `popup.html + popup.css + popup.js` (Bölüm 15)
+9. `yazdir.html + yazdir.css + yazdir.js` (Bölüm 16–18: sticky kontrol yüzeyi, dinamik `@page`, seçim, güvenli render ve export)
+10. `GIZLILIK.md`, README ve bu belgeyi sürümle senkronla
+11. Bölüm 26'daki otomatik paket 14/14 + EK E görsel/canlı kontrol
+
+---
+
+## 28. v2.0.0 Kanonik Modernizasyon Sözleşmesi
+
+Bu bölüm, önceki sürüm davranışını eksiltmeden v2.0.0'da eklenen ve bundan sonraki geliştirmelerin bozmayacağı sınırları tek yerde toplar.
+
+### Tek doğru kaynaklar
+
+- Site/hostname/kaynak etiketi: `site-yardimcilari.js`.
+- Kullanıcı ayarı şeması ve migration: `VARSAYILAN_AYARLAR + ayarlariDogrula()`.
+- Yazdırma oturumu anahtarı: `aiChatPrinterOturum:<UUID>`.
+- Geçici paketin sahibi: URL'deki doğrulanmış `oturum` kimliğini taşıyan tek önizleme sekmesi.
+- Dışa aktarılacak konuşma: `gecerliSecimVerisi()` üzerinden gelen `seciliKonusmaVerisi()`.
+- Baskı sayfası: `sayfaAyarlariUygula(mevcutAyarlar)` ile üretilen dinamik `@page`.
+- Kaynak HTML sınırı: `htmlTemizle()`; kaynak sitenin HTML'i veya class'ı doğrudan çıktı DOM'una atanmaz.
+
+### Özellik koruma matrisi
+
+| Önceki yetenek | v2.0.0 durumu | Ek koruma |
+|---|---|---|
+| Dört site desteği | Korundu | Tam-hostname ve merkezi kaynak sözleşmesi |
+| Yazdırma/PDF | Korundu | Sayfa boyutu, yön, kenar ve resim hazır olma bariyeri |
+| MD/TXT kopyalama/indirme | Korundu | Footer tercihi ve sıfır-seçim kilidi |
+| HTML/JSON indirme | Korundu | DOM tabanlı güvenli HTML, tek seçim kaynağı |
+| Gemini hızlı MD/TXT | Korundu | Mevcut buton yerleşimi ve gerçek Markdown motoru |
+| Claude artifact | Korundu | Kart bazlı hata yalıtımı ve garantili viewer kapanışı |
+| ChatGPT eski/yeni DOM | Korundu | Sessiz 120-adım kırpması kaldırıldı |
+| Grok fallback zinciri | Korundu | Güncel kesin selektör önce, özel metin logu yok |
+| Eşzamanlı UUID oturumları | Korundu | Kimlik allowlist'i ve 6 saat TTL |
+| F5 yedeği | Korundu | Oturum anahtarıyla tam ayrım |
+| Klavye kısayolları | Korundu | Tam-hostname background doğrulaması |
+
+### Güncel dosya/fonksiyon haritası
+
+| Dosya | Satır | Ana sorumluluklar |
+|---|---:|---|
+| `background.js` | 88 | TTL temizliği, önizleme mesajı, kısayol, badge, kimlik doğrulama |
+| `site-yardimcilari.js` | 27 | `DESTEKLENEN_SITELER`, `desteklenenSiteBilgisi`, `kaynakSiteBilgisi` |
+| `resim-yardimcilari.js` | 223 | deadline, `resimOlayiniBekle`, raster allowlist, canvas/fetch, dedup |
+| `ortak-yardimcilar.js` | 477 | 8 ayar, UUID, quota, streaming, Markdown, indirme |
+| `content.js` | 520 | Gemini mesaj/resim ve hızlı MD/TXT |
+| `content-claude.js` | 436 | Claude document-order ve artifact yaşam döngüsü |
+| `content-chatgpt.js` | 450 | çift DOM, tam süpürme, floating fallback |
+| `content-grok.js` | 452 | kesin rol seçicileri ve geriye uyumlu fallback |
+| `popup.js` | 132 | erişilebilir durum, 8 ayar, çıkarma ve oturum açma |
+| `yazdir.js` | 735 | güvenli render, hata durumu, seçim, dinamik sayfa, baskı ve dört dosya formatı |
+
+Satır sayısı yalnız v2.0.0 keşif kolaylığı içindir; davranış sözleşmesi fonksiyon adlarıdır. Satır kayması dokümantasyon hatası sayılmaz.
+
+### Kabul kapısı
+
+Sürüm tamamlanmış sayılmadan `python .\tests\acceptance_tests.py` sonucu 14/14 başarılı olmalıdır. Buna ek olarak masaüstü ve 640 px dar görünüm vision ile incelenir; kontrol kesilmesi, yatay kaydırma, odak kaybı, üst üste binme veya görünmez eylem kalmamalıdır. v2.0.0 kabulünde statik/tarayıcı testleri ile gerçek MV3 service worker ve dört gerçek content-script zinciri birlikte geçmiştir.
 
 ---
 
@@ -820,7 +898,7 @@ node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8'))"
 | Tek resim 5 sn'de yüklenmedi | O resim fetch fallback'ine, o da olmazsa https-URL/atlama |
 | Cross-origin canvas taint | 3 katmanlı fallback (Bölüm 7) |
 | Artifact viewer açılmadı/içerik gelmedi | `icerik:null` → render'da "(Artifact içeriği çıkarılamadı)" |
-| Grok DOM'u tanınamadı | 5 strateji + alternating rol; yine olmazsa F12 `[Grok DEBUG]` yönlendiren hata |
+| Grok DOM'u tanınamadı | Kesin `data-testid` → anlamsal fallback → alternating rol; hata konuşma metni/log gönderme talebi içermez |
 | Kod bloğu içinde ``` | `mdFenceUret` daha uzun fence seçer |
 | URL'de `()` veya boşluk | `<url>` sargısı |
 | Soru/alt metninde `[ ]` | Escape (yalnız düz metin bağlamında) |
@@ -877,7 +955,7 @@ Kırılganlık: 🟢 attribute/custom-element (dayanıklı) · 🟡 anlamsal cla
 | DİKKAT | Yeni DOM class'ları build hash'li (`_wdUoQG_*`) — class selektörü YASAK, yalnız `data-*` attribute | 🔴 |
 
 ### Grok
-Tek selektöre güvenilmez — Bölüm 13'teki 5 strateji + 4 katmanlı rol tespiti (v1.8.1: `data-testid="user-message"/"assistant-message"` en öncelikli) + `[Grok DEBUG]` teşhis logları bütün olarak uygulanır. 🔴 doğası gereği; dayanıklılık stratejilerin çokluğundan gelir. 2026-07 DOM: mesajlar `.message-bubble` + data-testid; yanıt içeriği `.response-content-markdown.markdown` (thinking `.thinking-container` ayrı — öncelikli aday seçimi sızmayı önler).
+Tek selektöre güvenilmez — Bölüm 13'teki 0–5 numaralı 6 strateji + 4 katmanlı rol tespiti (v1.8.1: `data-testid="user-message"/"assistant-message"` en öncelikli) + yalnız yapısal sayı/tag/class taşıyan `[Grok DEBUG]` teşhis logları bütün olarak uygulanır. 🔴 doğası gereği; dayanıklılık stratejilerin çokluğundan gelir. 2026-07 DOM: mesajlar `.message-bubble` + data-testid; yanıt içeriği `.response-content-markdown.markdown` (thinking `.thinking-container` ayrı — öncelikli aday seçimi sızmayı önler).
 
 ## EK D — Veri Akışı Sırası (Tam Tur)
 
@@ -889,28 +967,32 @@ YOL A — sayfa içi buton / Ctrl+Shift+P:
  4. [Claude] artifactIcerikleriniCikar (progress toast'larıyla)
  5. resimIslemOturumuBaslat(90sn) → konusmayiCikar()
     her turn: resimliHtmlCikar (klon+base64) + temizMetinCikar + turnResimleriniTopla
- 6. yazdirmayaBasla: ayar yükle → quotaKontrol → storage.local.set → toast →
-    sendMessage(yazdirmaSayfasiAc)
- 7. background: tabs.create(yazdir.html)
- 8. yazdir.js: get → ANINDA remove → sessionStorage yedek → mevcutKonusma ata → KAYNAK_HARITA →
+ 6. yazdirmayaBasla: ayar yükle → quotaKontrol → yazdirmaOturumuOlustur(UUID) → toast →
+    await sendMessage(yazdirmaSayfasiAc, oturumKimligi)
+ 7. background: tabs.create(yazdir.html?oturum=UUID)
+ 8. yazdir.js: get(oturumAnahtari) → ANINDA remove(oturumAnahtari) → oturumlu sessionStorage yedek → mevcutKonusma ata → KAYNAK_HARITA →
     render (htmlTemizle + prefixTemizleDOM + resimler + artifact'lar + dataset.mesajIndex) →
     body.kod-gizli başlangıç → canlı ayar çubuğu bağlama (yazı boyutu/kod/seçim modu) → buton bağlama (export'lar seciliKonusmaVerisi'nden)
- 9. otomatikYazdir: resim load'ları → window.print() → kullanıcı PDF/yazıcı
+ 9. otomatikYazdir: yalnız seçili resimlerin load/error/decode/5 sn bariyeri → window.print() → kullanıcı PDF/yazıcı
 10. finally: kilit bırak + resimIslemOturumuBitir
 
 YOL B — popup:
  1. popup aç → ayarlar yüklenir → site kontrolü (değilse buton disabled)
  2. Yazdır → sendMessage(konusmayiCikar) → content script async (kilit+oturum+catch)
- 3. popup: hata/boş kontrolleri → quotaKontrol → sync.set(ayarlar) → local.set → tabs.create
+ 3. popup: hata/boş kontrolleri → quotaKontrol → sync.set(ayarlar) → yazdirmaOturumuOlustur(UUID) → background'a oturumlu açma isteği
  4. 8-9 Yol A ile aynı
 
-F5 (yazdırma sekmesi): get boş → sessionStorage 'aiChatPrinterYedek' → render devam
-Kapat: storage temizle → tabs.getCurrent→remove → (fallback window.close)
+F5 (yazdırma sekmesi): get(oturum) boş → sessionStorage 'aiChatPrinterYedek:UUID' → render devam
+Geçersiz/eksik veri: çıktı+ayarlar kilitli → hata özeti → Kapat/Escape etkin; geçersiz oturum eski global anahtara dokunmaz
+Kapat: oturumlu akışta yalnız aktif anahtar; parametresiz legacy akışta eski iki anahtar → tabs.getCurrent→remove → (fallback window.close)
 ```
 
-## EK E — Test Kontrol Listesi (37 madde)
+## EK E — Test Kontrol Listesi ve Otomatik Kabul Paketi
+
+**Otomatik zorunlu sonuç:** `tests/acceptance_tests.py` 14/14. Bu 14 kanıt; 10 kök JavaScript + bütün Python dosyalarının sözdizimi, manifest/izin/script sırası/CSP, dosya sözleşmesi, UTF-8/mojibake, resim olay-kimlik-referrer yönetimi, güvenli render, Markdown/footer, seçim/yazdırma, MD/HTML export, canlı ayar, F5/geçersiz/paralel oturum, popup hostname/erişilebilirlik, gerçek MV3 service worker/storage/TTL ve dört gerçek content-script uçtan uca zinciridir.
 
 - [ ] 4 sitede buton doğru konumda görünür (Gemini toolbar, Claude Share solu, ChatGPT Paylaş solu, Grok floating)
+- [ ] Aynı anda iki farklı konuşmada yazdır: her önizleme sekmesi yalnız kendi başlığını ve mesajlarını gösterir
 - [ ] SPA navigasyonunda buton geri gelir (sidebar'dan sohbet değiştir)
 - [ ] Eklenti ↻ + sayfa F5'siz: butonlar tıklanınca "bağlantı koptu/F5" rehberi (sessiz ölüm yok)
 - [ ] Eklenti ↻ + F5: toolbar VE cevap altı butonlar canlı (ölü handler temizliği)
@@ -927,8 +1009,13 @@ Kapat: storage temizle → tabs.getCurrent→remove → (fallback window.close)
 - [ ] **Tümünü Seç/Kaldır:** tüm mesajları toplu çevirir; `#secimBilgisi` "N / M mesaj seçili" doğru; buton etiketi duruma göre değişir
 - [ ] **↓ HTML:** tek dosya iner, CSS gömülü (bağımsız açılır); seçilmeyen mesajlar + kontrol checkbox'ları yok; kod gizliyse pre/artifact de yok
 - [ ] **↓ JSON:** seçili mesajlarla yapılandırılmış veri iner (`JSON.stringify(..., null, 2)`)
-- [ ] Yazı boyutu 11/13/15 uygulanıyor; footer toggle çalışıyor; ayarlar kalıcı (popup yeniden açınca aynı)
-- [ ] otomatikYazdir: resimler yüklendikten sonra print dialogu
+- [ ] Yazı boyutu 11/13/15/17 uygulanıyor; footer toggle çalışıyor; ayarlar kalıcı (popup yeniden açınca aynı)
+- [ ] A4/A3/Letter, dikey/yatay ve dar/normal/geniş seçenekleri `#dinamikSayfaStili` içindeki `@page` kuralına doğru yansıyor
+- [ ] Bağlantı adresi kapalıyken yazdırma/HTML'de URL suffix'i yok; açıkken HTTP(S) adresi görünür
+- [ ] “Yalnız Kullanıcı” ve “Yalnız AI” doğru rolü seçiyor; mesaj sırası ve orijinal veri değişmiyor
+- [ ] Sıfır mesaj seçiminde Yazdır/Markdown/Metin/MD/TXT/HTML/JSON düğmeleri disabled; kullanıcıya 0/N bilgisi gösteriliyor
+- [ ] 640 px dar görünümde bütün eylem ve ayar kontrolleri satıra sarılıyor; sağ kenar kesilmesi ve yatay kaydırma yok
+- [ ] `otomatikYazdir`: resimler load/error/decode/5 sn bariyerinden sonra print dialogu; manuel Yazdır da aynı bariyerden geçiyor
 - [ ] Markdown kopyala: başlıklar `#`, kod ```dil fence'li, tablolar pipe — DÜZ METİN DEĞİL
 - [ ] Metin kopyala: buton yazısı sızıntısı YOK ("Kodu kopyala" araması 0 sonuç)
 - [ ] ↓ MD / ↓ TXT (sayfa): dosya iner, adı = başlık, içerik panoya kopyalananla aynı
@@ -944,7 +1031,9 @@ Kapat: storage temizle → tabs.getCurrent→remove → (fallback window.close)
 - [ ] Ctrl+Shift+P: desteklenen sitede yazdırır; desteklenmeyende `!` badge
 - [ ] Popup desteklenmeyen sitede: bilgi + buton disabled
 - [ ] >10 MB konuşma: dinamik limitli quota mesajı
-- [ ] XSS fixture (script+onerror+svg-data-uri): hiçbiri çalışmaz/render olmaz
+- [ ] XSS fixture (script+onerror+svg-data-uri+kaynak CSS class enjeksiyonu): hiçbiri çalışmaz/render olmaz; yalnız `PRE`/`CODE` üzerindeki `language-*` korunur
+- [ ] `example.invalid/?yonlendir=https://chatgpt.com` destekli site sayılmıyor; gerçek `https://chatgpt.com/...` destekli sayılıyor
+- [ ] Sahipsiz `aiChatPrinterOturum:*` paketi 6 saati geçince temizleniyor; güncel paket worker uyanışında korunuyor
 - [ ] Geniş tablo: landscape önerisi toastı; print'te tablo taşmıyor
 - [ ] Tüm görünen metinler tam diakritikli ("Yazdırma Önizleme", "Konuşma:", "alınamadı")
 
@@ -952,11 +1041,11 @@ Kapat: storage temizle → tabs.getCurrent→remove → (fallback window.close)
 
 **Toast'lar (content script'ler):** `Konuşma çıkarılıyor, resimler işleniyor...` · `{N} mesaj çıkarıldı. Yazdırma sayfası açılıyor...` · `Yazdırma işlemi zaten sürüyor, lütfen bekleyin...` · `Konuşma çıkarılamadı: {mesaj}` · `{Claude|ChatGPT|Grok} henüz yanıt yazıyor. Tamamlanmasını bekleyin.` · `{N} artifact bulundu, içerikleri çıkarılıyor (0/{N})...` · `Artifact {i}/{N} çıkarılıyor...` · `İndirildi: {dosyaAdi}` · `Konuşmada mesaj bulunamadı.` · `Hata: {veri.hata}` · `Eklenti bağlantısı koptu. Sayfayı yenileyip (F5) tekrar deneyin.` · `Storage sınırı doldu. Lütfen daha kısa bir konuşma seçin veya resimleri atlayın.` · `Arka plan bağlantısı koptu. Sayfayı yenileyin (F5).` · `Konuşma çok büyük ({X} MB). Storage sınırı {Y} MB. Lütfen daha kısa bir konuşma seçin.`
 
-**Hata nesneleri:** `Konuşma bulunamadı. Bir {Gemini|Claude|ChatGPT} sohbeti açık olduğundan emin olun.` · `Grok konuşma yapısı tanınamadı. F12 → Console'da [Grok DEBUG] log'larını inceleyip eklenti geliştiricisine iletin.` · `Grok konuşma içeriği çıkarılamadı. ...` · `Yazdırma işlemi zaten sürüyor. Lütfen bekleyin.`
+**Hata nesneleri:** `Konuşma bulunamadı. Bir {Gemini|Claude|ChatGPT} sohbeti açık olduğundan emin olun.` · `Grok konuşma yapısı tanınamadı. Açık bir konuşma bulunduğundan emin olun.` · `Grok konuşma içeriği çıkarılamadı.` · `Yazdırma işlemi zaten sürüyor. Lütfen bekleyin.`
 
-**Popup:** `Bu sayfa desteklenmiyor. Eklenti gemini.google.com, claude.ai, chatgpt.com ve grok.com sayfalarında çalışır.` · `Konuşma içeriği çıkarılıyor...` · `Content script yüklenmemiş. Sayfayı yenileyip (F5) tekrar deneyin.` · `Sayfadan yanıt alınamadı. ...` · `Konuşmada mesaj bulunamadı. Bir sohbet açık olduğundan emin olun.` · `Ayar kaydedildi.` · `Ayar kaydedilemedi.` · `Bir hata oluştu: {mesaj}` · buton: `Konuşmayı Yazdır` / `Çıkarılıyor...`
+**Popup:** `{Gemini|Claude|ChatGPT|Grok} konuşması hazır` · `Bu sekme desteklenen bir AI konuşması değil` · `Etkin sekme bilgisi alınamadı.` · `Gemini, Claude, ChatGPT veya Grok üzerinde açık bir konuşmaya geçildiğinde buton etkinleşir.` · `Ayar kaydedildi.` · `Ayar kaydedilemedi.` · `Konuşma içeriği ve görseller hazırlanıyor…` · `Sayfadaki eklenti bağlantısı eski. Sekme yenilendiğinde yeni sürüm etkinleşir.` · `Sayfadan konuşma verisi alınamadı.` · `Açık konuşmada yazdırılabilir mesaj bulunamadı.` · `{N} mesaj önizlemeye aktarıldı.` · buton: `Konuşmayı Önizle` / `Konuşma hazırlanıyor…`
 
-**Yazdırma sayfası:** başlık `AI Chat Printer - Yazdırma Önizleme` · kontrol butonları `Yazdır · Markdown · Metin · ↓ MD · ↓ TXT · ↓ HTML · ↓ JSON · Kapat` · **ayar çubuğu** `Yazı boyutu` [`Küçük (11px)` / `Normal (13px)` / `Büyük (15px)`] · `Kod blokları` · `Mesaj seçimi` · `Tümünü Kaldır`↔`Tümünü Seç` · `{N} / {M} mesaj seçili` · overlay `Konuşma yükleniyor...` / `Konuşma verisi okunuyor...` / `İçerik işleniyor ({N} mesaj)...` · toast'lar `Markdown panoya kopyalandı.` / `Düz metin panoya kopyalandı.` / `Kopyalama başarısız. Tarayıcı izinlerini kontrol edin.` / `İndirildi: {ad}` (MD/TXT/HTML/JSON ortak) / `Geniş tablolar tespit edildi. Yazdırma diyaloğunda "Yatay" (Landscape) yönlendirme daha okunabilir olabilir.` · placeholder'lar `(Boş mesaj)` / `(Bu mesajda yalnızca görsel içerik var)` / `(Artifact içeriği çıkarılamadı)` · footer `Bu çıktı AI Chat Printer eklentisi ile oluşturulmuştur.` · hata `Konuşma verisi bulunamadı. Lütfen AI sayfasından tekrar yazdır butonuna tıklayın.` / `Storage erişim hatası: {mesaj}`
+**Yazdırma sayfası:** marka `BASKI STÜDYOSU / Yazdırma Önizleme` · eylemler `Yazdır · Markdown · Metin · ↓ MD · ↓ TXT · ↓ HTML · ↓ JSON · Kapat` · ayarlar `Yazı · Kâğıt · Yön · Kenar · Kod · İmza · Link adresi · Mesaj seçimi` · seçim `Tümünü Kaldır / Tümünü Seç / Yalnız Kullanıcı / Yalnız AI` · sayaç `{N} / {M} mesaj seçili` · overlay `Konuşma yükleniyor… / Konuşma verisi okunuyor... / İçerik işleniyor ({N} mesaj)...` · toast'lar `Markdown panoya kopyalandı. / Düz metin panoya kopyalandı. / İndirildi: {ad} / Çıktı için en az bir mesaj seçin.` · footer `AI Chat Printer / Yerel olarak oluşturuldu · Dış servise gönderilmedi` · hata özeti `Önizleme kullanılamıyor` · hatalar `Yazdırma oturumu geçersiz. AI konuşmasından yeni bir önizleme oluşturun. / Storage erişim hatası: {mesaj} / Konuşma verisi bulunamadı. Lütfen AI sayfasından tekrar yazdır butonuna tıklayın.`
 
 **MD/TXT şablon sabitleri:** Bölüm 8 ve 10'da birebir verildi (`# Gemini Soru-Cevap`, `**Tarih:**`, `## Soru`, `SORU:`, `Konuşma:`, `*(Soru metni alınamadı)*`, `(Cevap metni alınamadı)`, imzalar).
 
@@ -989,34 +1078,52 @@ Kapat: storage temizle → tabs.getCurrent→remove → (fallback window.close)
 8. **Neden `console.log` (warn/error değil)?** Beklenen durumlar (context invalidation) chrome://extensions "Errors" sayfasında alarm biriktirmesin; gerçek hatalar zaten kullanıcı toast'ı üretir
 9. **Neden popup VE sayfa içi buton?** Sayfa içi buton ana akış (tek tık); popup ayar yüzeyi + buton enjeksiyonu kırıldığında yedek tetikleyici
 10. **Neden dinamik quota mesajı?** `QUOTA_BYTES` tarayıcıya göre değişebilir; sabit "10 MB" yazmak yanlış bilgi sınıfı bug'dır
+11. **Neden merkezi tam-hostname sözleşmesi?** Popup ve background'da `includes('chatgpt.com')` kullanmak hem sapma hem `example.invalid/?next=...` false-positive üretir; URL parser + exact hostname tek güvenlik sınırıdır.
+12. **Neden tek sticky kontrol yüzeyi?** İki bağımsız fixed bar, dar görünümde yükseklik değişince içerik marjını geçersiz kılar; normal belge akışı + sticky kapsayıcı responsive sarılmayı doğal çözer.
+13. **Neden HTML export için gerçek belge DOM'u?** Başlık ve içerik string template içine konursa ikinci bir enjeksiyon yüzeyi açılır; `createHTMLDocument/importNode/textContent` sanitizer sınırını export sonuna kadar korur.
+14. **Neden uzun mesajlar baskıda bölünebilir?** Tüm mesajı `break-inside:avoid` yapmak viewport'tan uzun blokta büyük boşluk veya kesilme üretir; yalnız başlık/tek satır/görsel bölünmez kalmalıdır.
+15. **Neden sıfır-seçim eylemleri kilitli?** Boş PDF veya anlamsız dosya üretmek sessiz başarısızlıktır; UI sayaç ve disabled state ile veri sözleşmesini eylemden önce görünür kılar.
+16. **Neden service worker TTL'i 6 saat?** Oku-sil normal akışı temizdir fakat tarayıcı/sekme kapanması sahipsiz paket bırakabilir; update'e kadar beklemek gereksiz yerel veri tutar, çok kısa TTL ise yavaş artifact çıkarımını riske atar.
 
-## EK I — Dosya/Fonksiyon Haritası (v1.8.2 satır aralıkları)
+## EK I — Dosya/Fonksiyon Haritası (v2.0.0)
 
-| Dosya | Satır | İçerik sırası |
-|-------|-------|---------------|
-| background.js | 57 | onMessage (4-11) · onCommand (14-46) · onInstalled+temizlik (49-57) |
-| resim-yardimcilari.js | 178 | deadline API (6-22) · resmiBase64Yap (25-91) · resimliHtmlCikar (93-117) · uiElementiIcindeMi (119-122) · turnResimleriniTopla (124-178) |
-| ortak-yardimcilar.js | 424 | sabitler (6-17) · ayarlar (20-46) · debounce (49) · streamingMiKontrol (60) · basligiTemizle (87) · veriBoyutu/quota (124-146) · yazdirmayaBasla (148) · mdFenceUret (207) · htmlToMarkdown (214-350) · mesajMarkdownIcerigi (352) · konusmayiMarkdowneDonustur (362) · uiTemizKlon (400) · temizMetinCikar (407) · dosyayaIndir (413) |
-| content.js | 518 | state (5-6) · baslat (9) · butonuEnjekteEt (28) · yazdirmaBaslat (127) · uyariBalonuGoster (163) · konusmayiCikar (208) · eskiIndirmeButonlariniTemizle (297) · indirme blok (302-480) · geminiPrefixTemizle (484) · listener (490) |
-| content-claude.js | 446 | state (5-8) · baslat (11) · butonuEnjekteEt (28) · yazdirmaBaslat (131) · artifactIcerikleriniCikar (174) · uyariBalonuGoster (281) · konusmayiCikar (323) · listener (408) |
-| content-chatgpt.js | 441 | state · baslat (10) · butonuEnjekteEt (26) · paylasButonunuBul (124, v1.8.3) · floatingButonEkle (135, v1.8.2) · yazdirmaBaslat (205) · uyariBalonuGoster (234) · CHATGPT_TURN_SELEKTORU (276) · chatgptTurnRolu (279) · chatgptTurnGovdesi (289) · chatgptIcerikElemani (297) · chatgptTurnAnahtari (311) · chatgptKaydiriciBul (320) · konusmayiCikar (333, v1.8.2 scroll-süpürme) · listener (410) |
-| content-grok.js | 441 | state · baslat (9) · butonuEnjekteEt (29) · yazdirmaBaslat (111) · uyariBalonuGoster (140) · grokMesajRolu (183, v1.8.1 data-testid katmanı) · enZenginIcerikDescendant (225) · konusmayiCikar (243) · listener (410) |
-| yazdir.js | 589 | yardımcılar (elementiBosalt 7 · toastGoster 14 · yuklemeyiGizle 32 · yuklemeMetniniGuncelle 41) · DOMContentLoaded ana akış+buton bağlama (47-399) · seciliKonusmaVerisi (403) · secimBilgisiniGuncelle (414) · sayfayiKapat (430) · panoyaKopyala (447) · prefixTemizleDOM (470) · konusmayiDuzMetneDonustur (485) · htmlTemizle (517) |
-| popup.js | 186 | DOMContentLoaded (5-156) · durumGoster (159) · butonuSifirla (166) · butonMetniGuncelle (173) |
+| Dosya | Satır | Fonksiyon sırası |
+|---|---:|---|
+| `background.js` | 88 | kalıntı temizliği (8) · onMessage (25) · onCommand (42) · onInstalled (74) · kimlik doğrulama (84) |
+| `site-yardimcilari.js` | 27 | site sözleşmesi (4) · URL doğrulama (12) · kaynak görünümü (24) |
+| `resim-yardimcilari.js` | 223 | deadline (10–20) · event bekleme (25) · raster URI (57) · base64 (62) · HTML klon (132) · UI filtresi (158) · turn resimleri (163) |
+| `ortak-yardimcilar.js` | 477 | ayar doğrulama (25) · UUID (44–61) · ayar IO (78–93) · debounce/streaming/başlık/quota (107–193) · yazdırma başlatma (207) · Markdown (261–416) · UI temizlik/indirme (454–467) |
+| `content.js` | 520 | Gemini enjeksiyon/çıkarma (9–209) · hızlı indirme yüzeyi (298–486) · listener (492) |
+| `content-claude.js` | 436 | enjeksiyon (11–28) · yazdırma (132) · viewer kapatma (174) · artifact çıkarma (186) · mesaj çıkarma (313) · listener (398) |
+| `content-chatgpt.js` | 450 | enjeksiyon/floating (10–136) · yazdırma (207) · turn sözleşmesi (278–322) · tam süpürme (335) · listener (419) |
+| `content-grok.js` | 452 | floating enjeksiyon (9–29) · yazdırma (112) · rol/içerik (184–226) · çok katmanlı çıkarma (244) · listener (421) |
+| `popup.js` | 132 | form IO (7–21) · site/durum/busy (34–53) · DOMContentLoaded ayar ve çıkarma akışı (64 sonrası) |
+| `yazdir.js` | 735 | temel UI/hata durumu (11–78) · resim/sayfa/baskı (81–152) · DOMContentLoaded render ve eylemler (155 sonrası) · seçim (521–559) · kapat/pano/prefix/metin (566–653) · sanitizer (654) |
 
 ## EK J — Tip İmza Özeti
 
 ```javascript
+// site-yardimcilari.js
+desteklenenSiteBilgisi(adres: string): SiteBilgisi|null
+kaynakSiteBilgisi(kaynak: string): SiteBilgisi
+
 // resim-yardimcilari.js
 resimIslemOturumuBaslat(toplamSure: number): void
 resimIslemOturumuBitir(): void
 resimDeadlineDoldu(): boolean
+resimOlayiniBekle(hedef: EventTarget, basariOlayi: string, hataOlayi: string, sure: number): Promise<boolean>
+guvenliRasterDataUriMi(kaynak: string): boolean
 resmiBase64Yap(resimElementi: HTMLImageElement): Promise<string|null>
 resimliHtmlCikar(element: Element): Promise<string>
 uiElementiIcindeMi(element: Element): boolean
 turnResimleriniTopla(turn: Element, kaynakElement: Element|null): Promise<{src,alt}[]>
 
 // ortak-yardimcilar.js
+ayarlariDogrula(ayarlar: Partial<Ayarlar>): Ayarlar
+yazdirmaOturumKimligiGecerliMi(oturumKimligi: string): boolean
+yazdirmaOturumAnahtari(oturumKimligi: string): string
+yazdirmaOturumKimligiOlustur(): string
+yazdirmaOturumuOlustur(veri: KonusmaVerisi, ayarlar: Ayarlar): Promise<string>
 ayarlariYukle(): Promise<Ayarlar>
 ayarlariKaydet(ayarlar: Ayarlar): Promise<boolean>
 debounce(fonksiyon: Function, gecikme: number): Function
@@ -1028,33 +1135,52 @@ yazdirmayaBasla(veri: KonusmaVerisi, uyariBalonuGoster: Function): Promise<boole
 mdFenceUret(icerik: string): string
 htmlToMarkdown(htmlString: string): string
 mesajMarkdownIcerigi(mesaj: Mesaj): string
-konusmayiMarkdowneDonustur(veri: KonusmaVerisi): string
+konusmayiMarkdowneDonustur(veri: KonusmaVerisi, footerGoster: boolean): string
 uiTemizKlon(element: Element): Element
 temizMetinCikar(element: Element|null): string
 dosyayaIndir(icerik: string, dosyaAdi: string, mimeType: string): void
 
-// content script ortak yüzeyi (4 dosya)
+// content script ortak yüzeyi
 baslat(): void
 butonuEnjekteEt(): void
 yazdirmaBaslat(): Promise<void>
 uyariBalonuGoster(mesaj: string, tip: 'basari'|'hata'): void
-konusmayiCikar(claudeArtifactlar?): Promise<KonusmaVerisi>
-// content.js ek: eskiIndirmeButonlariniTemizle, indirmeButonlariniKontrolEt/Enjekte,
-//   oncekiSoruMetniBul, cevapIcerikElementiBul, cevapMetniniAl, cevapMarkdownAl,
-//   cevapIndir, indirmeDosyaAdiOlustur, geminiPrefixTemizle
-// content-claude.js ek: artifactIcerikleriniCikar(cb?): Promise<{baslik,tur,icerik}[]>
-// content-grok.js ek: grokMesajRolu(el): 'user'|'assistant'|null, enZenginIcerikDescendant(el): Element
+konusmayiCikar(...): Promise<KonusmaVerisi>
+
+// Claude ek yüzeyi
+artifactViewerKapat(): Promise<void>
+artifactIcerikleriniCikar(ilerlemeCallback?: Function): Promise<{baslik,tur,icerik}[]>
+
+// ChatGPT ek yüzeyi
+paylasButonunuBul(header: Element): HTMLButtonElement|null
+floatingButonEkle(): void
+chatgptTurnRolu(turn: Element): 'user'|'assistant'|null
+chatgptIcerikElemani(turn: Element, rol: string): Element
+chatgptTurnAnahtari(turn: Element): string
+chatgptKaydiriciBul(turn: Element): Element|null
 
 // yazdir.js
-elementiBosalt(element): void · toastGoster(mesaj, tip): void
-yuklemeyiGizle(): void · yuklemeMetniniGuncelle(metin): void
-seciliKonusmaVerisi(): KonusmaVerisi|null · secimBilgisiniGuncelle(): void   // v1.8.0 mesaj seçimi
-sayfayiKapat(): Promise<void> · panoyaKopyala(metin): Promise<boolean>
-prefixTemizleDOM(element): void · konusmayiDuzMetneDonustur(veri): string
-htmlTemizle(htmlString): HTMLDivElement
+guvenliResimKaynagiMi(kaynak: string): boolean
+sayfaAyarlariUygula(ayarlar: Ayarlar): void
+canliAyarlariOku(): Ayarlar
+belgeResimleriniBekle(): Promise<void>
+yazdirmayaHazirlaVeYazdir(): Promise<void>
+seciliKonusmaVerisi(): KonusmaVerisi|null
+gecerliSecimVerisi(): KonusmaVerisi|null
+guvenliDosyaTemeli(veri: KonusmaVerisi): string
+secimBilgisiniGuncelle(): void
+sayfayiKapat(): Promise<void>
+panoyaKopyala(metin: string): Promise<boolean>
+prefixTemizleDOM(element: Element): void
+konusmayiDuzMetneDonustur(veri: KonusmaVerisi, footerGoster: boolean): string
+htmlTemizle(htmlString: string): HTMLDivElement
 
 // popup.js
-durumGoster(tip, mesaj): void · butonuSifirla(): void · butonMetniGuncelle(buton, yeniMetin): void
+ayarlariFormdanOku(): Ayarlar
+ayarlariFormaYansit(ayarlar: Ayarlar): void
+siteDurumunuGoster(siteBilgisi: SiteBilgisi|null): void
+durumGoster(tip: string, mesaj: string, otomatikGizle?: boolean): void
+yazdirButonuDurumunuAyarla(calisiyor: boolean): void
 ```
 
 ## EK K — Bilinen Sınırlamalar ve Bilinçli-Dokunulmayan Kararlar
@@ -1067,10 +1193,10 @@ durumGoster(tip, mesaj): void · butonuSifirla(): void · butonMetniGuncelle(but
 | `oncekiSoruMetniBul` sibling-zinciri varsayımı | Canlı testte doğrulandı; Gemini wrapper katmanı eklerse kırılır — o zaman çok-seviyeli aramaya genişletilir |
 | Nested tablo (`tabloyuCevir`) | İç tablonun tr'leri düz listelenir — AI çıktısında pratikte yok |
 | `turnResimleriniTopla` `querySelectorAll('*')` maliyeti | Çok uzun konuşmalarda yavaş; kanıtsız daraltma davranış bozar, şikayet yok |
-| `[Grok DEBUG]` üretim logları | Bilinçli — Grok hata mesajı kullanıcıyı bu loglara yönlendirir |
+| Grok heuristik fallback logları | Yalnız yapısal sayı/tag/class bilgisi; konuşma metni ve kullanıcıdan log gönderme talebi yok |
 | `htmlToMarkdown` `preIcinde` parametresi | Fiilen ölü (PRE textContent ile ham okur) — davranış doğru, dokunulmadı |
 | Düz metindeki `* _` literal'leri MD'de escape edilmez | Tam escape çıktıyı çirkinleştirir; export hedefi round-trip değil okunabilirlik |
-| README gövdesi ASCII | Depo belgesi (runtime çıktısı değil); diakritiğe çevirme kararı Baran'a ait |
+| README iki dilli | Türkçe bölüm tam diakritikli; mevcut uluslararası kullanım için kısa İngilizce bölüm korunur |
 | i18n yalnız manifest düzeyinde | Hedef kitle TR; content metinlerinin i18n'i istek gelirse yapılır |
 | x.com/i/grok host'u yok | Talep edilmedi; manifest matches genişletmesiyle eklenebilir |
 
@@ -1085,8 +1211,9 @@ durumGoster(tip, mesaj): void · butonuSifirla(): void · butonMetniGuncelle(but
 | Stabilite polling | 2 ardışık eşit `textContent.length` | Stream bitti sinyali |
 | Deadline | `resimIslemDeadline`, 90 sn | Resim işleme toplam süre sigortası |
 | Reentrance kilidi | `yazdirmaIslemiSuruyor` | Çift tıklama paralel akış engeli |
-| Oku-ve-hemen-sil | `get` → anında `remove` | Multi-tab yarış daraltması |
-| Sekme yedeği | `sessionStorage['aiChatPrinterYedek']` | F5 dayanıklılığı |
+| Yazdırma oturumu | `aiChatPrinterOturum:<UUID>` | Eşzamanlı yazdırma verilerini tam ayırır |
+| Oku-ve-hemen-sil | `get(oturumAnahtari)` → anında `remove(oturumAnahtari)` | Oturum paketini tek kullanımlı yapar |
+| Sekme yedeği | `sessionStorage['aiChatPrinterYedek:<UUID>']` | Oturum-özel F5 dayanıklılığı |
 | Fence kaçışı | `mdFenceUret` | İçerikteki ``` ile çakışmayan çit |
 | `<>` sargısı | `[m](<url>)` | Parantezli/boşluklu URL koruması |
 | UI sızıntısı | buton/ikon/stil metni çıktıda | 4 kanal filtresiyle yasak |
@@ -1100,6 +1227,6 @@ durumGoster(tip, mesaj): void · butonuSifirla(): void · butonMetniGuncelle(but
 
 ---
 
-**Dokümantasyon sonu — v1.8.3 (22.07.2026)**
+**Dokümantasyon sonu — v2.0.0 (15.08.2026)**
 
-> Bu dokümanın amacı, projeyi başka bir geliştirici (insan veya LLM) tarafından **birebir yeniden üretilebilir** kılmaktır. Tüm selektörler, eşikler, piksel ölçüleri, renk kodları, MIME tipleri, storage anahtarları, mesaj şablonları, algoritma adımları ve davranış kuralları açıkça yazılmıştır. Belge eksiksiz takip edilirse sonuç, v1.8.2 ile fonksiyonel olarak özdeş bir eklentidir. Bölüm 19/21/22 ve EK G'deki kurallar, v1.7.x denetim serisinde **gerçek bug olarak yaşanmış** davranışlardan damıtılmıştır — atlanmaları aynı bug'ları yeniden üretir. v1.8.0 katmanı (canlı ayar çubuğu, mesaj seçimi, HTML/JSON export, `body.kod-gizli`) Bölüm 16/18'de, v1.8.1 katmanı (claude.ai 2026-07 UI + Grok data-testid) Bölüm 11 ve EK C'de, v1.8.2 katmanı (ChatGPT 2026-07 "wm" UI + sanallaştırma scroll-süpürmesi + floating buton fallback) Bölüm 12 ve EK C'de anlatılır — her yeni selektör eski UI fallback'iyle birlikte verilmiştir.
+> Bu dokümanın amacı, projeyi başka bir geliştirici veya LLM tarafından **birebir yeniden üretilebilir** kılmaktır. Belge eksiksiz takip edilirse sonuç v2.0.0 ile fonksiyonel olarak özdeş olur: önceki bütün çıktı ve dört-site çıkarma yetenekleri korunur; Baskı Stüdyosu UX, 8 alanlı sayfa sözleşmesi, rol seçimi, güvenli DOM dışa aktarımı, tam-hostname kontrolü, TTL temizliği ve otomatik/gerçek MV3 kabul kapısı eklenir. Bölüm 28 güncel kanonik sınırları; Bölüm 11–21 mekanik ayrıntıları; EK C seçicileri; EK E kabul kanıtını tanımlar.

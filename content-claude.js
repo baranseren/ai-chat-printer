@@ -49,6 +49,7 @@ function butonuEnjekteEt() {
     // Yazdır butonu
     const yazdirButonu = document.createElement('button'); // buton elementi
     yazdirButonu.id = 'claude-printer-buton'; // benzersiz id
+    yazdirButonu.type = 'button'; // form içine taşınsa bile submit davranışı üretme
     yazdirButonu.title = 'Konuşmayı Yazdır (AI Chat Printer)'; // tooltip
     yazdirButonu.setAttribute('aria-label', 'Konuşmayı Yazdır'); // erişilebilirlik
     yazdirButonu.style.cssText = [ // Claude buton stiline uyumlu
@@ -169,6 +170,17 @@ async function yazdirmaBaslat() {
     }
 }
 
+// Açık Claude artifact viewer'ını kapatır ve DOM'dan kalktığını doğrular
+async function artifactViewerKapat() {
+    if (!document.querySelector('#wiggle-file-content')) return; // viewer açık değilse işlem yok
+    const kapatButonu = document.querySelector('button[aria-label="Go back"]') || document.querySelector('button[aria-label="Close"]'); // yeni ve eski UI kapatma butonları
+    if (kapatButonu) kapatButonu.click(); // bulunan kapatma eylemini uygula
+    for (let kontrol = 0; kontrol < 8; kontrol++) { // 8 deneme x 250 ms = 2 saniye
+        if (!document.querySelector('#wiggle-file-content')) return; // viewer kapandı
+        await new Promise((coz) => setTimeout(coz, 250)); // animasyon/DOM güncellemesi
+    }
+}
+
 // Sayfadaki tüm artifact bloklarının içeriklerini tıkla-aç-çıkar-kapat döngüsüyle toplar
 // ilerlemeCallback(mevcut, toplam) — her artifact tamamlandığında çağrılır
 async function artifactIcerikleriniCikar(ilerlemeCallback) {
@@ -201,75 +213,53 @@ async function artifactIcerikleriniCikar(ilerlemeCallback) {
             continue;
         }
 
-        // Artifact viewer'ı aç
-        tiklanabilir.click(); // karta tıkla
+        let icerik = null; // hata veya timeout durumunda null korunur
+        try { // her kartın viewer yaşam döngüsünü kendi içinde kapat
+            tiklanabilir.click(); // artifact viewer'ını aç
 
-        // Viewer panelinin açılmasını bekle (max 3 saniye)
-        let viewerAcildi = false; // viewer açılma durumu
-        for (let bekle = 0; bekle < 6; bekle++) { // 6 deneme x 500ms = 3sn
-            await new Promise((coz) => setTimeout(coz, 500)); // 500ms bekle
-            if (document.querySelector('#wiggle-file-content')) { // panel DOM'a eklendiyse
-                viewerAcildi = true; // açıldı
-                break;
-            }
-        }
-
-        if (!viewerAcildi) { // viewer açılamadıysa
-            icerikleri.push({ baslik: baslik, tur: tur, icerik: null }); // boş ekle
-            continue; // sonraki artifact'a geç
-        }
-
-        // Viewer açıldı — içeriğin tam yüklenmesini bekle (max 8 saniye)
-        await new Promise((coz) => setTimeout(coz, 1000)); // panel açıldıktan sonra 1sn ekstra bekle
-
-        let icerik = null; // çıkarılacak içerik
-        let oncekiUzunluk = 0; // önceki içerik uzunluğu (stabilite kontrolü)
-        let stabilSayac = 0; // içerik uzunluğu kaç kez aynı kaldı
-
-        for (let deneme = 0; deneme < 16; deneme++) { // 16 deneme x 500ms = 8sn
-            await new Promise((coz) => setTimeout(coz, 500)); // 500ms bekle
-            const kodBlok = document.querySelector('#wiggle-file-content .code-block__code') || document.querySelector('#wiggle-file-content pre'); // kod bloğu (yeni UI pre fallback)
-            const markdownBlok = document.querySelector('#wiggle-file-content .standard-markdown'); // markdown bloğu
-            const hedef = kodBlok || markdownBlok || document.querySelector('#wiggle-file-content'); // hiçbiri yoksa panelin kendisi (son çare)
-
-            if (hedef && hedef.textContent?.length > 0) { // içerik varsa
-                const mevcutUzunluk = hedef.textContent.length; // mevcut uzunluk
-
-                if (mevcutUzunluk === oncekiUzunluk && mevcutUzunluk > 10) { // uzunluk değişmiyorsa ve anlamlı boyuttaysa
-                    stabilSayac++; // stabilite sayacını artır
-                    if (stabilSayac >= 2) { // 2 ardışık kontrol aynıysa içerik tamamen yüklendi
-                        icerik = hedef.textContent; // kesin içeriği al
-                        break; // döngüden çık
-                    }
-                } else { // uzunluk hala değişiyor — yüklenmeye devam ediyor
-                    stabilSayac = 0; // sayacı sıfırla
+            let viewerAcildi = false; // viewer açılma durumu
+            for (let bekle = 0; bekle < 8; bekle++) { // 8 deneme x 400 ms = 3,2 saniye
+                await new Promise((coz) => setTimeout(coz, 400)); // DOM güncellemesini bekle
+                if (document.querySelector('#wiggle-file-content')) { // panel DOM'a eklendiyse
+                    viewerAcildi = true; // açıldı
+                    break;
                 }
-                oncekiUzunluk = mevcutUzunluk; // önceki uzunluğu güncelle
             }
-        }
 
-        // Son kontrol — eğer stabilite sağlanamadıysa mevcut içeriği al
-        if (!icerik) { // stabilite kontrolü geçemediyse
-            const sonHedef = document.querySelector('#wiggle-file-content .code-block__code') || document.querySelector('#wiggle-file-content pre') || document.querySelector('#wiggle-file-content .standard-markdown') || document.querySelector('#wiggle-file-content'); // son deneme (panel fallback dahil)
-            if (sonHedef && sonHedef.textContent?.length > 10) { // en az 10 karakter varsa
-                icerik = sonHedef.textContent; // ne varsa al
+            if (viewerAcildi) { // panel gerçekten açıldıysa içeriği oku
+                await new Promise((coz) => setTimeout(coz, 800)); // ilk render için kısa hazırlık
+                let oncekiUzunluk = 0; // önceki içerik uzunluğu
+                let stabilSayac = 0; // ardışık stabil ölçüm sayısı
+
+                for (let deneme = 0; deneme < 18; deneme++) { // 18 deneme x 400 ms = 7,2 saniye
+                    await new Promise((coz) => setTimeout(coz, 400)); // streaming içeriğini bekle
+                    const hedef = document.querySelector('#wiggle-file-content .code-block__code') || document.querySelector('#wiggle-file-content pre') || document.querySelector('#wiggle-file-content .standard-markdown') || document.querySelector('#wiggle-file-content'); // güvenilir içerik zinciri
+                    const mevcutMetin = hedef?.textContent || ''; // mevcut metin
+                    const mevcutUzunluk = mevcutMetin.length; // stabilite metriği
+                    if (mevcutUzunluk > 10 && mevcutUzunluk === oncekiUzunluk) { // anlamlı ve değişmeyen içerik
+                        stabilSayac++; // stabil sayacı
+                        if (stabilSayac >= 2) { // iki ardışık eşit ölçüm
+                            icerik = mevcutMetin; // tam içeriği al
+                            break; // polling tamamlandı
+                        }
+                    } else { // içerik hâlâ değişiyor
+                        stabilSayac = 0; // sayacı sıfırla
+                    }
+                    oncekiUzunluk = mevcutUzunluk; // sonraki ölçüm tabanı
+                }
+
+                if (!icerik) { // stabilite zaman aşımında son anlamlı içeriği koru
+                    const sonHedef = document.querySelector('#wiggle-file-content .code-block__code') || document.querySelector('#wiggle-file-content pre') || document.querySelector('#wiggle-file-content .standard-markdown') || document.querySelector('#wiggle-file-content'); // son hedef
+                    if ((sonHedef?.textContent || '').length > 10) icerik = sonHedef.textContent; // mevcut içeriği al
+                }
             }
+        } catch (artifactHata) { // tek kart hatası kalan artifact'ları engellemez
+            console.log('AI Chat Printer: Artifact çıkarma hatası:', artifactHata.message); // konuşma içeriği olmadan yapısal log
+        } finally { // geç açılan veya hata sırasında açık kalan viewer mutlaka kapatılır
+            await artifactViewerKapat(); // kapanışı doğrula
         }
 
-        // Viewer'ı kapat (2026-07 UI: "Go back" butonu; eski UI: "Close" butonu)
-        const kapatButonu = document.querySelector('button[aria-label="Go back"]') || document.querySelector('button[aria-label="Close"]'); // kapat butonu
-        if (kapatButonu) { // buton bulunduysa
-            kapatButonu.click(); // kapat
-        }
-        await new Promise((coz) => setTimeout(coz, 600)); // kapanma animasyonu için bekle
-
-        // Viewer'ın gerçekten kapandığını doğrula
-        for (let kontrol = 0; kontrol < 6; kontrol++) { // 6 deneme x 300ms = 1.8sn
-            if (!document.querySelector('#wiggle-file-content')) break; // panel kapandıysa çık
-            await new Promise((coz) => setTimeout(coz, 300)); // 300ms bekle
-        }
-
-        icerikleri.push({ baslik: baslik, tur: tur, icerik: icerik }); // sonucu ekle
+        icerikleri.push({ baslik: baslik, tur: tur, icerik: icerik }); // kart için tek sonuç ekle
     }
     } finally { // hata olsa bile observer'ı tekrar aktif et
         artifactCikarmaAktif = false; // observer tekrar aktif
@@ -307,7 +297,7 @@ function uyariBalonuGoster(mesaj, tip) {
     if (!document.querySelector('#claude-printer-stil')) { // stil yoksa
         const stil = document.createElement('style'); // style elementi
         stil.id = 'claude-printer-stil'; // benzersiz id
-        stil.textContent = '@keyframes claudePrinterFadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}'; // fade-in animasyonu
+        stil.textContent = '@keyframes claudePrinterFadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}#claude-printer-buton:focus-visible{outline:3px solid rgba(217,119,6,.4)!important;outline-offset:3px!important}@media(prefers-reduced-motion:reduce){#claude-printer-buton,#claude-printer-uyari{animation:none!important;transition:none!important}}'; // animasyon + görünür klavye odağı
         document.head.appendChild(stil); // head'e ekle
     }
 

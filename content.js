@@ -51,6 +51,7 @@ function butonuEnjekteEt() {
     // Yazdır butonu
     const yazdirButonu = document.createElement('button'); // buton elementi
     yazdirButonu.id = 'gemini-printer-buton'; // benzersiz id
+    yazdirButonu.type = 'button'; // form içine taşınsa bile submit davranışı üretme
     yazdirButonu.title = 'Konuşmayı Yazdır (Gemini Printer)'; // tooltip
     yazdirButonu.setAttribute('aria-label', 'Konuşmayı Yazdır'); // erişilebilirlik
     yazdirButonu.style.cssText = [ // Gemini buton stiline uyumlu
@@ -189,7 +190,7 @@ function uyariBalonuGoster(mesaj, tip) {
     if (!document.querySelector('#gemini-printer-stil')) { // stil yoksa
         const stil = document.createElement('style'); // style elementi
         stil.id = 'gemini-printer-stil'; // benzersiz id
-        stil.textContent = '@keyframes geminiPrinterFadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}'; // fade-in animasyonu
+        stil.textContent = '@keyframes geminiPrinterFadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}#gemini-printer-buton:focus-visible,.gp-indir-btn:focus-visible{outline:3px solid rgba(26,115,232,.4)!important;outline-offset:3px!important}@media(prefers-reduced-motion:reduce){#gemini-printer-buton,#gemini-printer-uyari{animation:none!important;transition:none!important}}'; // animasyon + görünür klavye odağı
         document.head.appendChild(stil); // head'e ekle
     }
 
@@ -340,6 +341,7 @@ function indirmeButonlariniEnjekte(modelResponse) {
             '  vertical-align:middle; white-space:nowrap;',
             '}',
             '.gp-indir-btn:hover { background:#e8f0fe; border-color:#1a73e8; color:#1a73e8; }',
+            '.gp-indir-btn:focus-visible { outline:3px solid rgba(26,115,232,.4); outline-offset:2px; }',
             '.gp-indir-btn.gp-md-btn { border-color:#d2e3fc; color:#1a73e8; }',
             '.gp-indir-btn.gp-txt-btn { border-color:#dadce0; }',
             '.gp-indir-btn:first-of-type { margin-left:8px; }'

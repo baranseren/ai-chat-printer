@@ -1,427 +1,249 @@
-# AI Chat Printer - Chrome Extension
+# AI Chat Printer
 
-**Google Gemini, Claude.ai, ChatGPT ve Grok konusmalarini yazicidan yazdir veya PDF olarak kaydet.**
+Gemini, Claude, ChatGPT ve Grok konuşmalarını temiz bir belgeye dönüştüren, yazdıran ve Markdown, metin, HTML veya JSON olarak dışa aktaran Manifest V3 Chrome eklentisi.
 
-**Print your Google Gemini, Claude.ai, ChatGPT and Grok conversations or save them as PDF.**
+![Sürüm](https://img.shields.io/badge/sürüm-2.0.0-c54a3d)
+![Manifest](https://img.shields.io/badge/manifest-V3-172630)
+![Chrome](https://img.shields.io/badge/Chrome-114%2B-2d6691)
+![Lisans](https://img.shields.io/badge/lisans-MIT-2f7d5d)
 
----
+## Türkçe
 
-<p align="center">
-  <img src="icons/icon128.png" alt="AI Chat Printer Logo" width="128">
-</p>
+### Temel Yetenekler
 
-<p align="center">
-  <strong>v1.8.3</strong> &nbsp;|&nbsp; Chrome Extension (Manifest V3) &nbsp;|&nbsp; Vanilla JS &nbsp;|&nbsp; Zero Dependencies
-</p>
+- Gemini, Claude, ChatGPT ve Grok konuşmalarını sayfa içi yazdır düğmesiyle veya `Ctrl+Shift+P` kısayoluyla çıkarır.
+- Tarayıcının yazdırma penceresi üzerinden fiziksel yazıcı ve PDF çıktısı üretir.
+- Markdown ve düz metni panoya kopyalar.
+- Seçili konuşmayı `.md`, `.txt`, bağımsız `.html` veya yapılandırılmış `.json` dosyası olarak indirir.
+- Gemini yanıtlarının altında tek soru-cevap için hızlı `↓ MD` ve `↓ TXT` düğmeleri sunar.
+- Claude artifact içeriklerini açar, yüklenmesini kararlılık ölçümüyle bekler, çıkarır ve paneli doğrulanmış biçimde kapatır.
+- Konuşma görsellerini yerel olarak işler; raster veri URI’lerini ve güvenli HTTPS kaynaklarını destekler.
+- ChatGPT’nin eski ve 2026 “wm” DOM yapılarını birlikte destekler; uzun ve sanallaştırılmış konuşmaları son mesaja kadar kaydırarak toplar.
+- Grok’un güncel `data-testid` yapısını önceleyen, eski arayüzleri de koruyan çok katmanlı rol ve içerik tespiti kullanır.
 
----
+### Baskı Stüdyosu
 
-## TR - Turkce
+v2.0.0 ile popup ve önizleme arayüzleri baştan tasarlandı:
 
-### Ne Yapar?
+- Kâğıt boyutu: A4, A3 veya Letter.
+- Yön: dikey veya yatay.
+- Kenar boşluğu: dar, normal veya geniş.
+- Yazı boyutu: 11, 13, 15 veya 17 piksel.
+- Kod bloklarını, belge imzasını ve yazılı bağlantı adreslerini ayrı ayrı açıp kapatma.
+- Otomatik yazdırma tercihi.
+- Mesajları tek tek, topluca veya “Yalnız Kullanıcı / Yalnız AI” kısayollarıyla seçme.
+- Hiç mesaj seçilmediğinde yazdırma ve dışa aktarma eylemlerini güvenli biçimde kilitleme.
+- Dar ekranlarda kaydırma gerektirmeyen, satıra sarılan denetimler.
+- Klavye odağı, `aria-live` durumları ve azaltılmış hareket tercihi desteği.
 
-AI Chat Printer, Google Gemini, Claude.ai, ChatGPT ve Grok uzerinde yaptginiz konusmalari tek tikla yazdirmanizi veya PDF olarak kaydetmenizi saglar.
+### Güvenilirlik ve Güvenlik
 
-- Gemini, Claude, ChatGPT ve Grok sayfalarinin icerisine **yazici butonu** enjekte eder
-- Konusma icerigini otomatik olarak cikarir (kullanici mesajlari + AI yanitlari)
-- Temiz, profesyonel bir **yazdirma onizleme sayfasi** olusturur
-- **Claude artifact'lari** (kod dosyalari, dokumanlar) otomatik olarak icerige dahil edilir
-- **Gemini resimleri** base64 formatinda yazdirma ciktisina dahil edilir
-- Tarayicinin **PDF olarak kaydet** ozelligi ile PDF'e donusturebilirsiniz
-- Konusma basligi otomatik olarak PDF dosya adi olarak kullanilir
+- Her yazdırma isteği `crypto.randomUUID()` ile ayrılmış `aiChatPrinterOturum:<UUID>` paketini kullanır; eşzamanlı önizlemeler birbirinin verisini okuyamaz.
+- Paket önizleme tarafından okunur okunmaz silinir; sahipsiz paketler service worker tarafından en geç 6 saat sonra temizlenir.
+- Sekmeye özel `sessionStorage` yedeği, önizleme F5 ile yenilendiğinde veriyi geri getirir.
+- Site denetimi metin aramasıyla değil, HTTPS ve tam hostname eşleşmesiyle yapılır.
+- HTML, izinli etiket listesiyle yeni bir DOM olarak kurulur; script, olay attribute’u, SVG veri URI’si ve güvensiz URL şemaları çıktıya taşınmaz.
+- Kaynak sitenin rastgele CSS sınıfları çıktıya geçirilmez; yalnız `PRE`/`CODE` üzerindeki `language-*` kod dili sınıfları korunur.
+- Uzaktaki görseller kimlik bilgisi ve referer göndermeden alınır; event handler’lar ezilmez ve tüm zamanlayıcılar temizlenir.
+- İzinler yalnız `activeTab`, `storage` ve `clipboardWrite` ile sınırlıdır.
+- Konuşmalar üçüncü taraf sunucuya gönderilmez; ayrıntılar [Gizlilik Bildirimi](GIZLILIK.md) içindedir.
 
-### Ozellikler
+### Kurulum
 
-| Ozellik | Aciklama |
-|---------|----------|
-| Gemini Destegi | gemini.google.com konusmalarini yazdirir (resim destegi dahil) |
-| Claude Destegi | claude.ai konusmalarini yazdirir (artifact dahil) |
-| ChatGPT Destegi | chatgpt.com konusmalarini yazdirir |
-| Grok Destegi | grok.com konusmalarini yazdirir |
-| Sayfa Ici Buton | Popup acmadan dogrudan sayfadan yazdir |
-| Cevap Alti Indir (Gemini) | Her Gemini cevabinin altinda **↓ MD** ve **↓ TXT** butonlari — tek soru-cevabi anlik indir |
-| Gercek Markdown Cikti | HTML→Markdown donusturucu: baslik, kod blogu, liste, tablo, link korunur (duz metin degil) |
-| Konusma Dosya Indirme | Yazdirma onizleme sayfasindan tum konusmayi **.md** veya **.txt** dosyasi olarak indir |
-| HTML Temizleme | XSS korumasli guvenli icerik render |
-| Mesaj Numaralama | Her mesaj sirayla numaralanir |
-| Kod Bloklari | Kod bloklari okunabilir formatta yazdirmaya dahil edilir |
-| Artifact Destegi | Claude'un olusturdugu dosyalar otomatik cikarilir |
-| Resim Destegi | Gemini konusmalarindaki resimler base64 olarak yazdirma ciktisina dahil edilir |
-| Otomatik Yazdir | Onizleme sayfasi acildiginda yazdir dialogu otomatik baslar |
-| PDF Kaydetme | Konusma basligini dosya adi olarak kullanir |
-| Responsive | Yazdirma ciktisi tum kagit boyutlarina uyumlu |
+1. Depoyu indirin veya klonlayın.
+2. Chrome’da `chrome://extensions` adresini açın.
+3. Sağ üstten “Geliştirici modu”nu etkinleştirin.
+4. “Paketlenmemiş öğe yükle” düğmesine basın.
+5. Bu projenin kök klasörünü seçin.
 
-### Kurulum (Adim Adim)
+Minimum desteklenen sürüm Chrome 114’tür. Derleme, paket yöneticisi veya çalışma zamanı bağımlılığı yoktur.
 
-Chrome Web Store'da yayinlanmadigindan, eklentiyi manuel olarak yuklemeniz gerekiyor. Cok basit:
+### Kullanım
 
-#### 1. Dosyalari Indirin
+1. Desteklenen sitelerden birinde konuşmayı açın.
+2. Sayfadaki yazıcı simgesine basın, popup’taki “Konuşmayı Önizle” düğmesini kullanın veya `Ctrl+Shift+P` kısayoluna basın.
+3. Baskı Stüdyosu’nda sayfa ve içerik tercihlerini düzenleyin.
+4. Mesaj seçimi gerekiyorsa konuşma bloklarını veya rol kısayollarını kullanın.
+5. “Yazdır” ile yazıcı/PDF çıktısı alın ya da dışa aktarma düğmelerinden birini kullanın.
 
-- Bu sayfanin ust kismindaki yesil **"Code"** butonuna tiklayin
-- **"Download ZIP"** secenegini tiklayin
-- Indirilen ZIP dosyasini bilgisayarinizda bir klasore cikartin (ornegin Masaustu)
+## English
 
-#### 2. Chrome'a Yukleyin
+AI Chat Printer is a dependency-free Manifest V3 Chrome extension that turns Gemini, Claude, ChatGPT, and Grok conversations into clean printable documents.
 
-1. Chrome tarayicinizda adres cubuguna `chrome://extensions` yazin ve Enter'a basin
-2. Sag ust kosedeki **"Gelistirici modu"** (Developer mode) anahtarini acik konuma getirin
-3. Sol ustteki **"Paketlenmemis oge yukle"** (Load unpacked) butonuna tiklayin
-4. ZIP'ten cikardiginiz **klasoru** secin (icinde `manifest.json` dosyasi olan klasor)
-5. Eklenti listede gorunecek ve otomatik aktif olacak
+### Highlights
 
-#### 3. Kullanim
+- Print or save conversations as PDF.
+- Copy Markdown or plain text.
+- Download selected messages as Markdown, text, standalone HTML, or JSON.
+- Extract Gemini images, Claude artifacts, current and legacy ChatGPT message trees, and current or fallback Grok layouts.
+- Configure paper size, orientation, margins, font size, code blocks, footer, printed link addresses, and automatic printing.
+- Select individual messages, all messages, user messages only, or AI messages only.
+- Keep concurrent print sessions isolated with UUID-scoped local storage and tab-scoped refresh recovery.
+- Process conversation data locally without analytics or an external server.
 
-1. [gemini.google.com](https://gemini.google.com), [claude.ai](https://claude.ai), [chatgpt.com](https://chatgpt.com) veya [grok.com](https://grok.com) adresine gidin
-2. Bir konusma acin veya yeni konusma baslatin
-3. Sayfanin sag ust kosesinde beliren **yazici ikonuna** tiklayin
-4. Yazdirma onizleme sayfasi acilir ve otomatik olarak yazdir/PDF dialogu baslar
-5. **"PDF olarak kaydet"** secenegini secerek PDF dosyasi olusturabilirsiniz
+### Installation
 
-> **Not:** Eklentiyi yukledikten sonra acik olan Gemini/Claude/ChatGPT/Grok sekmelerini yenilemeniz (F5) gerekir.
-
----
-
-## EN - English
-
-### What Does It Do?
-
-AI Chat Printer lets you print or save as PDF your Google Gemini, Claude.ai, ChatGPT and Grok conversations with a single click.
-
-- Injects a **printer button** directly into Gemini, Claude, ChatGPT and Grok pages
-- Automatically extracts conversation content (user messages + AI responses)
-- Generates a clean, professional **print preview page**
-- **Claude artifacts** (code files, documents) are automatically included
-- **Gemini images** are included in print output as base64
-- Use your browser's **Save as PDF** feature to create PDF files
-- Conversation title is automatically used as the PDF filename
-
-### Features
-
-| Feature | Description |
-|---------|-------------|
-| Gemini Support | Print conversations from gemini.google.com (with image support) |
-| Claude Support | Print conversations from claude.ai (including artifacts) |
-| ChatGPT Support | Print conversations from chatgpt.com |
-| Grok Support | Print conversations from grok.com |
-| In-Page Button | Print directly from the page without opening a popup |
-| Per-Answer Download (Gemini) | **↓ MD** and **↓ TXT** buttons under each Gemini answer — instantly download a single Q&A pair |
-| HTML Sanitization | Secure content rendering with XSS protection |
-| Message Numbering | Each message is sequentially numbered |
-| Code Blocks | Code blocks are included in readable format |
-| Artifact Support | Files created by Claude are automatically extracted |
-| Image Support | Images in Gemini conversations are included as base64 in print output |
-| Auto Print | Print dialog opens automatically when preview loads |
-| PDF Export | Uses conversation title as the filename |
-| Responsive | Print output adapts to all paper sizes |
-
-### Installation (Step by Step)
-
-Since this extension is not published on the Chrome Web Store, you need to install it manually. It's very easy:
-
-#### 1. Download the Files
-
-- Click the green **"Code"** button at the top of this page
-- Select **"Download ZIP"**
-- Extract the downloaded ZIP file to a folder on your computer (e.g., Desktop)
-
-#### 2. Load into Chrome
-
-1. Open Chrome and type `chrome://extensions` in the address bar, then press Enter
-2. Toggle on **"Developer mode"** in the top right corner
-3. Click **"Load unpacked"** in the top left
-4. Select the **folder** you extracted from the ZIP (the one containing `manifest.json`)
-5. The extension will appear in the list and activate automatically
-
-#### 3. Usage
-
-1. Go to [gemini.google.com](https://gemini.google.com), [claude.ai](https://claude.ai), [chatgpt.com](https://chatgpt.com) or [grok.com](https://grok.com)
-2. Open an existing conversation or start a new one
-3. Click the **printer icon** that appears in the top right area of the page
-4. A print preview page opens and the print/PDF dialog starts automatically
-5. Choose **"Save as PDF"** to create a PDF file
-
-> **Note:** After installing the extension, you need to refresh (F5) any open Gemini/Claude/ChatGPT/Grok tabs.
-
----
+1. Download or clone the repository.
+2. Open `chrome://extensions` in Chrome.
+3. Enable Developer mode.
+4. Choose “Load unpacked”.
+5. Select the repository root.
 
 ## Desteklenen Siteler / Supported Sites
 
-| Site | Durum / Status |
-|------|---------------|
-| gemini.google.com | ✅ Tam destek (resim dahil) / Full support (with images) |
-| claude.ai | ✅ Tam destek (artifact dahil) / Full support (including artifacts) |
-| chatgpt.com | ✅ Tam destek / Full support |
-| grok.com | ✅ Tam destek / Full support |
+| Site | Hostname | İçerik betiği | Öne çıkan uyumluluk |
+|---|---|---|---|
+| Google Gemini | `gemini.google.com` | `content.js` | Custom element yapısı, resim dönüştürme, hızlı MD/TXT |
+| Claude | `claude.ai` | `content-claude.js` | Document-order mesaj akışı, artifact viewer yaşam döngüsü |
+| ChatGPT | `chatgpt.com` | `content-chatgpt.js` | Eski + `wm` DOM, sanallaştırma scroll-süpürmesi |
+| Grok | `grok.com` | `content-grok.js` | Kesin `data-testid` önceliği, geriye uyumlu fallback zinciri |
 
----
+Hostname doğrulaması kesindir. `example.invalid/?next=https://chatgpt.com` gibi URL içinde hedef site adı taşıyan başka alan adları destekli kabul edilmez.
 
-## Ekran Goruntuleri / Screenshots
+## Mimari
 
-### Gemini - Sayfa Ici Buton / In-Page Button
-> Gemini arabirimindeki toolbar'a entegre yazici butonu
-
-### Claude - Sayfa Ici Buton / In-Page Button
-> Claude arabiriminde Share butonunun yaninda yazici butonu
-
-### ChatGPT - Sayfa Ici Buton / In-Page Button
-> ChatGPT arabiriminde Paylas butonunun yaninda yazici butonu
-
-### Grok - Sayfa Ici Buton / In-Page Button
-> Grok arabiriminde header'da yazici butonu
-
-### Yazdirma Onizleme / Print Preview
-> Mesaj numaralama, rol etiketleri, kod bloklari ve artifact destegiyle temiz cikti
-
----
-
-## Teknik Detaylar / Technical Details
-
-- **Manifest Version:** V3 (Chrome'un en guncel standardi)
-- **Permissions:** `activeTab`, `storage`, `clipboardWrite` (minimum gerekli izinler)
-- **Dependencies:** Yok / None (saf JavaScript, harici kutuphane kullanilmaz)
-- **Data Storage:** Yazdirma verisi gecici olarak `chrome.storage.local`'da tutulur ve kullanildiktan sonra silinir. Hicbir veri disariya gonderilmez.
-- **Security:** HTML icerik whitelist tabanli sanitizer ile temizlenir (XSS korumasi)
-
----
-
-## Proje Yapisi / Project Structure
-
-```
-├── manifest.json           # Extension manifest (MV3) — CSP, commands, i18n
-├── background.js           # Service worker — tab management + keyboard shortcut handler
-├── resim-yardimcilari.js   # Shared image-to-base64 helpers (total timeout support)
-├── ortak-yardimcilar.js    # Shared: settings + debounce + streaming + title + quota + markdown export
-├── content.js              # Gemini content script
-├── content-claude.js       # Claude content script (+ artifact extraction with progress)
-├── content-chatgpt.js      # ChatGPT content script
-├── content-grok.js         # Grok content script (multi-fallback selectors)
-├── popup.html              # Extension popup UI (persistent settings, keyboard shortcut info)
-├── popup.js                # Popup logic (chrome.storage.sync + UI feedback)
-├── yazdir.html             # Print preview page (loading overlay, toast region)
-├── yazdir.js               # Print rendering + HTML sanitizer + markdown/text export
-├── yazdir.css              # Print styles (A4, color-adjust, page numbering, toast)
-├── _locales/               # i18n resources (tr, en)
-│   ├── tr/messages.json
-│   └── en/messages.json
-└── icons/                  # Extension icons (16/48/128px)
+```text
+Desteklenen AI sekmesi
+  ├─ resim-yardimcilari.js
+  ├─ ortak-yardimcilar.js
+  └─ content-*.js
+       │
+       ├─ DOM → konusmaVerisi
+       ├─ ayarlariDogrula()
+       └─ storage.local[aiChatPrinterOturum:<UUID>]
+              │
+              └─ background.js → yazdir.html?oturum=<UUID>
+                       │
+                       ├─ oku ve hemen sil
+                       ├─ sessionStorage F5 yedeği
+                       ├─ htmlTemizle()
+                       ├─ canlı sayfa/mesaj ayarları
+                       └─ yazdır / MD / TXT / HTML / JSON
 ```
 
----
+Content script yükleme sırası `resim-yardimcilari.js → ortak-yardimcilar.js → content-*.js` biçimindedir. `background.js`, `site-yardimcilari.js` dosyasını `importScripts()` ile yükler. Popup ve önizleme de aynı site sözleşmesini kullanır; böylece destekli kaynak listesi üç ayrı yerde sapmaz.
 
-## Degisiklik Gecmisi / Changelog
+## Proje Yapısı
 
-### v1.8.3 (22.07.2026) — ChatGPT yazdır butonu hizalama düzeltmesi
+```text
+GeminiPrinter/
+├── manifest.json              # Manifest V3, izinler, komutlar, CSP ve içerik betikleri
+├── background.js              # Service worker, önizleme sekmesi ve kalıntı temizliği
+├── site-yardimcilari.js       # Tam-hostname site ve kaynak sözleşmesi
+├── resim-yardimcilari.js      # Görsel dönüştürme, timeout ve güvenli kaynak denetimi
+├── ortak-yardimcilar.js       # Ayarlar, quota, oturum, Markdown ve dosya yardımcıları
+├── content.js                 # Gemini çıkarıcısı
+├── content-claude.js          # Claude + artifact çıkarıcısı
+├── content-chatgpt.js         # ChatGPT çift DOM + sanallaştırma çıkarıcısı
+├── content-grok.js            # Grok çok katmanlı çıkarıcısı
+├── popup.html
+├── popup.css                  # Baskı Stüdyosu popup tasarımı
+├── popup.js
+├── yazdir.html
+├── yazdir.css                 # Ekran, responsive ve yazıcı stilleri
+├── yazdir.js                  # Güvenli render, seçim ve tüm dışa aktarımlar
+├── _locales/tr/messages.json
+├── _locales/en/messages.json
+├── icons/                    # Web Store güvenli alanlı ikonlar + yeniden üretim betiği
+├── tests/acceptance_tests.py  # Statik, tarayıcı ve gerçek MV3 kabul paketi
+├── store_assets/v2.0.0/       # 4 ekran görüntüsü, small/marquee tanıtım görselleri
+├── CHROME_WEB_STORE_v2.0.0.md # TR/EN mağaza metni, izin ve veri kullanım beyanları
+├── RELEASE_NOTES_v2.0.0.md    # Yayın notları ve yükseltme sözleşmesi
+├── DISTRIBUTION_v2.0.0.md     # ZIP içeriği, SHA-256 ve paket kabul kanıtı
+├── GIZLILIK.md
+├── TEKNIK_DOKUMANTASYON.md
+├── CLAUDE.md
+├── LICENSE
+└── README.md
+```
 
-- **Yazdır butonu artık Paylaş ile aynı satırda** — yeni UI'da Paylaş butonu `aria-label` taşımadığı için buton dikey container'ın üstüne giriyordu. Paylaş artık buton metniyle de aranır ve butonu aynı parent içine, Paylaş'ın soluna ekler; Paylaş hiç bulunamazsa header'a gömme yerine sabit konumlu floating buton kullanılır. `align-self:center` + `flex-shrink:0` ile dikey hizalama garantilenir. / Print button now sits inline next to Share; falls back to floating button when Share is absent.
+## Geliştirme ve Kabul
 
-### v1.8.2 (22.07.2026) — ChatGPT 2026-07 UI kırılması giderildi
+Python 3, Playwright ve Node.js bulunan geliştirme ortamında bütün kabul paketi tek komutla çalışır:
 
-- **ChatGPT konuşmanın tamamı yeniden yazdırılıyor** — ChatGPT'nin yeni "wm" arayüzü eski selektörleri (`conversation-turn`, `data-message-author-role`, `.markdown`) öldürmüştü. Çift DOM destekli çıkarıcı: yeni `li[data-message-role]` + `[data-user-message-bubble]` / `[data-assistant-markdown]` selektörleri, eski UI fallback'leriyle birlikte. / ChatGPT's new "wm" frontend broke extraction; dual-DOM extractor now supports both UIs.
-- **Sanallaştırma scroll-süpürmesi** — uzun konuşmalarda görünmeyen mesajlar DOM'dan düşse bile tüm mesajlar toplanır (en üste kaydır → adım adım in → UUID anahtarlı mükerrer önleme → kaydırma konumu geri yüklenir). / Scroll-sweep collects all messages even under list virtualization.
-- **Floating buton fallback** — header bulunamayan yeni arayüzde yazdır butonu sağ üst köşeye sabit eklenir. / Floating print button when no header exists.
-- **Yeni streaming göstergesi** — `data-assistant-content-started` + `data-message-complete` kombinasyonu; sr-only "Şunu dedin:/ChatGPT:" etiketleri çıktıya sızmaz. / New streaming detection; sr-only attribution labels never leak into output.
+```powershell
+python .\tests\acceptance_tests.py
+```
 
-### v1.8.1 (19.07.2026) — Claude 2026-07 UI kırılması giderildi
+Dağıtım ZIP’i açıldıktan sonra yalnız gerçek MV3 service worker ve dört site zincirini aynı test dosyasıyla yeniden doğrulamak için:
 
-- **claude.ai yeni arayüzü desteklendi** — chat-header, document-order mesaj akışı, View/Go back artifact akışı, chat-title-split başlık; hepsi eski UI fallback'li. Grok rol tespitine `data-testid` katmanı eklendi. / Claude 2026-07 UI fixes with legacy fallbacks + Grok data-testid role detection.
+```powershell
+$env:AI_CHAT_PRINTER_PROJECT_ROOT = "C:\gecici\AI-Chat-Printer-v2.0.0"
+python .\tests\acceptance_tests.py --runtime-only
+```
 
-### v1.8.0 — Canlı önizleme ayarları + mesaj seçimi + HTML/JSON export
+Paket şu katmanları doğrular:
 
-- **Yazdırma sayfası canlı ayar çubuğu** (yazı boyutu / kod blokları / mesaj seçim modu), **mesaj seçimi** (checkbox ile mesajı çıktıdan hariç tutma + Tümünü Seç/Kaldır), **HTML ve JSON dışa aktarma**. Kod bloğu gizleme `body.kod-gizli` class'ına taşındı (DOM silinmez). / Live settings bar, per-message selection, HTML/JSON export.
+- Tüm kök JavaScript dosyalarında `node --check` ve bütün Python dosyalarında derleme denetimi.
+- Manifest V3, sürüm ve asgari izin sözleşmesi.
+- UTF-8 ve mojibake taraması.
+- Resim yaşam döngüsünde event handler, kimlik bilgisi ve referrer güvenliği.
+- Gerçek Chromium üzerinde sanitizer, XSS, ayar, seçim, seçili-resim decode bariyeri, dışa aktarım, F5, bozuk oturum ve paralel oturum yalıtımı testleri.
+- Popup erişilebilirliği ve kötü niyetli hostname benzerliği testi.
+- Paketlenmemiş eklentinin gerçek MV3 service worker ile yüklenmesi.
+- Dört siteye özgü fixture üzerinde gerçek content script → `storage.local` → service worker → önizleme uçtan uca zinciri; ayrıca Gemini hızlı Markdown, Claude artifact ve ChatGPT uzun-konuşma süpürmesi.
 
-### v1.7.8 (10.06.2026) — Cift tiklama reentrance korumasi
+## Sürüm Geçmişi
 
-- **Yazdir butonuna art arda basmak artik paralel akis baslatmiyor** — 4 content script'te `yazdirmaIslemiSuruyor` kilidi: ikinci tiklama "islem zaten suruyor" uyarisi verir. Onceden cift tiklama iki cikarma akisi + iki yazdirma sekmesi acabiliyor, paylasilan resim-deadline'i cakisiyordu; **Claude'da** paralel artifact tikla-ac-kapat donguleri viewer'i cakistirip icerikleri karistirabiliyordu (popup mesaj yolu da kilitli). / Double-click no longer spawns parallel extraction flows; Claude artifact loop protected on both trigger paths.
+### v2.0.0 — 15.08.2026
 
-### v1.7.7 (10.06.2026) — Linkli resim MD duzeltmesi + uctan uca render dogrulamasi
+- Popup ve yazdırma önizlemesi user-friendly Baskı Stüdyosu tasarımıyla yenilendi.
+- A4/A3/Letter, dikey/yatay, üç kenar boşluğu, 17 px yazı, belge imzası ve bağlantı adresi ayarları eklendi.
+- Rol bazlı mesaj seçimi, boş seçim kilidi ve tüm çıktı türlerinde tek seçim sözleşmesi eklendi.
+- Sayfa ayarları dinamik `@page` kuralıyla gerçek yazıcı/PDF çıktısına bağlandı.
+- Uzun mesajların sayfalar arasında bölünebilmesi, tablo başlıklarının tekrarı ve responsive araç satırları sağlandı.
+- Tam-hostname site doğrulaması `site-yardimcilari.js` içinde merkezileştirildi.
+- Eski ve sahipsiz yazdırma paketlerine 6 saatlik TTL temizliği eklendi.
+- HTML dışa aktarımı string birleştirme yerine güvenli belge DOM’u ile üretildi.
+- Sanitizer yalnız güvenli `language-*` sınıflarını koruyacak biçimde sertleştirildi.
+- Raster veri URI allowlist’i, kimlik bilgisiz HTTPS fallback’i, event/timeout temizliği ve baskı öncesi resim hazır olma kontrolü eklendi.
+- ChatGPT sanallaştırma süpürmesindeki sessiz adım sınırı kaldırıldı; gerçek sona kadar ilerleme ve hareketsizlik koruması getirildi.
+- Claude artifact çıkarımı öğe bazında izole edildi; hata olsa da viewer kapanışı `finally` ile güvenceye alındı.
+- Grok güncel kesin selektörleri fallback’lerin önüne alındı ve konuşma metnini console’a yazan debug sızıntısı kaldırıldı.
+- Kalıcı 14 maddelik otomatik kabul paketi ve gizlilik bildirimi eklendi.
+- Web Store güvenli alanlı yeni ikon, gerçek arayüzden üretilmiş mağaza görselleri, TR/EN mağaza metni ve yayın notları eklendi.
+- Açılmış dağıtım ZIP’ini `--runtime-only` ile gerçek MV3 zincirinde yeniden sınayan paket kabul yolu eklendi.
 
-- **Linkli resim Markdown'da bozulmuyor** — `<a><img></a>` (Gemini gorsel sonuclari) artik `[![alt](src)](href)` olarak dogru uretilir; `[]` escape'i yalnizca duz metinli linklere uygulanir (ic ice markdown sozdizimi korunur). / Linked images no longer broken by bracket escaping.
-- **Uctan uca render testi** — chrome API mock'u ile yazdir.js'in tam akisi (storage → sanitize → render) 21 senaryoda dogrulandi: XSS script/onerror/SVG-data-URI engelleme, buton/style sizinti filtreleri, prefix temizleme, artifact render, sessionStorage F5 yedegi, PDF baslik atamasi.
+### v1.9.0 — 15.08.2026
 
-### v1.7.6 (10.06.2026) — Kullanici ciktilarinda tam Turkce diakritik
+- UUID tabanlı eşzamanlı yazdırma oturumları ve oturum kimlikli F5 yedeği eklendi.
 
-- **Runtime ciktilarindaki ASCII Turkce metinler duzeltildi** — yazdirma onizleme basligi/butonu/footer'i ("Yazdırma Önizleme", "Yazdır", "Bu çıktı ... oluşturulmuştur."), varsayilan konusma basliklari ("Gemini Konuşması" vb.) ve TXT indirme sablonu ("Konuşma:", "alınamadı") artik tam diakritikli. UTF-8 byte butunlugu dogrulandi, NTFS dosya adlarinda Turkce karakter sorunsuz. / All user-facing runtime strings now use proper Turkish diacritics.
+### v1.8.3 — 22.07.2026
 
-### v1.7.5 (10.06.2026) — MD link sozdizimi cakismasi + olcek dayanikliligi
+- ChatGPT Paylaş düğmesi metin fallback’i ve aynı satır hizalaması düzeltildi.
 
-- **Parantezli URL'ler linki kirmiyor** — Wikipedia tarzi `.../X_(album)` URL'leri CommonMark `<>` sargisiyla yazilir; `(` `)` veya bosluk iceren href/src MD linkini erken kapatmaz. / Parenthesized URLs wrapped in `<>` per CommonMark.
-- **Link metni ve img alt'inda `[` `]` escape** — `dizi[0]` gibi metinler link yapisini bozmaz.
-- **mdFenceUret stack overflow korumasi** — `Math.max(...spread)` yerine `reduce`; cok sayida backtick dizisi iceren dev iceriklerde (200k+ dizi) export crash etmez.
+### v1.8.2 — 22.07.2026
 
-### v1.7.4 (10.06.2026) — Resim kanalinda UI gorsel filtresi
+- ChatGPT 2026 “wm” DOM desteği, çift çıkarıcı, sanallaştırma süpürmesi ve floating düğme eklendi.
 
-- **Buton/ikon gorselleri artik "ekstra resim" olarak toplanmiyor** — `turnResimleriniTopla()` buton, `[role="button"]` ve `mat-icon` icindeki img + background-image gorsellerini atlar; begen/kopyala ikonlari ve hover sprite'lari yazdirma ciktisina giremez (UI ≠ icerik ilkesinin 4. kanali: html, metin, md'den sonra resim). / Button/icon images are no longer collected as content images.
+### v1.8.1 — 19.07.2026
 
-### v1.7.3 (10.06.2026) — Markdown fence kacisi duzeltmesi
+- Claude 2026 arayüzü, document-order mesaj toplama ve yeni artifact viewer akışı desteklendi.
 
-- **Fence kacisi bug'i kapatildi** — kod blogu veya artifact iceriginde ``` gectiginde (markdown ogreten cevaplar, README.md artifact'lari) MD ciktisi artik kirilmiyor: `mdFenceUret()` icerikteki en uzun backtick dizisinden 1 uzun fence secer (CommonMark uyumlu). / Fence escaping fixed: code blocks containing ``` no longer break MD output.
-- **Quota mesaji dinamik** — "Storage siniri 10 MB" sabit metni yerine gercek `QUOTA_BYTES` degerinden hesaplanan limit gosterilir.
-- **Cevap alti MD sablonunda soru escape** — satir basi `#` ile baslayan kullanici sorusu sahte baslik olusturmaz.
+### v1.8.0
 
-### v1.7.2 (10.06.2026) — TXT sizinti ayagi + olu indirme butonu duzeltmesi
+- Canlı önizleme ayarları, mesaj seçimi, HTML ve JSON dışa aktarımı eklendi.
 
-- **TXT ciktilarindaki UI sizintisi kapatildi** — `mesaj.metin` 4 content script'te artik `temizMetinCikar()` ile uretilir; kod blogu "Copy / Kodu kopyala" buton yazilari ve ikon metinleri duz metin kopyala/indir ciktilarina girmez (v1.7.1 sadece MD/yazdirma ayagini kapatmisti). / TXT-side UI leakage fixed across all 4 sites.
-- **Eklenti reload sonrasi olu MD/TXT butonlari** — content script basinda eski `.gp-indir-btn`'ler silinir, canli handler'la yeniden enjekte edilir (dead-handler-cleanup pattern'i cevap alti butonlara da uygulandi).
-- `uiTemizKlon()` + `temizMetinCikar()` ortak modulde — content.js'teki yerel kopya kaldirildi (DRY).
-- Yazdirma onizleme kontrol cubugu dar pencerede tasmaz (`flex-wrap`).
+### v1.7.0–v1.7.8 — 10.06.2026
 
-### v1.7.1 (10.06.2026) — UI metni sizintisi duzeltmesi
+- Gerçek HTML→Markdown motoru, MD/TXT dosya indirme, F5 dayanıklılığı, reentrance koruması, resim ve UI sızıntı filtreleri, fence/link/encoding düzeltmeleri tamamlandı.
 
-- **Markdown/yazdirma ciktisina UI metni sizmasi kapatildi** — "Kodu kopyala" buton yazisi, `mat-icon` ligature metni (`content_copy`), inline `<style>` CSS kurallari artik ciktiya girmez. / UI text leakage fixed: copy-button labels, icon ligatures and inline CSS no longer leak into Markdown or print output.
-- `htmlToMarkdown` ve `htmlTemizle` artik BUTTON/MAT-ICON/STYLE/SCRIPT/SELECT/TEXTAREA/SVG/IFRAME vb. etiketleri **icerikleriyle birlikte** atlar.
-- Gemini cevap alti ↓ MD / ↓ TXT cikarimi klon uzerinde UI temizliginden gecer (`icerikKlonuTemizle`).
+### v1.6.1 — 15.05.2026
 
-### v1.7.0 (10.06.2026) — Gercek Markdown motoru + dosya indirme + derin denetim duzeltmeleri
+- Gemini cevap altı MD/TXT indirme ve storage sertleştirmesi eklendi.
 
-**Yeni Ozellik / New Feature:**
-- **Gercek HTML→Markdown donusturucu** (`htmlToMarkdown`) — Markdown ciktilarinda artik baslik (`#`), kod bloklari (dil etiketli ``` fence), inline kod, kalin/italik, ic ice listeler, linkler, tablolar (pipe format), alintilar ve yatay cizgiler korunur. Onceden tum Markdown ciktilari duz `textContent` idi. / Real HTML→Markdown converter — headings, fenced code blocks (with language), lists, links, tables, blockquotes now preserved in all Markdown exports (previously plain text).
-- **Yazdirma sayfasindan dosya indirme** — Kontrol cubuguna **↓ MD** ve **↓ TXT** butonlari eklendi; tum konusma tek tikla `.md` / `.txt` dosyasi olarak iner (pano kopyalamanin dosya karsiligi). / Download whole conversation as `.md` / `.txt` file from the print preview toolbar.
-- **Gemini cevap alti ↓ MD butonu artik gercek Markdown uretir** (eskiden duz metin). / Gemini per-answer ↓ MD button now produces real Markdown.
+### v1.5.0–v1.5.2 — 25.04.2026
 
-**Duzeltmeler / Fixes:**
-- **Yanlis F5 badge duzeltildi** — klavye kisayolu mesajinda content script yanit gondermeden kanali acik tutuyordu; background "port closed" hatasi alip gereksiz F5 badge gosteriyordu. 4 content script'te mesaj dinleyici duzeltildi. / Fixed false F5 badge: keyboard-shortcut message channel was left open without a response.
-- **Cikarma hatalari artik dogru raporlaniyor** — `konusmayiCikar` beklenmedik hata firlatirsa popup yanlis "content script yuklenmemis" yerine gercek hata mesajini gosterir; sayfa ici akista toast takili kalmaz (4 content script'e catch eklendi).
-- **F5 dayanikliligi** — yazdirma sayfasi verisi sekmeye ozel `sessionStorage`'a yedeklenir; F5 sonrasi "veri bulunamadi" hatasi kalkti (multi-tab race condition korumasi bozulmadan).
-- **Gereksiz `scripting` izni kaldirildi** — kodda hic kullanilmiyordu; Chrome Web Store gereksiz izin reddi riski giderildi.
-- **blob: tutarsizligi giderildi** — CSP `img-src`'de olmayan ve cross-origin'de zaten calismayan blob URL kabulleri sanitizer ve render'dan kaldirildi.
-- **Duz metin mesajlarda satir sonu korunuyor** — HTML fallback render'inda newline'lar artik `<br>`'a cevriliyor.
-- **Sayfa resim handler'lari korunuyor** — resim base64 donusumu artik sayfanin kendi `onload`/`onerror` handler'larini ezmiyor (`addEventListener` + timeout temizligi).
-- **Olmeyen sayfa numarasi CSS'i temizlendi** — `@page` margin box'lari (`@bottom-right` sayfa numarasi) Chrome'da desteklenmiyor; dead CSS kaldirildi. Sayfa numarasi gerekirse yazdirma diyalogundaki "Ustbilgi ve altbilgiler" secenegi kullanilir.
+- Grok desteği, ticari kalite denetimi ve Gemini streaming false-positive düzeltmesi yayımlandı.
 
-**Hijyen / Housekeeping:**
-- `popup.html` artik `ortak-yardimcilar.js` yukluyor — `VARSAYILAN_AYARLAR` duplikasyonu kaldirildi, popup yazdirma akisina da storage quota kontrolu eklendi.
-- Eklenti kurulum/guncellemesinde kalinti gecici konusma verisi otomatik temizlenir (`onInstalled`).
-- Ortak `dosyayaIndir()` yardimcisi — Gemini cevap alti indirme ve yazdirma sayfasi indirme ayni Blob pattern'ini paylasir.
+### v1.0.0–v1.4.0 — 25.03.2026–22.04.2026
 
-### v1.6.1 (15.05.2026) — Cevap alti MD/TXT indirme + storage sertlestirme
-
-**Yeni Ozellik / New Feature:**
-- **Gemini cevap alti indirme butonlari** — Her `model-response` action bar'ina **↓ MD** ve **↓ TXT** butonlari enjekte edilir. Tek bir soru-cevap ciftini Markdown veya duz metin olarak anlik indirir (tum konusmayi degil).
-- **Per-answer download buttons for Gemini** — Each `model-response` action bar gets **↓ MD** and **↓ TXT** buttons. Instantly downloads a single Q&A pair as Markdown or plain text (not the whole conversation).
-- Dosya adi soru metninden uretilir (80 karakter limit, FS yasakli karakterler temizlenir) / Filename derived from question text (80 char limit, FS-unsafe chars stripped).
-- MD ciktida tarih, konusma basligi, ayrac ile yapilandirilmis format. TXT ciktida 60 karakter `=` ayraclar.
-
-**Sertlestirme / Hardening:**
-- `chrome.storage` erisilemez durumlarda guvenli fallback — eklenti context invalidation sirasinda sessizce varsayilan ayarlar donulur. / Safe fallback when `chrome.storage` is inaccessible — silently returns defaults during extension context invalidation.
-- `console.warn` / `console.error` → `console.log` demote — eklenti `chrome://extensions` "Errors" sayfasinda gereksiz uyari biriktirmiyor. / Demoted to `console.log` so extension Errors page doesn't accumulate noise.
-- `yazdirmayaBasla()` icin `chrome.storage.local` mevcudiyet kontrolu erkene cekildi (try/catch oncesi). / `chrome.storage.local` existence check moved before try/catch in `yazdirmayaBasla()`.
-
-**MutationObserver Genisletildi:**
-- Gemini icin gozlemci artik yalnizca toolbar butonunu degil, yeni gelen `model-response`'lara da MD/TXT enjeksiyonu yapiyor (200ms debounce ile ayni dongude). / Gemini observer now also injects MD/TXT buttons into new `model-response` elements (same 200ms debounce cycle).
-
-### v1.5.2 (25.04.2026) — Gemini streaming false positive hotfix
-- **Gemini sayfasinda yanlis "henuz yanit yaziyor" toast'i kaldirildi**
-- Sebep: Gemini DOM'unda "Stop" butonu gizli (visibility:hidden / opacity:0) olarak duruyordu — `offsetParent !== null` bunu "gorunur" sayiyordu, surekli streaming sandiriyordu (false positive)
-- Cozum: Gemini icin streaming kontrolu tamamen kaldirildi (sayfa ici buton + popup mesaj handler)
-- Kullanici yarim yanit yazdirirsa kendi takdirinde — UI engellemesi yok
-
-### v1.5.1 (25.04.2026) — Ticari kalite denetlemesi
-- **Guvenlik:** HTML sanitizer SVG data URI XSS acigi kapatildi (sadece raster format'lara izin)
-- **Multi-tab race condition cozuldu:** oku-ve-hemen-sil pattern (ayni anda 2 sekmede yazdirma kaybi onlendi)
-- **MutationObserver memory leak fix:** 4 content script'te pagehide event ile disconnect
-- **i18n duzgun calisiyor:** manifest'te __MSG_*__ placeholder'lari kullanilarak _locales aktif edildi
-- **homepage_url duzeltildi:** ai-chat-printer (eski: GeminiPrinter — 404 veriyordu)
-- **Print otomasyon iyilesti:** sabit 800ms gecikme yerine resim yuklenmesini bekler (Promise.all + 3sn timeout)
-- **Bilinmeyen kaynak fallback:** sessizce gemini'ye dusmek yerine generic "ai" tema
-- **Storage quota dinamik:** chrome.storage.local.QUOTA_BYTES kullanir, hard-code degil
-- **Footer toggle:** popup'tan eklenti imzasi kaldirilabilir
-- **Klavye kisayolu uyari:** content script erisilemezse F5 badge gosterir
-- **Popup proaktif kontrol:** desteklenmeyen sayfada yazdir butonu disabled
-- **Turkce karakter regex fix:** content-grok.js'te \\b yerine non-word boundary
-- **Markdown export escape:** `#` ile baslayan kullanici metni baslik olmaz
-- **Dead code temizligi:** ortak-yardimcilar.js'te kullanilmayan storageErisimiVarMi kaldirildi
-- **referrerpolicy="no-referrer"** tum yazdirma resimlerinde — referrer leak onlendi
-
-### v1.5.0 (25.04.2026) — Grok destegi
-- **Grok destegi eklendi** — grok.com konusmalarini yazdirma
-- Grok header'ina yazici butonu enjeksiyonu (Share/Paylas butonunun soluna; bulunamazsa header son child'ina)
-- Grok icin koyu gri (#1f2937) tema rengi
-- DOM tanimasi icin coklu fallback strateji (data-message-author-role / aria-label / class regex / article tag)
-- Mesaj rolu tespit edilemezse alternating user/assistant fallback
-- ortak-yardimcilar.js: streamingMiKontrol + basligiTemizle + konusmayiMarkdowneDonustur fonksiyonlarina Grok handler
-
-### v1.4.0 (22.04.2026) — Ticari Kalite Sürümü
-- **Klavye kisayolu** — Ctrl+Shift+P (Mac: Cmd+Shift+P) ile hizli yazdirma
-- **Markdown ve duz metin kopyalama** — yazdirma onizleme sayfasindan panoya
-- **Loading overlay** — yazdirma sayfasinda yukleme animasyonu
-- **ARIA live region toast** — ekran okuyucular icin erisilebilir bildirimler
-- **Storage quota kontrolu** — 10MB limiti asilirsa kullanici uyarilir (8MB'ta erken uyari)
-- **Resim toplam sure limiti** — 50+ resim varsa 90 saniyeden fazla takilmaz
-- **Artifact progress gostergesi** — "3/10 cikariliyor" seklinde canli ilerleme
-- **Sadece resim mesajlari** icin ozel render
-- **Bos mesaj** placeholder
-- **Genis tablo uyarisi** — kullaniciya landscape (yatay) onerisi
-- **A4 varsayilan sayfa boyutu** — yazdirma CSS'inde @page size
-- **Renk koruma** — tum elementler icin print-color-adjust: exact
-- **Sayfa alt sol etiket** — "AI Chat Printer" @bottom-left
-- **Sanitizer** genisletildi — mailto:, tel:, blob: ve 12 yeni HTML etiketi (FIGURE, KBD, MARK, DEL, S, SMALL vb.)
-- **A tag rel="noopener noreferrer"** — guvenlik iyilestirmesi
-- **i18n altyapisi** — _locales/tr ve _locales/en klasorleri
-- **Chrome Web Store metadata** — minimum_chrome_version, short_name, homepage_url, default_locale
-- **Content Security Policy** — extension pages icin siki CSP
-- **commands API** — keyboard shortcut manifest tanimi
-- **clipboardWrite izni** — markdown/metin kopyalama icin
-- **Baslik temizleme** — Windows/macOS dosya adi icin yasakli karakterleri sil
-- **Context invalidation** kontrolu — `chrome.runtime?.id` kontrolu eklendi
-- **onInstalled listener** — kurulum/guncelleme bildirimi
-- **Ayar kaydedildi toast** — popup'ta feedback
-- **Escape ile sayfa kapatma** + Ctrl+Shift+M ile markdown kopyala
-
-### v1.3.0 (22.04.2026)
-- **Kullanici ayarlari kalici** — `chrome.storage.sync` ile ayarlar taraycilar arasinda senkronize
-- **Sayfa ici buton popup ayarlarini kullaniyor** — kod bloklari, otomatik yazdir, yazi boyutu tum butonlarda gecerli
-- **Claude artifact popup'tan da calisiyor** — popup fallback artifact'lari cikariyor (onceden eksik)
-- **Streaming mesaj koruma** — AI yanit yaziyorsa yazdirmayi engeller
-- **Sidebar basligi** — Claude ve ChatGPT'de de aktif konusmanin basligi kullaniliyor
-- **Cok dilli baslik temizleme** — TR/EN suffix'leri ortak fonksiyonda
-- **MutationObserver debounce** — 200ms debounce ile CPU kullanimi azaltildi
-- **Artifact cikarma race condition fix** — viewer acma-kapama sirasinda observer bastirilir
-- **afterprint temizleme** — yazdirma bittikten sonra storage silinir (F5'te veri kaybi onlendi)
-- **Sekme kapatma duzeltildi** — `chrome.tabs.remove` fallback ile `window.close()`
-- **Sayfa numaralandirma** — yazdirma ciktisinda "Sayfa X / Y"
-- **Link URL'leri yazdirmada** — `<a href>` URL'leri parantez icinde gosterilir
-- **FOUC duzeltmesi** — yazdir.html'de hardcoded "Gemini Konusmasi" flash kaldirildi
-- **ChatGPT selector iyilestirme** — `header.children[2]` yerine paylas butonu parent'i
-- **Ortak modul** — `ortak-yardimcilar.js` ile kod tekrari azaltildi (3 content script paylasiyor)
-
-### v1.2.0 (29.03.2026)
-- **ChatGPT destegi eklendi** — chatgpt.com konusmalarini yazdirma
-- ChatGPT header'ina yazici butonu enjeksiyonu (Paylas butonunun soluna)
-- ChatGPT icin yesil (#10a37f) tema rengi
-- Tablo tasma sorunu duzeltildi (table-layout: fixed, word-break)
-- Uzun linklerin tasmasini onleyen CSS duzeltmesi
-
-### v1.1.0 (25.03.2026)
-- **Claude.ai destegi eklendi** — artifact (kod dosyalari, dokumanlar) otomatik cikarma
-- **Gemini resim destegi** — konusmalardaki resimler base64 olarak yazdirma ciktisina dahil
-- Claude icin amber (#d97706) tema rengi
-- HTML sanitizer'a IMG etiketi destegi eklendi
-- Tablo, blockquote, resim stilleri iyilestirildi
-
-### v1.0.0 (25.03.2026)
-- Ilk surum — Gemini destegi
-- Sayfa ici buton enjeksiyonu
-- Yazdirma onizleme sayfasi
-- HTML sanitizer (XSS korumasi)
-- Mesaj numaralama
-- PDF kaydetme destegi
-
----
+- İlk Gemini sürümünden dört platformlu Manifest V3 yapısına geçildi; Claude/ChatGPT, resim, PDF, i18n ve güvenlik katmanları eklendi.
 
 ## Lisans / License
 
-MIT License - Ozgurce kullanin, degistirin, dagitin.
+[MIT](LICENSE)
 
-MIT License - Free to use, modify, and distribute.
+## Geliştirici / Developer
 
----
-
-## Gelistirici / Developer
-
-**Baran SEREN** - Ankara, Turkiye
-
----
-
-<p align="center">
-  <sub>Built with Vanilla JS | Zero Dependencies | Privacy First</sub>
-</p>
+Baran SEREN — Ankara / Gölbaşı
