@@ -22,6 +22,7 @@ function baslat() {
     observerAktif.observe(document.body, { childList: true, subtree: true }); // body'deki değişiklikleri izle
     // Sayfa gizlenince observer'ı temizle (memory leak önleme)
     window.addEventListener('pagehide', () => observerAktif?.disconnect(), { once: true }); // pagehide event
+    bekleyenYazdirmayiDevamEttir(yazdirmaBaslat); // bağlantı kurtarma reload'u varsa işlemi otomatik sürdür
 }
 
 // Yazdır butonunu Claude header'ına enjekte eder
@@ -396,6 +397,10 @@ async function konusmayiCikar(artifactIcerikleri) {
 
 // Popup'tan gelen mesajları da dinle (fallback) — artifact desteği dahil
 chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => { // mesaj dinleyici
+    if (mesaj.islem === 'baglantiSaglik') { // popup/background yeni content script'i doğrular
+        yanitGonder({ basari: true, kaynak: 'claude' }); // senkron sağlık yanıtı
+        return false; // kanal kapanabilir
+    }
     if (mesaj.islem === 'konusmayiCikar') { // konuşma çıkarma isteği
         (async () => { // async IIFE — artifact önce çıkar
             if (streamingMiKontrol('claude')) { // streaming aktifse

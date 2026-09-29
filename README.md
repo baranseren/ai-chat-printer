@@ -1,8 +1,8 @@
-# AI Chat Printer
+﻿# AI Chat Printer
 
 Gemini, Claude, ChatGPT ve Grok konuşmalarını temiz bir belgeye dönüştüren, yazdıran ve Markdown, metin, HTML veya JSON olarak dışa aktaran Manifest V3 Chrome eklentisi.
 
-![Sürüm](https://img.shields.io/badge/sürüm-2.0.1-c54a3d)
+![Sürüm](https://img.shields.io/badge/sürüm-2.0.3-c54a3d)
 ![Manifest](https://img.shields.io/badge/manifest-V3-172630)
 ![Chrome](https://img.shields.io/badge/Chrome-114%2B-2d6691)
 ![Lisans](https://img.shields.io/badge/lisans-MIT-2f7d5d)
@@ -40,13 +40,15 @@ v2.0.0 ile popup ve önizleme arayüzleri baştan tasarlandı:
 ### Güvenilirlik ve Güvenlik
 
 - Her yazdırma isteği `crypto.randomUUID()` ile ayrılmış `aiChatPrinterOturum:<UUID>` paketini kullanır; eşzamanlı önizlemeler birbirinin verisini okuyamaz.
-- Paket önizleme tarafından okunur okunmaz silinir; sahipsiz paketler service worker tarafından en geç 6 saat sonra temizlenir.
-- Sekmeye özel `sessionStorage` yedeği, önizleme F5 ile yenilendiğinde veriyi geri getirir.
+- Küçük paket önizleme tarafından okununca silinir; büyük paket F5 için sekme kapanana kadar tutulur. Sahipsiz paketler service worker tarafından en geç 6 saat sonra temizlenir.
+- Küçük konuşmaların F5 yedeği sekmeye özel `sessionStorage` alanındadır; büyük konuşma F5'te `chrome.storage.local` üzerinden tekrar okunur.
+- Eklenti kurulunca veya güncellenince açık desteklenen sekmeler otomatik yenilenir; eski content script bağlantısı popup ve kısayolda kullanıcıdan F5 istenmeden yeniden kurulur.
+- Service worker mesajı üç kontrollü denemeyle gönderilir; yanıt kaybında aynı UUID oturumu ikinci önizleme açmadan mevcut sekmeyi kullanır.
 - Site denetimi metin aramasıyla değil, HTTPS ve tam hostname eşleşmesiyle yapılır.
 - HTML, izinli etiket listesiyle yeni bir DOM olarak kurulur; script, olay attribute’u, SVG veri URI’si ve güvensiz URL şemaları çıktıya taşınmaz.
 - Kaynak sitenin rastgele CSS sınıfları çıktıya geçirilmez; yalnız `PRE`/`CODE` üzerindeki `language-*` kod dili sınıfları korunur.
-- Uzaktaki görseller kimlik bilgisi ve referer göndermeden alınır; event handler’lar ezilmez ve tüm zamanlayıcılar temizlenir.
-- İzinler yalnız `activeTab`, `storage` ve `clipboardWrite` ile sınırlıdır.
+- Üçüncü taraf görseller kimlik bilgisi ve referer göndermeden, aynı kaynaktaki korumalı görseller mevcut site oturumuyla alınır; event handler’lar ezilmez ve tüm zamanlayıcılar temizlenir.
+- API izinleri `activeTab`, `storage`, `unlimitedStorage` ve `clipboardWrite` ile sınırlıdır; `unlimitedStorage` uzun konuşmaların 10 MB kotasına takılmadan yerel olarak yazdırılmasını sağlar. Host erişimi yalnız dört desteklenen HTTPS alan adını kapsar.
 - Konuşmalar üçüncü taraf sunucuya gönderilmez; ayrıntılar [Gizlilik Bildirimi](GIZLILIK.md) içindedir.
 
 ### Kurulum
@@ -115,8 +117,8 @@ Desteklenen AI sekmesi
               │
               └─ background.js → yazdir.html?oturum=<UUID>
                        │
-                       ├─ oku ve hemen sil
-                       ├─ sessionStorage F5 yedeği
+                        ├─ küçük paket: oku/sil + sessionStorage F5 yedeği
+                        ├─ büyük paket: sekme kapanana dek yerel depoda tut
                        ├─ htmlTemizle()
                        ├─ canlı sayfa/mesaj ayarları
                        └─ yazdır / MD / TXT / HTML / JSON
@@ -154,6 +156,12 @@ GeminiPrinter/
 ├── CHROME_WEB_STORE_DURUMU_v2.0.0.md # Mağaza gönderim ve inceleme durum kaydı
 ├── RELEASE_NOTES_v2.0.1.md    # ChatGPT Çalışma/Canvas sürüm notları
 ├── DISTRIBUTION_v2.0.1.md     # v2.0.1 ZIP künyesi ve paket kabul kanıtı
+├── RELEASE_NOTES_v2.0.2.md    # MV3 bağlantı kurtarma sürüm notları
+├── DISTRIBUTION_v2.0.2.md     # v2.0.2 ZIP künyesi ve paket kabul kanıtı
+├── CHROME_WEB_STORE_v2.0.2.md # Güncel TR/EN mağaza ve izin beyanları
+├── RELEASE_NOTES_v2.0.3.md    # ChatGPT streaming false-positive düzeltmesi
+├── DISTRIBUTION_v2.0.3.md     # v2.0.3 ZIP künyesi ve paket kabul kanıtı
+├── CHROME_WEB_STORE_v2.0.3.md # Güncel TR/EN mağaza ve izin beyanları
 ├── GIZLILIK.md
 ├── TEKNIK_DOKUMANTASYON.md
 ├── CLAUDE.md
@@ -172,7 +180,7 @@ python .\tests\acceptance_tests.py
 Dağıtım ZIP’i açıldıktan sonra yalnız gerçek MV3 service worker ve dört site zincirini aynı test dosyasıyla yeniden doğrulamak için:
 
 ```powershell
-$env:AI_CHAT_PRINTER_PROJECT_ROOT = "C:\gecici\AI-Chat-Printer-v2.0.1"
+$env:AI_CHAT_PRINTER_PROJECT_ROOT = "C:\gecici\AI-Chat-Printer-v2.0.3"
 python .\tests\acceptance_tests.py --runtime-only
 ```
 
@@ -185,9 +193,28 @@ Paket şu katmanları doğrular:
 - Gerçek Chromium üzerinde sanitizer, XSS, ayar, seçim, seçili-resim decode bariyeri, dışa aktarım, F5, bozuk oturum ve paralel oturum yalıtımı testleri.
 - Popup erişilebilirliği ve kötü niyetli hostname benzerliği testi.
 - Paketlenmemiş eklentinin gerçek MV3 service worker ile yüklenmesi.
+- Geçici service worker kopmasında üçlü yeniden deneme, eski popup sekmesinde otomatik reload ve güncelleme sonrası açık hedef sekmenin content script ile geri gelmesi.
+- Yanıtı kaybolan aynı açma isteğinin UUID tabanlı idempotent eşlemeyle yalnız tek önizleme üretmesi.
 - Dört siteye özgü fixture üzerinde gerçek content script → `storage.local` → service worker → önizleme uçtan uca zinciri; ayrıca Gemini hızlı Markdown, Claude artifact, ChatGPT uzun-konuşma süpürmesi ve güncel Çalışma + eski Canvas artefakt yaşam döngüsü.
 
 ## Sürüm Geçmişi
+
+### v2.0.3 — 29.09.2026
+
+- ChatGPT'nin tamamlanmış mesajlarda kalıcı tuttuğu `data-assistant-content-started` işareti streaming kararı olmaktan çıkarıldı.
+- Streaming yalnız görünür Durdur düğmesi, görünür `.result-streaming` veya `[data-message-status="in_progress"]` ile doğrulanır.
+- Tamamlanmış fakat `data-message-complete` taşımayan güncel ChatGPT mesajı hem tarayıcı hem gerçek MV3 fixture'ına eklendi; yanlış “henüz yanıt yazıyor” kilidi kalıcı regresyon testine bağlandı.
+- ChatGPT'nin `main [data-chatgpt-search-unit-key]` mesaj yapısı ve metin–görsel sırası desteklendi; dekoratif görseller tekilleştirildi.
+- SVG/Mermaid ve gecikmeli yüklenen görsellerin aktarımı iyileştirildi.
+- `unlimitedStorage` ile büyük konuşmalardaki 10 MB depolama engeli kaldırıldı; büyük paketlerin F5 ve sekme kapanışı yaşam döngüsü doğrulandı.
+
+### v2.0.2 — 30.08.2026
+
+- Eklenti kurulumu/güncellemesi açık Gemini, Claude, ChatGPT ve Grok sekmelerini otomatik tazeler; eski content script bağlamı kullanıcıdan F5 istemeden değiştirilir.
+- Sayfa içi yazdırma service worker mesajını üç kez kontrollü dener; bağlantı gerçekten kopmuşsa sayfa bir kez otomatik yenilenir ve yazdırma işlemi kaldığı yerden sürer.
+- Popup ve `Ctrl+Shift+P` yolları eski content script'i algıladığında sekmeyi otomatik yeniler, `baglantiSaglik` yanıtını bekler ve aynı komutu yeniden gönderir.
+- Önizleme açma işlemi `chrome.storage.session` içindeki oturum→sekme eşlemesiyle idempotenttir; yanıt kaybı mükerrer önizleme sekmesi oluşturmaz.
+- Gerçek MV3 kabulüne otomatik desteklenen-sekme yenileme, mesaj yeniden deneme ve idempotent önizleme senaryoları eklendi.
 
 ### v2.0.1 — 15.08.2026
 

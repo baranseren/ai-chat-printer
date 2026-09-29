@@ -19,6 +19,7 @@ function baslat() {
     gozlemci.observe(document.body, { childList: true, subtree: true }); // body'deki değişiklikleri izle
     // Sayfa gizlenince observer'ı temizle (memory leak önleme)
     window.addEventListener('pagehide', () => gozlemci.disconnect(), { once: true }); // pagehide event
+    bekleyenYazdirmayiDevamEttir(yazdirmaBaslat); // bağlantı kurtarma reload'u varsa işlemi otomatik sürdür
 }
 
 // Grok'un agresif React reconciliation'ı header inject'ini bozuyor — floating fixed button kullan
@@ -226,7 +227,7 @@ function grokMesajRolu(el) {
 function enZenginIcerikDescendant(el) {
     // Markdown / prose adayları (öncelikli)
     const oncelikliAday = el.querySelector('[data-testid="message-content"], [data-content="message"], .response-content-markdown.markdown, .markdown, .prose, .markdown-content, .message-text, .response-text, .query-text'); // exact attribute/class öncelikleri
-    if (oncelikliAday && (oncelikliAday.textContent || '').trim().length > 5) return oncelikliAday; // öncelikli aday
+    if (oncelikliAday) return oncelikliAday; // güncel Grok'un açık içerik düğümü boş olsa da dıştaki aksiyonları mesaja karıştırma
 
     // Eğer öncelikli yoksa, en uzun metin barındıran descendant'ı bul
     const tumDescendantlar = Array.from(el.querySelectorAll('div, p, article, section, span')); // tüm bloklar
@@ -380,8 +381,9 @@ async function konusmayiCikar() {
         const htmlIcerik = await resimliHtmlCikar(kaynakEl); // resimleri base64'e çevirip HTML çıkar
         const ekstraResimler = await turnResimleriniTopla(el, kaynakEl); // kaynak dışındaki resimler
         const metinIcerik = temizMetinCikar(kaynakEl); // UI sızıntısız düz metin
+        const kaynakGorseliVar = Boolean(kaynakEl.querySelector('img[src], svg, canvas')); // yalnız görsel taşıyan gerçek mesajları koru
 
-        if (!htmlIcerik && !metinIcerik && ekstraResimler.length === 0) { // tamamen boşsa atla
+        if (!metinIcerik && !kaynakGorseliVar && ekstraResimler.length === 0) { // boş HTML sarmalayıcısını mesaj sayma
             console.log('AI Chat Printer [Grok DEBUG]: Boş container atlandı:', (el.className || '').toString().slice(0, 60)); // debug
             continue;
         }
@@ -419,6 +421,10 @@ async function konusmayiCikar() {
 
 // Popup'tan ve background'tan gelen mesajları dinle
 chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => { // mesaj dinleyici
+    if (mesaj.islem === 'baglantiSaglik') { // popup/background yeni content script'i doğrular
+        yanitGonder({ basari: true, kaynak: 'grok' }); // senkron sağlık yanıtı
+        return false; // kanal kapanabilir
+    }
     if (mesaj.islem === 'konusmayiCikar') { // konuşma çıkarma isteği
         (async () => { // async IIFE
             if (streamingMiKontrol('grok')) { // streaming aktifse

@@ -1,6 +1,6 @@
 # AI Chat Printer — Gizlilik Bildirimi
 
-> Sürüm: 2.0.1 · Son güncelleme: 15.08.2026
+> Sürüm: 2.0.3 · Son güncelleme: 24.09.2026
 
 AI Chat Printer, Gemini, Claude, ChatGPT ve Grok konuşmalarını kullanıcının kendi tarayıcısında yazdırılabilir ve dışa aktarılabilir belgelere dönüştüren bir Chrome eklentisidir.
 
@@ -16,16 +16,19 @@ AI Chat Printer, Gemini, Claude, ChatGPT ve Grok konuşmalarını kullanıcını
 | Saklama alanı | Saklanan veri | Yaşam süresi |
 |---|---|---|
 | `chrome.storage.sync` | Yazı boyutu, kâğıt, yön, kenar boşluğu, kod, belge imzası, bağlantı adresi ve otomatik yazdırma tercihleri | Kullanıcı ayarı değişene veya eklenti verileri temizlenene kadar |
-| `chrome.storage.local` | Yazdırma önizlemesine taşınan, benzersiz UUID ile ayrılmış geçici konuşma paketi | Önizleme tarafından okunur okunmaz silinir; sahipsiz paketler en geç 6 saat sonra temizlenir |
-| `sessionStorage` | Açık önizleme sekmesinin F5 yenileme yedeği | Yalnız o sekmenin yaşamı boyunca; sekme kapanınca tarayıcı tarafından silinir |
+| `chrome.storage.local` | Yazdırma önizlemesine taşınan, benzersiz UUID ile ayrılmış geçici konuşma paketi | Küçük paket okununca silinir; büyük paket F5 için önizleme sekmesi kapanana kadar tutulur. Sahipsiz paketler en geç 6 saat sonra temizlenir |
+| `chrome.storage.session` | Aynı açma isteğinde mükerrer sekmeyi önleyen UUID→önizleme sekmesi kimliği eşlemesi; konuşma içeriği içermez | Yalnız tarayıcı oturumu boyunca |
+| `sessionStorage` | Küçük konuşmaların F5 yedeği veya desteklenen sayfada tek seferlik otomatik bağlantı kurtarma işareti | Yalnız o sekmenin yaşamı boyunca; sekme kapanınca tarayıcı tarafından silinir |
 
 ## İzinlerin Kullanımı
 
 - `activeTab`: Yalnız kullanıcının etkin Gemini, Claude, ChatGPT veya Grok konuşma sekmesiyle iletişim kurmak için kullanılır.
-- `storage`: Kullanıcı ayarlarını ve tek kullanımlık yerel yazdırma paketini saklamak için kullanılır.
+- `storage`: Kullanıcı ayarlarını ve geçici yerel yazdırma paketini saklamak için kullanılır.
+- `unlimitedStorage`: 10 MB'ı aşan konuşma paketlerini yalnız tarayıcının yerel deposunda tutarak yazdırmak için kullanılır; sunucuya aktarım sağlamaz.
 - `clipboardWrite`: Kullanıcı “Markdown” veya “Metin” düğmesine bastığında seçili konuşmayı panoya kopyalamak için kullanılır.
+- `host_permissions`: Yalnız `gemini.google.com`, `claude.ai`, `chatgpt.com` ve `grok.com` için tanımlıdır. Kurulum/güncelleme sonrasında açık desteklenen sekmeleri yeni content script ile otomatik tazelemek amacıyla kullanılır; başka alan adlarına erişim vermez.
 
-Eklenti `tabs`, `history`, `cookies`, `downloads`, `scripting` veya geniş kapsamlı host izni istemez.
+Eklenti `tabs`, `history`, `cookies`, `downloads`, `scripting` veya joker/geniş kapsamlı host izni istemez; tarama geçmişi toplamaz.
 
 ## Ağ Erişimi
 
@@ -39,4 +42,6 @@ Kullanıcı önizlemede mesajları tek tek veya role göre seçebilir, kod blokl
 
 Bu bildirimin veri işleme kapsamını değiştiren bir sürüm yayımlanırsa sürüm numarası ve son güncelleme tarihi bu dosyada yenilenir.
 
-v2.0.1, ChatGPT Çalışma/Canvas içeriğini yalnız kullanıcının açık sekmesindeki DOM üzerinden yerel olarak okur; izin, saklama süresi, ağ erişimi ve üçüncü taraf aktarım sözleşmesi değişmemiştir.
+v2.0.3, ChatGPT streaming false-positive denetimini düzeltir; izin, konuşma verisi, ağ erişimi ve üçüncü taraf aktarım sözleşmesi değişmemiştir.
+
+24.09.2026: Uzun konuşmalar için `unlimitedStorage` izni eklendi; büyük paketler F5 boyunca yerel depoda tutulur ve önizleme kapanınca temizlenir. Üçüncü taraf aktarımı yoktur.

@@ -3,6 +3,32 @@
 
 let durumGizlemeZamanlayicisi = null; // kısa bilgi mesajlarının tek zamanlayıcısı
 
+// Popup akışında kısa asenkron bekleme üretir
+function popupBekle(sure) {
+    return new Promise((coz) => setTimeout(coz, sure)); // belirtilen sürede tamamlan
+}
+
+// Etkin sekmeye mesaj gönderir; eski content script varsa sekmeyi otomatik yenileyip aynı işlemi sürdürür
+async function popupSekmeyeMesajGonder(sekmeId, mesaj) {
+    try { // hızlı yol
+        return await chrome.tabs.sendMessage(sekmeId, mesaj); // mevcut content script
+    } catch (ilkHata) { // eklenti güncellemesinden kalmış eski sayfa bağlamı
+        durumGoster('bilgi', 'Sayfa bağlantısı otomatik yenileniyor…'); // görünür kurtarma durumu
+        await chrome.tabs.reload(sekmeId); // kullanıcıdan F5 istemeden yenile
+        let sonHata = ilkHata; // tanı için son hata
+        for (let deneme = 0; deneme < 40; deneme++) { // en fazla 12 saniye
+            await popupBekle(300); // document_idle content script enjeksiyonunu bekle
+            try { // yeni içerik bağlamını doğrula
+                const saglik = await chrome.tabs.sendMessage(sekmeId, { islem: 'baglantiSaglik' }); // dört sitede ortak ping
+                if (saglik && saglik.basari) return await chrome.tabs.sendMessage(sekmeId, mesaj); // asıl işlemi otomatik sürdür
+            } catch (hazirlikHatasi) { // sayfa henüz hazır değil
+                sonHata = hazirlikHatasi; // son hatayı sakla
+            }
+        }
+        throw sonHata; // otomatik kurtarma tamamlanamadı
+    }
+}
+
 // Formdaki tüm kullanıcı ayarlarını doğrulanmış nesne olarak döndürür
 function ayarlariFormdanOku() {
     return ayarlariDogrula({ // ortak ayar doğrulayıcısını kullan
@@ -101,9 +127,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             let yanit; // content script yanıtı
             try { // sayfa bağlamıyla iletişim
-                yanit = await chrome.tabs.sendMessage(aktifSekme.id, { islem: 'konusmayiCikar' }); // konuşmayı çıkar
-            } catch (iletisimHata) { // eklenti güncellendikten sonra eski sayfa bağlamı
-                throw new Error('Sayfadaki eklenti bağlantısı eski. Sekme yenilendiğinde yeni sürüm etkinleşir.'); // teknik jargonsuz açıklama
+                yanit = await popupSekmeyeMesajGonder(aktifSekme.id, { islem: 'konusmayiCikar' }); // gerekirse otomatik yenileyip konuşmayı çıkar
+            } catch (iletisimHata) { // otomatik kurtarma da tamamlanamadıysa
+                throw new Error('Sayfa bağlantısı otomatik olarak yeniden kurulamadı: ' + (iletisimHata.message || iletisimHata)); // gerçek hata
             }
 
             if (!yanit) throw new Error('Sayfadan konuşma verisi alınamadı.'); // boş yanıt
@@ -115,9 +141,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const ayarlar = ayarlariFormdanOku(); // işlem anındaki ayarlar
             await ayarlariKaydet(ayarlar); // popup ve önizleme ayarlarını senkron tut
-            oturumKimligi = await yazdirmaOturumuOlustur(yanit, ayarlar); // yalnız bu önizlemeye ait paket
+            oturumKimligi = await yazdirmaOturumuOlustur(yanit, ayarlar, quotaDurum.boyut); // yalnız bu önizlemeye ait paket
 
-            const acilisYaniti = await chrome.runtime.sendMessage({ islem: 'yazdirmaSayfasiAc', oturumKimligi: oturumKimligi }); // arka plandan yeni sekme aç
+            const acilisYaniti = await arkaPlanMesajiGonder({ islem: 'yazdirmaSayfasiAc', oturumKimligi: oturumKimligi }); // service worker uyanma yarışına dayanıklı yeni sekme aç
             if (!acilisYaniti?.basari) throw new Error(acilisYaniti?.hata || 'Önizleme sekmesi açılamadı.'); // açılış hatası
             durumGoster('basarili', yanit.mesajSayisi + ' mesaj önizlemeye aktarıldı.'); // başarı sonucu
         } catch (hata) { // tüm hata yolları tek kullanıcı mesajında birleşir

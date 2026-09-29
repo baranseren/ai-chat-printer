@@ -1,4 +1,4 @@
-// Yazdırma sayfası script - konuşma verisini okur ve sayfaya render eder
+﻿// Yazdırma sayfası script - konuşma verisini okur ve sayfaya render eder
 
 // Global referans — Escape kısayolu ve clipboard export için render sonrası erişim
 let mevcutKonusma = null; // render edilen konuşma verisi
@@ -6,6 +6,7 @@ let aktifOturumAnahtari = null; // bu sekmenin yalnız kendine ait geçici stora
 let eskiYazdirmaAkisi = false; // yalnız parametresiz eski sürüm uyumluluk akışında true
 let mevcutAyarlar = ayarlariDogrula({}); // canlı önizleme ve dışa aktarımların tek ayar kaynağı
 const CIKTI_EYLEM_KIMLIKLERI = ['yazdirTetikle', 'markdownKopyala', 'metinKopyala', 'markdownIndir', 'metinIndir', 'htmlIndir', 'jsonIndir']; // belge üreten bütün eylemler
+const SESSION_YEDEK_UST_SINIR = 4 * 1024 * 1024; // büyük konuşmalar sessionStorage yerine chrome.storage.local içinde kalır
 
 // Bir elementin tüm alt düğümlerini güvenli şekilde siler (innerHTML kullanmadan)
 function elementiBosalt(element) {
@@ -148,6 +149,11 @@ async function yazdirmayaHazirlaVeYazdir() {
     const veri = gecerliSecimVerisi(); // boş seçimi engelle
     if (!veri) return; // seçim yoksa çık
     await belgeResimleriniBekle(); // eksik resimle erken baskıyı önle
+    var eksikResimler = Array.from(document.querySelectorAll('#yazdirmaAlani .mesaj-blogu:not(.mesaj-secilmedi) img')).filter(function(resim) { return !resim.complete || resim.naturalWidth === 0; });
+    if (eksikResimler.length) {
+        toastGoster(eksikResimler.length + ' görsel yüklenemedi; eksik çıktı oluşmaması için yazdırma durduruldu.', 'hata');
+        return;
+    }
     window.print(); // tarayıcının yazdırma penceresi
 }
 
@@ -172,7 +178,8 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
             aktifOturumAnahtari = oturumAnahtari; // okuma hatasında dahi Kapat bu paketi temizleyebilsin
             const oturumKaydi = await chrome.storage.local.get(oturumAnahtari); // yalnız kendi paketi oku
             depolanmisVeri = oturumKaydi[oturumAnahtari] || {}; // paket yoksa boş nesne kullan
-            if (depolanmisVeri.konusmaVerisi) { // veri varsa
+            const buyukOturum = depolanmisVeri.konusmaVerisi && (depolanmisVeri.veriBoyutu || veriBoyutuHesapla(depolanmisVeri.konusmaVerisi)) > SESSION_YEDEK_UST_SINIR; // F5 yedeği için güvenli sınır
+            if (depolanmisVeri.konusmaVerisi && !buyukOturum) { // küçük oturumda eski oku-ve-sil akışını koru
                 chrome.storage.local.remove(oturumAnahtari).catch(() => {}); // oku-ve-hemen-sil: yalnız kendi paketini kaldır
             }
         } else { // önceki sürümden açık kalan doğrudan yazdırma sayfası için uyumluluk
@@ -201,7 +208,7 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
                 ayarlar = ayarlariDogrula(cozulmus.yazdirAyarlari || {}); // ayarlar doğrulanarak geri geldi
             }
         } catch (yedekHata) {} // yedek bozuksa normal hata akışına düş
-    } else { // storage'dan taze veri geldi — F5 için bu sekmeye yedekle
+    } else if (!oturumAnahtari || (depolanmisVeri.veriBoyutu || veriBoyutuHesapla(konusma)) <= SESSION_YEDEK_UST_SINIR) { // küçük konuşmayı sekmeye yedekle
         try { // quota aşımında sessizce vazgeç (davranış eskisi gibi kalır)
             sessionStorage.setItem('aiChatPrinterYedek:' + (oturumKimligi || 'eski'), JSON.stringify({ konusmaVerisi: konusma, yazdirAyarlari: ayarlar })); // sekme ve oturum içi yedek
         } catch (yedekHata) {} // büyük konuşma sessionStorage'a sığmayabilir — kritik değil
@@ -316,7 +323,7 @@ document.addEventListener('DOMContentLoaded', async () => { // DOM hazır olduğ
                 resimElementi.decoding = 'async'; // decode ana thread'i gereksiz bloklamasın
                 resimElementi.referrerPolicy = 'no-referrer'; // uzak görsele konuşma URL'sini gönderme
                 resimElementi.alt = (resim.alt && typeof resim.alt === 'string') ? resim.alt : 'Görsel'; // alt metin
-                resimElementi.addEventListener('error', () => { resimElementi.hidden = true; }, { once: true }); // mevcut handler atamadan yükleme hatasını gizle
+                resimElementi.addEventListener('error', () => { resimElementi.alt = 'Görsel yüklenemedi: ' + resimElementi.alt; }, { once: true }); // mevcut handler atamadan yükleme hatasını gizle
                 icerikDiv.appendChild(resimElementi); // içerik alanına ekle
             });
         }

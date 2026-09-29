@@ -1,4 +1,4 @@
-// AI Chat Printer - Ortak Resim Yardımcıları
+﻿// AI Chat Printer - Ortak Resim Yardımcıları
 // Gemini, Claude, ChatGPT ve Grok content script'leri tarafından paylaşılır
 // MV3 content script array'inde ilk sırada yüklenir, diğer script'lere global olarak görünür
 
@@ -60,28 +60,37 @@ function guvenliRasterDataUriMi(kaynak) {
 
 // Tek bir resmi base64 data URL'e dönüştürür (canvas + fetch + URL fallback)
 async function resmiBase64Yap(resimElementi) {
-    if (!resimElementi || !resimElementi.src) return null; // kaynak yoksa çık
-    if (resimElementi.src.startsWith('data:')) return guvenliRasterDataUriMi(resimElementi.src) ? resimElementi.src : null; // yalnız güvenli raster data URI'yi koru
-    if (resimDeadlineDoldu()) { // toplam süre dolmuşsa
+    if (!resimElementi || !(resimElementi.currentSrc || resimElementi.src)) return null; // kaynak yoksa çık
+    var etkinKaynak = resimElementi.currentSrc || resimElementi.src; // tarayıcının seçtiği kaynak
+    if (guvenliRasterDataUriMi(etkinKaynak)) return etkinKaynak; // raster veriyi olduğu gibi koru
+    var svgVerisiMi = /^data:image\/svg\+xml(?:;[^,]*)?,/i.test(etkinKaynak); // SVG yalnız img üzerinden PNG'ye çizilir
+    if (etkinKaynak.startsWith('data:') && !svgVerisiMi) return null; // yalnız güvenli raster data URI'yi koru
+    if (resimDeadlineDoldu() && !(resimElementi.complete && resimElementi.naturalWidth > 0)) { // yüklenmiş görseli süre dolsa da canvas ile koru
         console.log('AI Chat Printer [DEBUG]: Resim deadline aşıldı; kalan görsel güvenli fallback ile işlendi.'); // özel veya imzalı URL'yi loglama
-        return resimElementi.src.startsWith('https://') ? resimElementi.src : null; // https ise URL'i döndür
+        return etkinKaynak.startsWith('https://') ? etkinKaynak : null; // https ise URL'i döndür
     }
 
-    const orijinalSrc = resimElementi.src; // orijinal URL'i sakla (fallback için)
-    const maksGenislik = 800; // max piksel genişlik (storage tasarrufu)
+    const orijinalSrc = resimElementi.currentSrc || resimElementi.src; // orijinal URL'i sakla (fallback için)
+    const maksGenislik = 2400; // baskı için yüksek çözünürlük üst sınırı
 
     try {
+        if (svgVerisiMi && !(resimElementi.complete && resimElementi.naturalWidth > 0)) { // görünmeyen SVG için sayfanın lazy yüklemesini bekleme
+            var svgResmi = new Image(); // SVG yalnız pasif resim bağlamında çözümlenir
+            var svgYukleme = resimOlayiniBekle(svgResmi, 'load', 'error', TEK_RESIM_TIMEOUT); // kaynaktan önce dinleyicileri kur
+            svgResmi.src = etkinKaynak; // eager resim, kaynak sayfadaki öğeyi değiştirmez
+            await svgYukleme; // yüklenme veya sınırlı hata sonucunu bekle
+            resimElementi = svgResmi; // PNG çiziminde çözümlenmiş resmi kullan
+        }
         // Resim henüz yüklenmediyse bekle
+        if (!resimElementi.complete && resimElementi.loading === 'lazy') throw new Error('Görsel kaynağından yükleniyor.'); // görünmeyen resimde lazy olayını bekleme
         if (!resimElementi.complete) { // yüklenmemiş resim
             await resimOlayiniBekle(resimElementi, 'load', 'error', TEK_RESIM_TIMEOUT); // mevcut handler'ları ezmeden yüklenmeyi bekle
         }
 
-        if (resimElementi.naturalWidth === 0) { // geçersiz resim (0 piksel)
-            return orijinalSrc.startsWith('https://') ? orijinalSrc : null; // https ise URL'i döndür
-        }
+        if (resimElementi.naturalWidth === 0) throw new Error('Resim henüz çözümlenmedi.'); // fetch geri dönüşünü dene
 
-        let genislik = resimElementi.naturalWidth; // orijinal genişlik
-        let yukseklik = resimElementi.naturalHeight; // orijinal yükseklik
+        let genislik = resimElementi.naturalWidth * (svgVerisiMi ? 2 : 1); // orijinal genişlik
+        let yukseklik = resimElementi.naturalHeight * (svgVerisiMi ? 2 : 1); // orijinal yükseklik
 
         // Çok büyük resimleri küçült (storage ve performans için)
         if (genislik > maksGenislik) { // max genişlikten büyükse
@@ -96,7 +105,7 @@ async function resmiBase64Yap(resimElementi) {
         const ctx = canvas.getContext('2d'); // 2D çizim bağlamı
         if (!ctx) throw new Error('Canvas çizim bağlamı oluşturulamadı.'); // kapalı/bozuk canvas durumunu fallback'e taşı
         ctx.drawImage(resimElementi, 0, 0, genislik, yukseklik); // resmi canvas'a çiz
-        return canvas.toDataURL('image/jpeg', 0.92); // JPEG %92 kaliteyle base64'e çevir
+        return canvas.toDataURL('image/png'); // metin ve saydamlığı kayıpsız PNG olarak koru
     } catch (canvasHata) { // canvas tainted hatası (cross-origin resim)
         if (resimDeadlineDoldu()) return orijinalSrc.startsWith('https://') ? orijinalSrc : null; // deadline doldu
         try {
@@ -104,13 +113,16 @@ async function resmiBase64Yap(resimElementi) {
             const kontrolci = new AbortController(); // fetch iptal
             const timeoutId = setTimeout(() => kontrolci.abort(), TEK_RESIM_TIMEOUT); // timeout
             let yanit; // fetch yanıtı
+            let blob; // zaman aşımı gövdeyi de kapsar
             try { // timeout'un her durumda temizlenmesini garanti et
-                yanit = await fetch(orijinalSrc, { signal: kontrolci.signal, credentials: 'omit', referrerPolicy: 'no-referrer' }); // kimlik bilgisi veya sayfa adresi taşımadan signal'lı fetch
+                yanit = await fetch(orijinalSrc, { signal: kontrolci.signal, credentials: new URL(orijinalSrc, location.href).origin === location.origin ? 'same-origin' : 'omit', referrerPolicy: 'no-referrer' }); // yalnız aynı origin oturumunu kullan; üçüncü tarafa kimlik veya referrer gönderme
+                if (!yanit.ok) throw new Error('Resim isteği başarısız.'); // hata gövdesini alma
+                blob = await yanit.blob(); // indirme boyunca iptal korumasını sürdür
             } finally { // başarılı veya hatalı fetch sonrası
                 clearTimeout(timeoutId); // timeout iptal
             }
             if (!yanit.ok) throw new Error('Resim isteği başarısız: HTTP ' + yanit.status); // HTML hata sayfasını resim diye alma
-            const blob = await yanit.blob(); // blob olarak al
+
             if (!/^image\/(png|jpeg|jpg|gif|webp)$/i.test(blob.type || '')) throw new Error('Yanıt güvenli bir raster resim değil.'); // içerik türünü doğrula
             return await new Promise((coz, reddet) => { // FileReader ile base64'e çevir
                 const okuyucu = new FileReader(); // dosya okuyucu
@@ -139,13 +151,9 @@ async function resimliHtmlCikar(element) {
     const kopyaResimler = kopya.querySelectorAll('img'); // klondaki resimler
 
     for (let i = 0; i < orijinalResimler.length; i++) { // her resmi işle
-        if (resimDeadlineDoldu()) { // deadline dolmuşsa kalan resimleri atla
-            if (kopyaResimler[i]) kopyaResimler[i].remove(); // klondan çıkar
-            continue;
-        }
         const base64 = await resmiBase64Yap(orijinalResimler[i]); // orijinalden base64 üret
         if (base64 && kopyaResimler[i]) { // dönüşüm başarılıysa
-            kopyaResimler[i].src = base64; // klondaki resmin kaynağını güncelle
+            kopyaResimler[i].removeAttribute('srcset'); kopyaResimler[i].removeAttribute('sizes'); kopyaResimler[i].src = base64; // klondaki resmin kaynağını güncelle
         } else if (kopyaResimler[i]) { // dönüşüm başarısızsa
             kopyaResimler[i].remove(); // dönüştürülemeyen resmi kaldır
         }

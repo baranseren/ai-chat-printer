@@ -22,6 +22,7 @@ function baslat() {
     gozlemci.observe(document.body, { childList: true, subtree: true }); // body'deki değişiklikleri izle
     // Sayfa gizlenince observer'ı temizle (memory leak önleme)
     window.addEventListener('pagehide', () => gozlemci.disconnect(), { once: true }); // pagehide event
+    bekleyenYazdirmayiDevamEttir(yazdirmaBaslat); // bağlantı kurtarma reload'u varsa işlemi otomatik sürdür
 }
 
 // Yazdır butonunu Gemini toolbar'ına enjekte eder
@@ -490,6 +491,10 @@ function geminiPrefixTemizle(metin) {
 
 // Popup'tan ve background'tan gelen mesajları dinle
 chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => { // mesaj dinleyici
+    if (mesaj.islem === 'baglantiSaglik') { // popup/background yeni content script'i doğrular
+        yanitGonder({ basari: true, kaynak: 'gemini' }); // senkron sağlık yanıtı
+        return false; // kanal kapanabilir
+    }
     if (mesaj.islem === 'konusmayiCikar') { // konuşma çıkarma isteği
         (async () => { // async IIFE
             // Streaming kontrol Gemini için kaldırıldı — false positive üretiyordu

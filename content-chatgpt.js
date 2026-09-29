@@ -1,4 +1,4 @@
-// AI Chat Printer - ChatGPT Content Script
+﻿// AI Chat Printer - ChatGPT Content Script
 // ChatGPT sayfasına yazdır butonu enjekte eder ve konuşma içeriğini çıkarır
 
 // Buton zaten enjekte edildi mi kontrolü
@@ -20,6 +20,7 @@ function baslat() {
     gozlemci.observe(document.body, { childList: true, subtree: true }); // body'deki değişiklikleri izle
     // Sayfa gizlenince observer'ı temizle (memory leak önleme)
     window.addEventListener('pagehide', () => gozlemci.disconnect(), { once: true }); // pagehide event
+    bekleyenYazdirmayiDevamEttir(yazdirmaBaslat); // bağlantı kurtarma reload'u varsa işlemi otomatik sürdür
 }
 
 // Yazdır butonunu ChatGPT header'ına enjekte eder
@@ -274,12 +275,21 @@ function uyariBalonuGoster(mesaj, tip) {
     }, 3000);
 }
 
-// Hem eski hem yeni (2026-07 wm) ChatGPT DOM'undaki turn'leri yakalayan ortak selektör
-const CHATGPT_TURN_SELEKTORU = '[data-testid^="conversation-turn"], li[data-message-role]'; // eski + yeni DOM, document-order
+// ChatGPT mesajlarını güncel arama anahtarından, eski arayüzlerde önceki seçicilerden bulur.
+const CHATGPT_TURN_SELEKTORU = '[data-testid^="conversation-turn"], li[data-message-role]'; // eski arayüzler
+
+// Güncel mesaj kapsayıcılarını önceliklendirir; aynı mesajın iki kez alınmasını önler.
+function chatgptTurnleriBul() {
+    var guncelTurnler = document.querySelectorAll('main [data-chatgpt-search-unit-key]');
+    return guncelTurnler.length ? guncelTurnler : document.querySelectorAll(CHATGPT_TURN_SELEKTORU);
+}
 
 // Turn elementinin rolünü döndürür — yeni DOM'da li attribute, eski DOM'da descendant attribute
 function chatgptTurnRolu(turn) {
-    const yeniRol = turn.getAttribute('data-message-role'); // yeni wm DOM — rol li'nin kendisinde
+    var aramaAnahtari = turn.getAttribute('data-chatgpt-search-unit-key') || '';
+    var aramaRolu = aramaAnahtari.match(/:(user|assistant)$/);
+    if (aramaRolu) return aramaRolu[1];
+    const yeniRol = turn.getAttribute('data-turn') || turn.getAttribute('data-message-role'); // yeni wm DOM — rol li'nin kendisinde
     if (yeniRol === 'user' || yeniRol === 'assistant') return yeniRol; // geçerli rol
     const eskiEl = turn.querySelector('[data-message-author-role]'); // eski DOM — rol descendant'ta
     const eskiRol = eskiEl ? eskiEl.getAttribute('data-message-author-role') : null; // eski rol değeri
@@ -303,12 +313,65 @@ function chatgptIcerikElemani(turn, rol) {
             turn.querySelector('[data-message-author-role="user"]') || // eski DOM mesaj elementi
             chatgptTurnGovdesi(turn); // fallback gövde
     }
-    return turn.querySelector('[data-assistant-markdown]') || // yeni wm DOM markdown içeriği
+    return turn.querySelector('[data-markdown-text-style]') || // güncel DOM markdown içeriği
+        turn.querySelector('[data-assistant-markdown]') || // önceki wm DOM markdown içeriği
         turn.querySelector('.markdown') || // eski DOM markdown
         turn.querySelector('[data-message-author-role="assistant"]') || // eski DOM mesaj elementi
         chatgptTurnGovdesi(turn); // fallback gövde
 }
 
+// ChatGPT metin ve görsellerini DOM sırasıyla, dekoratif kopyaları ayıklayarak çıkarır.
+async function chatgptAkisIceriginiCikar(turn, rol) {
+    var secici = rol === 'user' ? '[data-user-message-bubble], .user-message-bubble-color' : '[data-markdown-text-style], [data-assistant-markdown], .markdown';
+    var bloklar = Array.from(turn.querySelectorAll(secici));
+    bloklar = bloklar.filter(function(blok) { return !bloklar.some(function(diger) { return diger !== blok && diger.contains(blok); }); });
+    if (!bloklar.length) bloklar = [chatgptIcerikElemani(turn, rol)];
+    var kaynaklar = new Set();
+    var sonuc = document.createElement('div');
+    var adaylar = Array.from(turn.querySelectorAll('*')).filter(function(eleman) {
+        return bloklar.includes(eleman) || (eleman.tagName === 'IMG' && !bloklar.some(function(blok) { return blok.contains(eleman); }));
+    });
+    if (bloklar.includes(turn)) adaylar = [turn];
+    for (var eleman of adaylar) {
+        if (eleman.tagName === 'IMG') {
+            var resim = await chatgptAkisResminiCikar(eleman, kaynaklar);
+            if (resim) sonuc.appendChild(resim);
+        } else {
+            var klon = eleman.cloneNode(true);
+            var asillar = Array.from(eleman.querySelectorAll('img'));
+            var kopyalar = Array.from(klon.querySelectorAll('img'));
+            for (var sira = 0; sira < asillar.length; sira++) {
+                var donusen = await chatgptAkisResminiCikar(asillar[sira], kaynaklar);
+                if (donusen) kopyalar[sira].replaceWith(donusen);
+                else kopyalar[sira].remove();
+            }
+            klon.querySelectorAll('button, [role="button"]').forEach(function(dugme) {
+                var gorseller = Array.from(dugme.querySelectorAll('img'));
+                dugme.replaceWith(...gorseller);
+            });
+            sonuc.appendChild(klon);
+        }
+    }
+    return sonuc.innerHTML;
+}
+
+// İçerik resmini taşınabilir kaynağa dönüştürür; ikon ve dekoratif tekrarları almaz.
+async function chatgptAkisResminiCikar(resim, kaynaklar) {
+    var kaynak = resim.currentSrc || resim.src;
+    if (!kaynak || resim.closest('[data-message-actions], [data-message-supplement], [data-message-attribution]')) return null;
+    if (resim.getAttribute('aria-hidden') === 'true') return null;
+    var boyut = resim.getBoundingClientRect();
+    if (Math.max(resim.naturalWidth, Number(resim.getAttribute('width')), boyut.width) <= 48) return null;
+    if (kaynaklar.has(kaynak)) return null;
+    var veri = await resmiBase64Yap(resim);
+    if (!veri) throw new Error('Bir konuşma görseli aktarılamadı: ' + (resim.alt || resim.getAttribute('aria-label') || 'Görsel'));
+    kaynaklar.add(kaynak);
+    var kopya = document.createElement('img');
+    kopya.src = veri;
+    kopya.alt = resim.alt || resim.getAttribute('aria-label') || 'Görsel';
+    kopya.setAttribute('loading', 'eager');
+    return kopya;
+}
 // ChatGPT Çalışma/Canvas içindeki dosya ve artefakt düğmelerini benzersiz kayıtlar hâlinde toplar
 function chatgptArtifactAdaylariniBul(turn) {
     const adaySelektoru = [ // güncel Çalışma dosyaları + eski Canvas/artefakt geri dönüşleri
@@ -543,6 +606,8 @@ async function chatgptArtifactlariniCikar(turn, ilerlemeBildir) {
 
 // Turn için benzersiz anahtar — sanallaştırma süpürmesinde mükerrer önleme
 function chatgptTurnAnahtari(turn) {
+    var mesajKimligi = turn.getAttribute('data-chatgpt-search-message-ids');
+    if (mesajKimligi) return 'mesaj:' + mesajKimligi;
     if (turn.id) return 'id:' + turn.id; // yeni DOM: li id'si mesaj UUID'si
     const testid = turn.getAttribute('data-testid'); // eski DOM: conversation-turn-N
     if (testid) return 'testid:' + testid; // testid anahtarı
@@ -565,7 +630,7 @@ function chatgptKaydiriciBul(turn) {
 // ChatGPT sayfasından konuşma verilerini çıkarır (async — resim base64 dönüşümü için)
 // Yeni UI mesaj listesini sanallaştırabildiği için scroll-süpürme ile TÜM mesajlar toplanır
 async function konusmayiCikar(ilerlemeBildir) {
-    const ilkTurnler = document.querySelectorAll(CHATGPT_TURN_SELEKTORU); // ilk tarama
+    const ilkTurnler = chatgptTurnleriBul(); // ilk tarama
     if (ilkTurnler.length === 0) { // hiç turn bulunamadıysa
         return { hata: 'Konuşma bulunamadı. Bir ChatGPT sohbeti açık olduğundan emin olun.', mesajlar: [] };
     }
@@ -574,15 +639,15 @@ async function konusmayiCikar(ilerlemeBildir) {
 
     // O an DOM'da bulunan turn'leri işleyip map'e ekler (görülmüşler atlanır)
     async function gorunenleriIsle() {
-        for (const turn of document.querySelectorAll(CHATGPT_TURN_SELEKTORU)) { // güncel turn seti
+        for (const turn of chatgptTurnleriBul()) { // güncel turn seti
             const anahtar = chatgptTurnAnahtari(turn); // benzersiz anahtar
             if (mesajMap.has(anahtar)) continue; // zaten işlendi
             const rol = chatgptTurnRolu(turn); // rol tespiti
             if (!rol) continue; // rol yoksa atla (boş/sistem bloğu)
 
             const kaynakEl = chatgptIcerikElemani(turn, rol); // asıl içerik elementi
-            const htmlIcerik = await resimliHtmlCikar(kaynakEl); // resimleri base64'e çevirip HTML çıkar
-            const ekstraResimler = await turnResimleriniTopla(turn, kaynakEl); // kaynak dışındaki resimler
+            const htmlIcerik = await chatgptAkisIceriginiCikar(turn, rol); // resimleri base64'e çevirip HTML çıkar
+            const ekstraResimler = []; // kaynak dışındaki resimler
             const metinIcerik = temizMetinCikar(kaynakEl); // UI sızıntısız düz metin
             const artifactlar = rol === 'assistant' ? await chatgptArtifactlariniCikar(turn, ilerlemeBildir) : []; // Çalışma/Canvas dosyalarını aç-kaynak oku-kapat
 
@@ -652,6 +717,10 @@ async function konusmayiCikar(ilerlemeBildir) {
 
 // Popup'tan ve background'tan gelen mesajları dinle
 chrome.runtime.onMessage.addListener((mesaj, gonderen, yanitGonder) => { // mesaj dinleyici
+    if (mesaj.islem === 'baglantiSaglik') { // popup/background yeni content script'i doğrular
+        yanitGonder({ basari: true, kaynak: 'chatgpt' }); // senkron sağlık yanıtı
+        return false; // kanal kapanabilir
+    }
     if (mesaj.islem === 'konusmayiCikar') { // konuşma çıkarma isteği
         (async () => { // async IIFE
             if (streamingMiKontrol('chatgpt')) { // streaming aktifse

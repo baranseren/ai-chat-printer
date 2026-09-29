@@ -20,6 +20,101 @@ const STORAGE_LOCAL_LIMIT = (typeof chrome !== 'undefined' && chrome.storage?.lo
 const STORAGE_UYARI_ESIGI = Math.floor(STORAGE_LOCAL_LIMIT * 0.8); // %80 eşik (8 MB) — bu eşikten sonra uyar
 const RESIM_TOPLAM_SURE_LIMIT = 90 * 1000; // 90 saniye — tüm resim dönüşümleri için toplam limit
 const YAZDIRMA_OTURUM_ANAHTAR_ON_EKI = 'aiChatPrinterOturum:'; // her yazdırma isteğini benzersiz storage anahtarında tutar
+const ARKA_PLAN_YENIDEN_DENEME_GECIKMELERI = [0, 150, 500]; // service worker uyanma yarışında üç kontrollü deneme
+const ARKA_PLAN_MESAJ_ZAMAN_ASIMI = 1500; // yanıtsız kalan MV3 mesaj kanalı yazdırma akışını sonsuza kadar kilitleyemez
+const BAGLANTI_KURTARMA_ANAHTARI = 'aiChatPrinterBaglantiKurtarmaV1'; // otomatik sayfa yenileme ve tek seferlik devam kaydı
+const BAGLANTI_KURTARMA_AZAMI_YASI = 60 * 1000; // eski kurtarma kaydı bir dakika sonra geçersizdir
+
+// Belirtilen süre kadar asenkron bekler
+function ortakBekle(sure) {
+    return new Promise((coz) => setTimeout(coz, sure)); // zamanlayıcı tamamlanınca çöz
+}
+
+// Bir Promise işlemini belirlenen sürede yanıt gelmezse anlamlı hatayla sonlandırır
+function zamanAsimliIslem(promise, sure, hataMesaji) {
+    let zamanlayici; // başarı veya hata sonrası temizlenecek sayaç
+    const zamanAsimi = new Promise((coz, reddet) => { // dış API'nin yanıtsız kalmasını sınırlayan yarışmacı
+        zamanlayici = setTimeout(() => reddet(new Error(hataMesaji)), sure); // süre dolunca bağlantı hatası üret
+    });
+    return Promise.race([promise, zamanAsimi]).finally(() => clearTimeout(zamanlayici)); // ilk sonucu döndür ve sayacı bırakma
+}
+
+// Bir hatanın eklenti bağlamı veya mesaj kanalı kopmasından kaynaklanıp kaynaklanmadığını belirler
+function eklentiBaglantiHatasiMi(hata) {
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) return true; // uzantı bağlamı artık geçerli değil
+    const mesaj = String(hata && hata.message ? hata.message : hata || ''); // farklı hata biçimlerini tek metne indir
+    return /extension context invalidated|could not establish connection|receiving end does not exist|message port|message channel|context.*invalid|bağlantı.*koptu|arka plan.*yanıt vermedi/i.test(mesaj); // Chrome sürümleri arasındaki metin varyantları
+}
+
+// Service worker mesajını kısa uyanma yarışlarına dayanıklı biçimde gönderir
+async function arkaPlanMesajiGonder(mesaj) {
+    let sonHata = null; // son denemenin tanı bilgisi
+    for (let deneme = 0; deneme < ARKA_PLAN_YENIDEN_DENEME_GECIKMELERI.length; deneme++) { // sınırlı yeniden deneme
+        const gecikme = ARKA_PLAN_YENIDEN_DENEME_GECIKMELERI[deneme]; // bu denemenin bekleme süresi
+        if (gecikme > 0) await ortakBekle(gecikme); // service worker'ın yeniden doğmasına zaman tanı
+        try { // runtime erişimi ve mesaj yanıtı
+            if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id || typeof chrome.runtime.sendMessage !== 'function') {
+                throw new Error('Extension context invalidated.'); // ortak bağlantı sınıflandırıcısına açık sinyal
+            }
+            const yanit = await zamanAsimliIslem(chrome.runtime.sendMessage(mesaj), ARKA_PLAN_MESAJ_ZAMAN_ASIMI, 'Arka plan yanıt vermedi.'); // yanıtsız MV3 kanalını sınırlı tut
+            if (!yanit) throw new Error('Arka plan yanıt vermedi.'); // yanıtsız portu başarı sayma
+            return yanit; // ilk geçerli yanıt
+        } catch (hata) { // uyanma veya bağlam hatası
+            sonHata = hata; // son hatayı sakla
+        }
+    }
+    throw sonHata || new Error('Arka plan bağlantısı kurulamadı.'); // tüm denemeler tükendi
+}
+
+// Otomatik bağlantı kurtarma kaydını güvenli biçimde okur
+function baglantiKurtarmaKaydiniOku() {
+    try { // host sayfanın sessionStorage erişimi engellenebilir
+        const ham = sessionStorage.getItem(BAGLANTI_KURTARMA_ANAHTARI); // sekmeye özel kayıt
+        return ham ? JSON.parse(ham) : null; // doğrulanacak nesne veya null
+    } catch (hata) { // kapalı storage
+        return null; // kurtarma kaydı yok kabul et
+    }
+}
+
+// Otomatik bağlantı kurtarma kaydını siler
+function baglantiKurtarmaKaydiniTemizle() {
+    try { sessionStorage.removeItem(BAGLANTI_KURTARMA_ANAHTARI); } catch (hata) {} // host storage kapalıysa ana akışı engelleme
+}
+
+// Kopan eklenti bağlamında sayfayı bir kez otomatik yeniler ve işlem devam işaretini bırakır
+function baglantiKurtarmayiBaslat(uyariBalonuGoster, hata) {
+    const simdi = Date.now(); // tek zaman değeri
+    const onceki = baglantiKurtarmaKaydiniOku(); // aynı sekmedeki önceki deneme
+    const oncekiGecerli = onceki && Number(onceki.zaman || 0) > simdi - BAGLANTI_KURTARMA_AZAMI_YASI; // bir dakikalık pencere
+    const deneme = oncekiGecerli ? Number(onceki.deneme || 0) : 0; // güncel deneme sayısı
+    if (deneme >= 1) { // arka plan gerçek anlamda bozuksa yenileme döngüsü oluşturma
+        baglantiKurtarmaKaydiniTemizle(); // kilidi bırak
+        uyariBalonuGoster('Eklenti arka planı otomatik olarak yeniden başlatılamadı.', 'hata'); // F5 buyurmadan somut sonuç
+        console.log('AI Chat Printer: Otomatik bağlantı kurtarma tamamlanamadı:', hata && hata.message ? hata.message : hata); // tanı izi
+        return false; // ikinci yenileme yok
+    }
+    try { // otomatik devam kaydını yaz
+        sessionStorage.setItem(BAGLANTI_KURTARMA_ANAHTARI, JSON.stringify({ zaman: simdi, deneme: 1, otomatikDevam: true })); // reload sonrası tek seferlik devam
+    } catch (storageHata) { // host storage kapalıysa yine sayfa yenilenebilir
+        console.log('AI Chat Printer: Bağlantı kurtarma kaydı yazılamadı:', storageHata.message); // tanı izi
+    }
+    uyariBalonuGoster('Eklenti bağlantısı otomatik yenileniyor. İşlem kaldığı yerden sürecek...', 'basari'); // kullanıcıya otomatik akışı bildir
+    setTimeout(() => window.location.reload(), 600); // eski content script bağlamını yeni sürümle değiştir
+    return true; // yenileme başlatıldı
+}
+
+// Sayfa otomatik yenilendiyse bekleyen yazdırma işlemini yalnız bir kez sürdürür
+function bekleyenYazdirmayiDevamEttir(yazdirmaFonksiyonu) {
+    const kayit = baglantiKurtarmaKaydiniOku(); // sekmeye özel işaret
+    if (!kayit || kayit.otomatikDevam !== true || Number(kayit.zaman || 0) <= Date.now() - BAGLANTI_KURTARMA_AZAMI_YASI) {
+        if (kayit) baglantiKurtarmaKaydiniTemizle(); // eski/bozuk kaydı temizle
+        return; // devam edecek işlem yok
+    }
+    try { // aynı reload'da ikinci tetiklemeyi önle
+        sessionStorage.setItem(BAGLANTI_KURTARMA_ANAHTARI, JSON.stringify({ zaman: Number(kayit.zaman), deneme: 1, otomatikDevam: false })); // başarısızlıkta döngü koruması kalır
+    } catch (hata) {} // storage kapalıysa fonksiyon yine bir kez çağrılır
+    setTimeout(() => Promise.resolve(yazdirmaFonksiyonu()).catch((hata) => console.log('AI Chat Printer: Otomatik yazdırma devamı başarısız:', hata.message)), 900); // SPA DOM'unun yerleşmesini bekleyip sürdür
+}
 
 // Kayıtlı ayarları izinli değerlerle sınırlar ve eksik alanları varsayılanla tamamlar
 function ayarlariDogrula(ayarlar) {
@@ -58,7 +153,7 @@ function yazdirmaOturumKimligiOlustur() {
 }
 
 // Konuşma verisini yalnızca ilgili yazdırma sekmesinin okuyacağı oturumda saklar
-async function yazdirmaOturumuOlustur(veri, ayarlar) {
+async function yazdirmaOturumuOlustur(veri, ayarlar, veriBoyutu) {
     if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
         throw new Error('Eklenti bağlantısı koptu. Sayfayı yenileyip (F5) tekrar deneyin.'); // storage yoksa anlamlı hata
     }
@@ -68,7 +163,8 @@ async function yazdirmaOturumuOlustur(veri, ayarlar) {
         [anahtar]: { // global anahtar çakışmasını önleyen paket
             konusmaVerisi: veri, // çıkarılmış konuşma içeriği
             yazdirAyarlari: ayarlariDogrula(ayarlar), // o akışta geçerli ve doğrulanmış ayarlar
-            olusturmaZamani: Date.now() // bakım temizliği için zaman damgası
+            olusturmaZamani: Date.now(), // bakım temizliği için zaman damgası
+            veriBoyutu: Number(veriBoyutu) || 0 // önizlemenin uygun F5 yedeğini seçmesi için boyut
         }
     });
     return oturumKimligi; // yazdırma sayfasına aktarılacak kimlik
@@ -130,9 +226,10 @@ function streamingMiKontrol(kaynak) {
     }
     if (kaynak === 'chatgpt') { // ChatGPT streaming göstergeleri
         const stopButon = document.querySelector('button[data-testid="stop-button"], button[aria-label*="Durdur" i], button[aria-label*="Stop" i]'); // durdur butonu
-        // Yeni wm DOM: content-started var + message-complete henüz yok = yazıyor (reload'da ikisi de yok — false positive üretmez)
-        const yazanEl = document.querySelector('.result-streaming, [data-message-status="in_progress"], li[data-message-role="assistant"][data-assistant-content-started]:not([data-message-complete])'); // yazan göstergesi (eski + yeni DOM)
-        return !!(yazanEl || (stopButon && stopButon.offsetParent !== null)); // herhangi biri varsa streaming
+        // data-assistant-content-started tamamlanmış mesajlarda da kalıcıdır; streaming sinyali olarak kullanılırsa tüm konuşmalar kilitlenir
+        const yazanEl = document.querySelector('.result-streaming, [data-message-status="in_progress"]'); // yalnız açık ilerleme durumları
+        const yazanElAktif = yazanEl && yazanEl.offsetParent !== null; // gizli/kalıntı göstergeyi reddet
+        return !!(yazanElAktif || (stopButon && stopButon.offsetParent !== null)); // yalnız gerçek aktif gösterge
     }
     if (kaynak === 'grok') { // Grok streaming göstergeleri
         const stopButon = document.querySelector('button[aria-label*="Stop" i], button[aria-label*="Durdur" i], button[data-testid*="stop" i]'); // durdur butonu
@@ -194,7 +291,8 @@ function quotaKontrol(veri) {
     const boyut = veriBoyutuHesapla(veri); // byte cinsinden boyut
     const mbBoyut = (boyut / (1024 * 1024)).toFixed(2); // MB cinsinden
     const limitMb = (STORAGE_LOCAL_LIMIT / (1024 * 1024)).toFixed(0); // gerçek limit MB (dinamik — sabit "10" yazmak yanlış bilgi olur)
-    if (boyut > STORAGE_LOCAL_LIMIT) { // hard limit aşıldı
+    const sinirsizDepolama = typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.().permissions?.includes('unlimitedStorage'); // izin varsa 10 MB kotası geçerli değil
+    if (!sinirsizDepolama && boyut > STORAGE_LOCAL_LIMIT) { // izin yokken gerçek kota aşıldı
         return { gecerli: false, boyut: boyut, mbBoyut: mbBoyut, mesaj: 'Konuşma çok büyük (' + mbBoyut + ' MB). Storage sınırı ' + limitMb + ' MB. Lütfen daha kısa bir konuşma seçin.' };
     }
     if (boyut > STORAGE_UYARI_ESIGI) { // uyarı eşiği aşıldı ama hala geçerli
@@ -230,13 +328,15 @@ async function yazdirmayaBasla(veri, uyariBalonuGoster) {
 
     let oturumKimligi; // yalnız ilgili önizleme sekmesinin okuyacağı veri paketi
     try { // storage erişim denemesi
-        oturumKimligi = await yazdirmaOturumuOlustur(veri, ayarlar); // konuşmayı oturuma özel anahtarda sakla
+        oturumKimligi = await yazdirmaOturumuOlustur(veri, ayarlar, quotaDurum.boyut); // konuşmayı boyutuyla birlikte sakla
     } catch (storageHata) { // extension context kaybolmuşsa veya quota aşıldıysa
         const mesaj = storageHata.message || ''; // hata mesajı
         if (/quota/i.test(mesaj)) { // quota hatası
-            uyariBalonuGoster('Storage sınırı doldu. Lütfen daha kısa bir konuşma seçin veya resimleri atlayın.', 'hata'); // quota uyarısı
-        } else { // context invalidation
-            uyariBalonuGoster('Eklenti bağlantısı koptu. Sayfayı yenileyip (F5) tekrar deneyin.', 'hata'); // hata mesajı
+            uyariBalonuGoster('Konuşma verisi tarayıcı depolamasına sığmadı: ' + mesaj, 'hata'); // gerçek depolama hatasını bildir
+        } else if (eklentiBaglantiHatasiMi(storageHata)) { // context invalidation
+            baglantiKurtarmayiBaslat(uyariBalonuGoster, storageHata); // sayfayı ve işlemi otomatik kurtar
+        } else { // gerçek storage/veri hatası
+            uyariBalonuGoster('Konuşma verisi kaydedilemedi: ' + mesaj, 'hata'); // hatayı yanlış bağlantı etiketiyle gizleme
         }
         console.log('AI Chat Printer: chrome.storage erişim hatası:', mesaj); // sessiz log (error değil — extension errors'ta görünmesin)
         return false; // iptal
@@ -246,13 +346,19 @@ async function yazdirmayaBasla(veri, uyariBalonuGoster) {
 
     // Yazdırma sayfasını aç
     try { // runtime erişim denemesi
-        const yanit = await chrome.runtime.sendMessage({ islem: 'yazdirmaSayfasiAc', oturumKimligi: oturumKimligi }); // doğru oturumla önizleme sayfasını aç
-        if (!yanit || !yanit.basari) throw new Error(yanit?.hata || 'Yazdırma sayfası açılamadı.'); // arka plan hatasını kullanıcıya aktar
-    } catch (iletisimHata) { // runtime kaybolmuşsa
+        const yanit = await arkaPlanMesajiGonder({ islem: 'yazdirmaSayfasiAc', oturumKimligi: oturumKimligi }); // service worker uyanma yarışına dayanıklı açılış
+        if (!yanit.basari) { // arka plan çalıştı ancak işlem reddedildi
+            if (oturumKimligi) await chrome.storage.local.remove(yazdirmaOturumAnahtari(oturumKimligi)).catch(() => {}); // reddedilen paketi bırakma
+            uyariBalonuGoster(yanit.hata || 'Yazdırma sayfası açılamadı.', 'hata'); // gerçek iş hatasını göster
+            return false; // bağlantı kurtarma tetikleme
+        }
+    } catch (iletisimHata) { // runtime veya mesaj kanalı kaybolmuşsa
         if (oturumKimligi) chrome.storage.local.remove(yazdirmaOturumAnahtari(oturumKimligi)).catch(() => {}); // açılamayan önizlemenin paketini bırakma
-        uyariBalonuGoster('Arka plan bağlantısı koptu. Sayfayı yenileyin (F5).', 'hata'); // uyarı
+        if (eklentiBaglantiHatasiMi(iletisimHata)) baglantiKurtarmayiBaslat(uyariBalonuGoster, iletisimHata); // F5 yerine otomatik reload + devam
+        else uyariBalonuGoster('Yazdırma sayfası açılamadı: ' + (iletisimHata.message || iletisimHata), 'hata'); // bağlantı dışı gerçek hata
         return false;
     }
+    baglantiKurtarmaKaydiniTemizle(); // başarılı açılışta döngü korumasını bırak
     return true; // başarılı
 }
 

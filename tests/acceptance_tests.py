@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """AI Chat Printer için bağımlılıksız statik ve Playwright kabul testleri."""
 
 from __future__ import annotations
@@ -80,14 +80,16 @@ def chrome_mock_script(base_url: str, local_seed: dict, sync_seed: dict, active_
     window.chrome = {{
         storage: {{ local: makeStorage(localKey, 10485760), sync: makeStorage(syncKey, 102400) }},
         runtime: {{
+            id: 'test-extension-id',
             getURL: (path) => configuration.baseUrl + '/' + path,
-            getManifest: () => ({{ version: '2.0.1' }}),
+            getManifest: () => ({{ version: '2.0.3', permissions: ['activeTab', 'storage', 'clipboardWrite', 'unlimitedStorage'] }}),
             sendMessage: async () => ({{ basari: true }}),
             onMessage: {{ addListener: () => undefined }}
         }},
         tabs: {{
             query: async () => [{{ id: 7, url: configuration.activeUrl }}],
             sendMessage: async () => null,
+            reload: async () => undefined,
             getCurrent: async () => ({{ id: 77 }}),
             remove: async (tabId) => {{ window.__removedTabs.push(tabId); }}
         }},
@@ -107,19 +109,20 @@ def run_static_tests() -> list[str]:
         subprocess.run(["node", "--check", str(javascript_file)], check=True, capture_output=True, text=True)
     python_files = sorted(PROJECT_ROOT.rglob("*.py"))
     for python_file in python_files:
-        compile(python_file.read_text(encoding="utf-8"), str(python_file), "exec")
+        compile(python_file.read_text(encoding="utf-8-sig"), str(python_file), "exec")
     results.append(f"{len(javascript_files)} JavaScript ve {len(python_files)} Python dosyasının sözdizimi geçti")
 
     manifest = json.loads((PROJECT_ROOT / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["manifest_version"] == 3
-    assert manifest["version"] == "2.0.1"
-    assert set(manifest["permissions"]) == {"activeTab", "storage", "clipboardWrite"}
+    assert manifest["version"] == "2.0.3"
+    assert set(manifest["permissions"]) == {"activeTab", "storage", "clipboardWrite", "unlimitedStorage"}
     expected_content_scripts = {
         "https://gemini.google.com/*": "content.js",
         "https://claude.ai/*": "content-claude.js",
         "https://chatgpt.com/*": "content-chatgpt.js",
         "https://grok.com/*": "content-grok.js",
     }
+    assert set(manifest["host_permissions"]) == set(expected_content_scripts)
     assert len(manifest["content_scripts"]) == len(expected_content_scripts)
     for content_script in manifest["content_scripts"]:
         assert len(content_script["matches"]) == 1
@@ -127,12 +130,12 @@ def run_static_tests() -> list[str]:
         assert content_script["js"] == ["resim-yardimcilari.js", "ortak-yardimcilar.js", expected_content_scripts[content_script["matches"][0]]]
         assert content_script["run_at"] == "document_idle"
     assert manifest["content_security_policy"]["extension_pages"] == "script-src 'self'; object-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'"
-    results.append("Manifest V3, v2.0.1 ve asgari izin sözleşmesi geçti")
+    results.append("Manifest V3, v2.0.3 ve dört hedefle sınırlı host izin sözleşmesi geçti")
 
     required_files = ["site-yardimcilari.js", "popup.css", "yazdir.css", "GIZLILIK.md", "TEKNIK_DOKUMANTASYON.md"]
     assert all((PROJECT_ROOT / file_name).is_file() for file_name in required_files)
     for versioned_document in ["README.md", "GIZLILIK.md", "TEKNIK_DOKUMANTASYON.md"]:
-        assert "2.0.1" in (PROJECT_ROOT / versioned_document).read_text(encoding="utf-8")
+        assert "2.0.3" in (PROJECT_ROOT / versioned_document).read_text(encoding="utf-8")
     results.append("Yeni ortak sözleşme, arayüz ve dokümantasyon dosyaları mevcut")
 
     searchable_suffixes = {".js", ".css", ".html", ".json", ".md", ".py"}
@@ -149,9 +152,24 @@ def run_static_tests() -> list[str]:
 
     image_helpers = (PROJECT_ROOT / "resim-yardimcilari.js").read_text(encoding="utf-8")
     assert ".onload =" not in image_helpers and ".onerror =" not in image_helpers
-    assert "credentials: 'omit', referrerPolicy: 'no-referrer'" in image_helpers
+    assert "origin === location.origin ? 'same-origin' : 'omit'" in image_helpers
     assert "geciciResim.referrerPolicy = 'no-referrer'" in image_helpers
     results.append("Resim yaşam döngüsü, kimlik bilgisi ve referrer koruması geçti")
+
+    common_helpers = (PROJECT_ROOT / "ortak-yardimcilar.js").read_text(encoding="utf-8")
+    background_source = (PROJECT_ROOT / "background.js").read_text(encoding="utf-8")
+    assert "arkaPlanMesajiGonder" in common_helpers
+    assert "baglantiKurtarmayiBaslat" in common_helpers
+    assert "data-assistant-content-started]:not([data-message-complete])" not in common_helpers
+    assert "Sayfayı yenileyin (F5)" not in common_helpers
+    assert "desteklenenSekmeleriYenile" in background_source
+    assert "icerikBetigineMesajGonder" in background_source
+    assert "text: 'F5'" not in background_source
+    for content_file in expected_content_scripts.values():
+        content_source = (PROJECT_ROOT / content_file).read_text(encoding="utf-8")
+        assert "mesaj.islem === 'baglantiSaglik'" in content_source
+        assert "bekleyenYazdirmayiDevamEttir(yazdirmaBaslat)" in content_source
+    results.append("Service worker yeniden deneme, otomatik sekme yenileme ve dört site sağlık sözleşmesi geçti")
     return results
 
 
@@ -253,6 +271,23 @@ def run_browser_tests(base_url: str) -> list[str]:
         assert "AI Chat Printer eklentisi" in markdown_check["withFooter"]
         results.append("Markdown fence ve footer tercihi geçti")
 
+        chatgpt_streaming_contract = page.evaluate(
+            """() => {
+                const tamamlanmis = document.createElement('li');
+                tamamlanmis.setAttribute('data-message-role', 'assistant');
+                tamamlanmis.setAttribute('data-assistant-content-started', '');
+                tamamlanmis.textContent = 'Tamamlanmış ChatGPT yanıtı';
+                document.body.appendChild(tamamlanmis);
+                const kaliciIsaretSonucu = streamingMiKontrol('chatgpt');
+                tamamlanmis.setAttribute('data-message-status', 'in_progress');
+                const aktifIsaretSonucu = streamingMiKontrol('chatgpt');
+                tamamlanmis.remove();
+                return {kaliciIsaretSonucu, aktifIsaretSonucu};
+            }"""
+        )
+        assert chatgpt_streaming_contract == {"kaliciIsaretSonucu": False, "aktifIsaretSonucu": True}
+        results.append("ChatGPT kalıcı content-started işareti streaming false-positive üretmedi")
+
         page.check("#mesajSecimModu")
         page.click("#tumunuSecKaldir")
         assert page.locator("#yazdirTetikle").is_disabled()
@@ -336,6 +371,61 @@ def run_browser_tests(base_url: str) -> list[str]:
         supported_page.goto(f"{base_url}/popup.html", wait_until="networkidle")
         assert not supported_page.locator("#yazdirButonu").is_disabled()
         assert "Claude konuşması hazır" in supported_page.locator("#siteDurumuMetni").text_content()
+        retry_contract = supported_page.evaluate(
+            """async () => {
+                let arkaPlanDenemesi = 0;
+                const orijinalRuntimeMesaji = chrome.runtime.sendMessage;
+                chrome.runtime.sendMessage = async () => {
+                    arkaPlanDenemesi += 1;
+                    if (arkaPlanDenemesi < 3) throw new Error('Could not establish connection. Receiving end does not exist.');
+                    return {basari:true};
+                };
+                const arkaPlanYaniti = await arkaPlanMesajiGonder({islem:'arkaPlanSaglik'});
+                chrome.runtime.sendMessage = orijinalRuntimeMesaji;
+
+                let zamanAsimiDenemesi = 0;
+                const orijinalSetTimeout = window.setTimeout;
+                window.setTimeout = (fonksiyon, sure, ...parametreler) => orijinalSetTimeout(fonksiyon, Math.min(sure, 5), ...parametreler);
+                chrome.runtime.sendMessage = () => {
+                    zamanAsimiDenemesi += 1;
+                    return new Promise(() => {});
+                };
+                let zamanAsimiHatasi = '';
+                try {
+                    await arkaPlanMesajiGonder({islem:'yazdirmaSayfasiAc', oturumKimligi:'canli-kabul-0001'});
+                } catch (hata) {
+                    zamanAsimiHatasi = hata.message;
+                }
+                chrome.runtime.sendMessage = orijinalRuntimeMesaji;
+                window.setTimeout = orijinalSetTimeout;
+
+                let sekmeMesaji = 0;
+                let sekmeYenilemesi = 0;
+                const orijinalSekmeMesaji = chrome.tabs.sendMessage;
+                const orijinalSekmeYenilemesi = chrome.tabs.reload;
+                chrome.tabs.sendMessage = async (sekmeId, mesaj) => {
+                    if (mesaj.islem === 'baglantiSaglik') return {basari:true,kaynak:'claude'};
+                    sekmeMesaji += 1;
+                    if (sekmeMesaji === 1) throw new Error('Extension context invalidated.');
+                    return {basari:true,mesajlar:[{rol:'claude'}]};
+                };
+                chrome.tabs.reload = async () => { sekmeYenilemesi += 1; };
+                const sekmeYaniti = await popupSekmeyeMesajGonder(7, {islem:'konusmayiCikar'});
+                chrome.tabs.sendMessage = orijinalSekmeMesaji;
+                chrome.tabs.reload = orijinalSekmeYenilemesi;
+                return {arkaPlanDenemesi, arkaPlanBasarili:arkaPlanYaniti.basari, zamanAsimiDenemesi, zamanAsimiHatasi, sekmeMesaji, sekmeYenilemesi, sekmeBasarili:sekmeYaniti.basari};
+            }"""
+        )
+        assert retry_contract == {
+            "arkaPlanDenemesi": 3,
+            "arkaPlanBasarili": True,
+            "zamanAsimiDenemesi": 3,
+            "zamanAsimiHatasi": "Arka plan yanıt vermedi.",
+            "sekmeMesaji": 2,
+            "sekmeYenilemesi": 1,
+            "sekmeBasarili": True,
+        }
+        results.append("Geçici service worker kopması ve eski popup sekmesi otomatik kurtarma sözleşmesi geçti")
         if screenshot_directory:
             supported_page.set_viewport_size({"width": 390, "height": 700})
             supported_page.wait_for_timeout(100)
@@ -423,7 +513,7 @@ document.querySelector('#artifactGeri').addEventListener('click', () => {
   <li style="min-height:80px" id="mesaj-kullanici-2" data-message-role="user"><div data-user-message-bubble><p data-user-message-copy>ChatGPT ikinci kullanıcı mesajı</p></div></li>
   <li style="min-height:80px" id="mesaj-asistan-2" data-message-role="assistant"><div data-assistant-markdown><p>ChatGPT ikinci asistan yanıtı.</p></div><button type="button" data-testid="canvas-open-button" data-canvas-title="Eski Canvas belgesi" aria-label="Canvas'ı aç">Canvas'ı aç</button></li>
   <li style="min-height:80px" id="mesaj-kullanici-3" data-message-role="user"><div data-user-message-bubble><p data-user-message-copy>ChatGPT son kullanıcı mesajı</p></div></li>
-  <li style="min-height:80px" id="mesaj-asistan-3" data-message-role="assistant"><div data-assistant-markdown><p>ChatGPT son asistan yanıtı.</p></div></li>
+  <li style="min-height:80px" id="mesaj-asistan-3" data-message-role="assistant" data-assistant-content-started><div data-assistant-markdown><p>ChatGPT son asistan yanıtı.</p></div></li>
 </ol></main>
 <script>
 function chatgptKabulPaneliniKapat() {
@@ -475,8 +565,9 @@ document.querySelector('button[data-testid="canvas-open-button"]').addEventListe
             "user": "Grok canlı kullanıcı mesajı",
             "assistant": "Grok canlı asistan yanıtı.",
             "html": """<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Canlı Kabul - Grok</title></head><body><main>
-<section data-testid="user-message"><div data-message-content><p>Grok canlı kullanıcı mesajı</p></div></section>
-<section data-testid="assistant-message"><div data-message-content><p>Grok canlı asistan yanıtı.</p></div></section>
+<div data-testid="user-message" role="article" aria-label="Sen"><div class="response-content-markdown markdown"><p>Grok canlı kullanıcı mesajı</p></div></div>
+<div data-testid="assistant-message" role="article" aria-label="Grok"><div class="response-content-markdown markdown"><p>Grok canlı asistan yanıtı.</p></div></div>
+<div data-testid="assistant-message" role="article" aria-label="Grok"><div class="response-content-markdown markdown"></div></div>
 </main></body></html>""",
         },
     }
@@ -520,7 +611,7 @@ document.querySelector('button[data-testid="canvas-open-button"]').addEventListe
                     }"""
                 )
                 assert worker_contract == {
-                    "version": "2.0.1",
+                    "version": "2.0.3",
                     "validSource": "chatgpt",
                     "hostileSource": None,
                     "legacyRemoved": True,
@@ -534,6 +625,44 @@ document.querySelector('button[data-testid="canvas-open-button"]').addEventListe
                         fixture["route"],
                         lambda route, request, html=fixture["html"]: route.fulfill(status=200, content_type="text/html; charset=utf-8", body=html),
                     )
+
+                recovery_page = context.new_page()
+                recovery_page.goto(site_fixtures["gemini"]["url"], wait_until="domcontentloaded")
+                recovery_page.wait_for_selector(site_fixtures["gemini"]["button"], state="visible", timeout=10000)
+                renewal_result = worker.evaluate("desteklenenSekmeleriYenile()")
+                assert renewal_result["bulunan"] >= 1
+                assert renewal_result["yenilenen"] >= 1
+                recovery_page.wait_for_load_state("domcontentloaded")
+                recovery_page.wait_for_selector(site_fixtures["gemini"]["button"], state="visible", timeout=10000)
+                assert recovery_page.evaluate("() => performance.getEntriesByType('navigation')[0].type") == "reload"
+                recovery_page.close()
+                results.append("Güncelleme sonrası açık desteklenen sekme otomatik yenilendi ve content script geri geldi")
+
+                idempotent_contract = worker.evaluate(
+                    """async () => {
+                        const oturum = 'idempotent-session-0001';
+                        await chrome.storage.local.set({
+                            ['aiChatPrinterOturum:' + oturum]: {
+                                konusmaVerisi: {baslik:'İdempotent Kabul',tarih:'30.08.2026',saat:'12.00',mesajSayisi:1,kaynak:'gemini',mesajlar:[{rol:'gemini',html:'<p>Tek önizleme</p>',metin:'Tek önizleme',resimler:[]}]},
+                                yazdirAyarlari: {otomatikYazdir:false},
+                                olusturmaZamani: Date.now()
+                            }
+                        });
+                        const ilk = await yazdirmaSayfasiniAc(oturum);
+                        const ikinci = await yazdirmaSayfasiniAc(oturum);
+                        return {ilk, ikinci};
+                    }"""
+                )
+                assert idempotent_contract["ilk"]["basari"] is True
+                assert idempotent_contract["ilk"]["yenidenKullanildi"] is False
+                assert idempotent_contract["ikinci"]["basari"] is True
+                assert idempotent_contract["ikinci"]["yenidenKullanildi"] is True
+                assert idempotent_contract["ilk"]["sekmeId"] == idempotent_contract["ikinci"]["sekmeId"]
+                worker.evaluate("new Promise((coz) => setTimeout(coz, 500))")
+                idempotent_pages = [page for page in context.pages if "idempotent-session-0001" in page.url]
+                assert len(idempotent_pages) == 1, [page.url for page in context.pages]
+                idempotent_pages[0].close()
+                results.append("Yanıt kaybı yeniden denemesinde aynı oturum tek önizleme sekmesinde kaldı")
 
                 for site_name, fixture in site_fixtures.items():
                     source_page = context.new_page()
@@ -562,7 +691,8 @@ document.querySelector('button[data-testid="canvas-open-button"]').addEventListe
                     preview_page.wait_for_selector(".mesaj-blogu:nth-child(2)", timeout=20000)
 
                     assert preview_page.url.startswith(f"chrome-extension://{extension_id}/yazdir.html?oturum=")
-                    assert preview_page.locator(".mesaj-blogu").count() == fixture.get("expected_count", 2)
+                    actual_message_count = preview_page.locator(".mesaj-blogu").count()
+                    assert actual_message_count == fixture.get("expected_count", 2), f"{site_name}: {actual_message_count} mesaj"
                     assert fixture["user"] in preview_page.locator(".mesaj-blogu").nth(0).inner_text()
                     assert fixture["assistant"] in preview_page.locator(".mesaj-blogu").nth(1).inner_text()
                     assert fixture["url"].split("/")[2] in preview_page.locator("#kaynakSite").inner_text()
@@ -586,6 +716,119 @@ document.querySelector('button[data-testid="canvas-open-button"]').addEventListe
                     preview_page.close()
                     source_page.close()
 
+                # ChatGPT'nin güncel arama birimi DOM'unda eski turn seçicileri bulunmaz.
+                current_page = context.new_page()
+                current_page.on("pageerror", lambda error: runtime_errors.append(f"chatgpt güncel kaynak sayfa: {error}"))
+                current_page.route("https://chatgpt.com/**", lambda route: route.fulfill(status=200, content_type="text/html", body="""<!doctype html><meta charset="utf-8"><title>Güncel ChatGPT konuşması</title><header></header><main>
+<div data-chatgpt-search-unit-key="fallback-turn-0:0:user" data-chatgpt-search-message-ids="guncel-kullanici-1"><div data-user-message-bubble><p data-user-message-copy>Güncel kullanıcı sorusu</p></div></div>
+<div data-chatgpt-search-unit-key="fallback-turn-0:2:assistant" data-chatgpt-search-message-ids="guncel-asistan-1"><h4 data-conversation-role="assistant" class="sr-only">ChatGPT:</h4><div data-chatgpt-selection-message-id="guncel-asistan-1"><div data-markdown-text-style class="MarkdownRoot-degisken"><p>Güncel asistan yanıtı</p><pre><code class="language-js">var sonuc = 1;</code></pre></div></div></div>
+</main>"""))
+                current_page.goto("https://chatgpt.com/c/guncel-dom-kabul", wait_until="domcontentloaded")
+                current_page.wait_for_selector("#chatgpt-printer-buton", state="visible", timeout=10000)
+                assert current_page.locator('[data-testid^="conversation-turn"], li[data-message-role]').count() == 0
+                with context.expect_page(timeout=15000) as current_preview_info:
+                    current_page.click("#chatgpt-printer-buton")
+                current_preview = current_preview_info.value
+                current_preview.on("pageerror", lambda error: runtime_errors.append(f"chatgpt güncel önizleme: {error}"))
+                current_preview.wait_for_selector(".mesaj-blogu:nth-child(2)", timeout=20000)
+                assert current_preview.locator(".mesaj-blogu").count() == 2
+                assert "Güncel kullanıcı sorusu" in current_preview.locator(".mesaj-blogu").nth(0).inner_text()
+                assert "Güncel asistan yanıtı" in current_preview.locator(".mesaj-blogu").nth(1).inner_text()
+                assert current_preview.locator("code.language-js").count() == 1
+                assert "ChatGPT:" not in current_preview.locator(".mesaj-icerigi").all_inner_texts()[1]
+                current_preview.close()
+                current_page.close()
+                results.append("ChatGPT güncel arama birimi DOM'unda kullanıcı ve asistan yazdırma kabulü geçti")
+
+                # Gerçek MV3 zincirinde düğme içi, yinelenen ve metin arası görselleri doğrula.
+                image_page = context.new_page()
+                image_page.route("https://chatgpt.com/**", lambda route: route.fulfill(status=200, content_type="text/html", body="""<!doctype html><meta charset="utf-8"><header></header><main><ol>
+<li data-message-role="user" id="image-user"><div data-user-message-bubble><button aria-label="Görseli aç"><img width="1200" height="600" alt="Yüklenen görsel"></button><p>Resimden sonraki soru</p></div></li>
+<section data-testid="conversation-turn-2" data-turn="assistant" id="image-assistant"><div data-assistant-markdown><p>Görselden önce</p></div><button aria-label="Görseli aç"><img width="1200" height="600" alt="Üretilen görsel"><img aria-hidden="true" width="1200" height="600"></button><div data-assistant-markdown><p>Görselden sonra</p></div></section><section data-testid="conversation-turn-3" data-turn="assistant" id="image-only"><div><div data-conversation-screenshot-content><div role="button"><img width="1200" height="600" alt="Yalnız üretilen görsel"><img aria-hidden="true" width="1200" height="600"></div></div></div></section>
+</ol></main><script>var c=document.createElement('canvas');c.width=1200;c.height=600;var x=c.getContext('2d');x.fillStyle='white';x.fillRect(0,0,1200,600);x.fillStyle='black';x.font='48px Arial';x.fillText('Görsel aktarımı 1200 × 600',80,120);c.toBlob(function(b){var u=URL.createObjectURL(b);document.querySelectorAll('img').forEach(function(i){i.src=u;});});</script>"""))
+                image_page.goto("https://chatgpt.com/c/resim-kabul")
+                image_page.wait_for_selector("#chatgpt-printer-buton")
+                image_page.wait_for_function("() => Array.from(document.querySelectorAll('img')).every(i => i.complete && i.naturalWidth === 1200)")
+                with context.expect_page() as image_preview_info:
+                    image_page.click("#chatgpt-printer-buton")
+                image_preview = image_preview_info.value
+                image_preview.wait_for_selector(".mesaj-blogu:nth-child(2) img")
+                assert image_preview.locator(".mesaj-icerigi img").count() == 3
+                assert image_preview.locator(".mesaj-blogu").count() == 3
+                image_stats = image_preview.locator(".mesaj-icerigi img").evaluate_all("(images) => images.map(i => ({width:i.naturalWidth, shown:i.getBoundingClientRect().width, source:i.src.startsWith('data:image/png')}))")
+                assert all(i["width"] == 1200 and i["shown"] > 400 and i["source"] for i in image_stats), image_stats
+                flow = image_preview.locator(".mesaj-blogu").nth(1).locator(".mesaj-icerigi").evaluate("(e) => Array.from(e.querySelectorAll('p,img')).map(n => n.tagName === 'IMG' ? 'RESİM' : n.textContent)")
+                assert flow == ["Görselden önce", "RESİM", "Görselden sonra"], flow
+                image_preview.emulate_media(media="print")
+                assert image_preview.locator(".mesaj-icerigi img").evaluate_all("(images) => images.every(i => i.getBoundingClientRect().width > 400 && Math.abs(i.getBoundingClientRect().width / i.getBoundingClientRect().height - 2) < .02)")
+                image_preview.emulate_media(media="screen")
+                screenshot_target = os.environ.get("AI_CHAT_PRINTER_SCREENSHOT_DIR")
+                if screenshot_target:
+                    Path(screenshot_target).mkdir(parents=True, exist_ok=True)
+                    image_preview.screenshot(path=str(Path(screenshot_target) / "chatgpt-resim-kabul.png"), full_page=True)
+                # Mermaid benzeri SVG: yüklenmiş ve görünüm dışı lazy kaynakları PNG olarak koru.
+                image_page.add_script_tag(path=str(PROJECT_ROOT / "resim-yardimcilari.js"))
+                svg_result = image_page.evaluate("""async () => {
+                    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="710" height="396" viewBox="0 0 710 396"><rect width="710" height="396" fill="white"/><path d="M20 20H690V376H20Z" fill="#e0f2fe" stroke="black"/><text x="50" y="150" font-size="32">Teknik Ofis → Planlama</text></svg>';
+                    var source = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+                    var loaded = new Image(); loaded.src = source; await loaded.decode();
+                    resimIslemOturumuBaslat(-1);
+                    var ready = await resmiBase64Yap(loaded);
+                    var readyBlob = await resmiBase64Yap(document.querySelector('img'));
+                    resimIslemOturumuBitir();
+                    var lazy = new Image(); lazy.loading = 'lazy'; lazy.src = source;
+                    var delayed = await resmiBase64Yap(lazy);
+                    var result = new Image(); result.src = delayed; await result.decode();
+                    var canvas = document.createElement('canvas'); canvas.width = result.naturalWidth; canvas.height = result.naturalHeight;
+                    var ctx = canvas.getContext('2d'); ctx.drawImage(result, 0, 0);
+                    var pixel = Array.from(ctx.getImageData(100,100,1,1).data);
+                    return {ready:ready.startsWith('data:image/png;base64,'), blob:readyBlob.startsWith('data:image/png;base64,'), delayed:delayed.startsWith('data:image/png;base64,'), width:result.naturalWidth, height:result.naturalHeight, pixel:pixel};
+                }""")
+                assert svg_result == {"ready": True, "blob": True, "delayed": True, "width": 1420, "height": 792, "pixel": [224, 242, 254, 255]}, svg_result
+                # Aynı SVG gerçek content script ve yazdırma sanitizer zincirinden de geçmeli.
+                image_page.evaluate("""() => { var i=document.querySelector('#image-only img'); i.src='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="710" height="396"><rect width="710" height="396" fill="white"/><text x="40" y="100" font-size="32">Mermaid diyagramı</text></svg>'); i.removeAttribute('alt'); i.setAttribute('aria-label','Mermaid diyagramı'); }""")
+                image_page.wait_for_function("() => document.querySelector('#image-only img').naturalWidth === 710")
+                with context.expect_page() as svg_preview_info:
+                    image_page.click("#chatgpt-printer-buton")
+                svg_preview = svg_preview_info.value
+                svg_preview.wait_for_selector('img[alt="Mermaid diyagramı"]')
+                svg_preview.wait_for_function("() => document.querySelector('img[alt=\"Mermaid diyagramı\"]').naturalWidth === 1420")
+                assert svg_preview.locator('img[alt="Mermaid diyagramı"]').evaluate("i => i.src.startsWith('data:image/png;base64,') && i.getBoundingClientRect().width > 400")
+                assert svg_preview.locator('.mesaj-icerigi svg').count() == 0
+                svg_preview.close()
+                results.append("SVG kabulü: Mermaid PNG aktarımı, lazy yükleme, süre dolmuş hazır blob ve piksel içeriği geçti")
+                image_preview.close()
+                image_page.close()
+                results.append("Görsel kabulü: düğme içi yükleme, dekoratif tekilleştirme, 1200 piksel ve metin sırası geçti")
+                large_page = context.new_page()
+                large_page.goto(f"chrome-extension://{extension_id}/popup.html", wait_until="domcontentloaded")
+                with context.expect_page(timeout=90000) as large_preview_info:
+                    large_result = large_page.evaluate("""async () => {
+                        var veri = {
+                            baslik: 'Büyük konuşma kabulü', tarih: '24.09.2026', saat: '12.00',
+                            mesajSayisi: 1, kaynak: 'chatgpt',
+                            mesajlar: [{rol: 'chatgpt', html: '<p>30 MB aktarım başarıyla açıldı.</p>', metin: 'A'.repeat(30 * 1024 * 1024), resimler: []}]
+                        };
+                        var durum = quotaKontrol(veri);
+                        var basari = await yazdirmayaBasla(veri, () => undefined);
+                        return {basari: basari, gecerli: durum.gecerli, boyut: durum.boyut};
+                    }""")
+                assert large_result["boyut"] > 30 * 1024 * 1024, large_result
+                assert large_result["gecerli"] and large_result["basari"], large_result
+                large_preview = large_preview_info.value
+                large_preview.wait_for_selector(".mesaj-blogu", timeout=90000)
+                assert "30 MB aktarım başarıyla açıldı." in large_preview.locator(".mesaj-blogu").inner_text()
+                large_session = large_preview.url.split("oturum=", 1)[1].split("&", 1)[0]
+                large_key = "aiChatPrinterOturum:" + large_session
+                assert large_page.evaluate("async key => Boolean((await chrome.storage.local.get(key))[key])", large_key)
+                assert large_preview.evaluate("() => !Object.keys(sessionStorage).some(key => key.startsWith('aiChatPrinterYedek:'))")
+                large_preview.reload(wait_until="domcontentloaded")
+                large_preview.wait_for_selector(".mesaj-blogu", timeout=90000)
+                assert "30 MB aktarım başarıyla açıldı." in large_preview.locator(".mesaj-blogu").inner_text()
+                large_preview.close()
+                large_page.wait_for_function("async key => !(await chrome.storage.local.get(key))[key]", arg=large_key, timeout=30000)
+                large_page.close()
+                results.append("30 MB gerçek MV3 aktarımı, F5 ve sekme kapanışında depolama temizliği geçti")
                 assert not runtime_errors, " | ".join(runtime_errors)
                 results.append("Dört gerçek content script → storage.local → service worker → önizleme zinciri geçti")
             finally:
